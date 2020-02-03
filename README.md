@@ -1,0 +1,1 @@
+bloom-azure-functions
