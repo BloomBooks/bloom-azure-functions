@@ -1,6 +1,7 @@
 {
   "name": "bloom-azure-functions",
   "version": "1.0.0",
+  "license": "MIT",
   "description": "",
   "scripts": {
     "build": "tsc",
@@ -13,11 +14,11 @@
     "axios": "^0.19.2"
   },
   "devDependencies": {
-    "@azure/functions": "^1.0.2-beta2",
+    "@azure/functions": "^1.2.0",
     "eslint": "^6.8.0",
     "eslint-config-prettier": "^6.10.0",
     "eslint-plugin-prettier": "^3.1.2",
     "prettier": "^1.19.1",
-    "typescript": "^3.3.3"
+    "typescript": "^3.8.3"
   }
 }
