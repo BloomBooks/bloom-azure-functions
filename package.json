@@ -10,12 +10,14 @@
     "start": "func start",
     "test": "echo \"No tests yet...\""
   },
+  "//": "typescript and @azure/functions need to be here rather than devDependencies so the",
+  "// ": "Azure deployment script can run the typescript tranpilation using our local typescript",
   "dependencies": {
     "axios": "^0.19.2",
+    "@azure/functions": "^1.2.0",
     "typescript": "^3.8.3"
   },
   "devDependencies": {
-    "@azure/functions": "^1.2.0",
     "eslint": "^6.8.0",
     "eslint-config-prettier": "^6.10.0",
     "eslint-plugin-prettier": "^3.1.2",
