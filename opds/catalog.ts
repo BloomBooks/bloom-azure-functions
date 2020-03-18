@@ -1,27 +1,71 @@
 import Books from "./books";
 
+// NB: The OPDS catalogs from Global Digital Library and StoryWeaver both give both epub and pdf links,
+// with sometimes only one or the other.  They also both provide links to two image files, one marked as
+// a thumbnail.
 export enum CatalogType {
+  // nothing but links to the toplevel catalogs
   MAIN = "main",
-  // ePUB and PDF links are together because they'll have the same language settings
-  // The OPDS catalogs from Global Digital Library and StoryWeaver both give both epub and pdf,
-  // with sometimes only one or the other.
-  EPUBANDPDF = "ePUB and PDF",
-  BLOOMPUB = "BloomPub"
+  // ePUB artifacts only: no entry if no ePUB show allowed
+  EPUB = "epub",
+  // // BloomPub artifacts only: no entry if no BloomPub show allowed
+  // BLOOMPUB = "bloompub",
+  // all artifacts: ePUB, PDF, and BloomPub; show entry without links even if no artifacts allowed
+  ALL = "all"
 }
 
-// REVIEW: what URL do we want to use for these catalog files?  I assume we don't really want to
-// generate them on the fly for every request, but will generate them once a day or once an hour
-// or whatever.
-const rootUrl: string = "https://bloomlibrary.org/opds";
+// For testing and development, we prefer to use the parse table associated with the development Bloom Library.
+// For production, we need to use the parse table associated with the production Bloom Library.
+export enum CatalogSource {
+  DEVELOPMENT = "dev",
+  PRODUCTION = "prod"
+}
 
 export default class Catalog {
-  public static async getCatalog(catalogType: CatalogType): Promise<string> {
-    /* eslint-disable indent */
+  public static RootUrl: string; // based on original HttpRequest url
+  public static Source: string; // value of &src=XXX param
+  public static DesiredLang: string; // value of &lang=XXX param
+  // development during alpha: change to production for beta?
+  public static DefaultSource: string = CatalogSource.DEVELOPMENT;
 
+  public static async getCatalog(
+    catalogType: CatalogType,
+    baseUrl: string,
+    params: {
+      [key: string]: string;
+    }
+  ): Promise<string> {
+    Catalog.DesiredLang = params["lang"];
+    if (!Catalog.DesiredLang) {
+      Catalog.DesiredLang = "en"; //default to English
+    }
+    Catalog.RootUrl = baseUrl;
+    Catalog.Source = params["src"];
+    if (!Catalog.Source) Catalog.Source = this.DefaultSource;
+    switch (Catalog.Source.toLowerCase()) {
+      case CatalogSource.DEVELOPMENT:
+      default:
+        break;
+      case CatalogSource.PRODUCTION:
+        break;
+    }
+    let title: string;
+    switch (catalogType) {
+      case CatalogType.EPUB:
+        title = "BloomLibrary ePUB Books";
+        break;
+      case CatalogType.ALL:
+        title = "BloomLibrary ePUB, PDF, and BloomPub Books";
+        break;
+      default:
+        title = "BloomLibrary Books";
+        break;
+    }
+    /* eslint-disable indent */
     const header = `<?xml version="1.0" encoding="UTF-8"?>
 <feed xmlns="http://www.w3.org/2005/Atom" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:opds="http://opds-spec.org/2010/catalog">
   <id>https://bloomlibrary.org</id>
-  <title>BloomLibrary Books</title>
+  <title>${title}</title>
   <updated>${new Date().toISOString()}</updated>
 `;
     /* eslint-enable indent */
@@ -39,19 +83,27 @@ export default class Catalog {
 
     try {
       const selfUrl: string =
-        rootUrl +
-        (catalogType == CatalogType.EPUBANDPDF ? "-epub-pdf" : "-bloompub");
+        Catalog.RootUrl +
+        (catalogType == CatalogType.EPUB ? "?epub" : "?all") +
+        this.GetParamsForUrl();
       /* eslint-disable indent */
-
-      const links = `  <link rel="self" href="${selfUrl}.xml" type="application/atom+xml;profile=opds-catalog;kind=navigation"/>
-  <link rel="start" href="${selfUrl}.xml" type="application/atom+xml;profile=opds-catalog;kind=navigation"/>
-  <link rel="up" href="${rootUrl}.xml" type="application/atom+xml;profile=opds-catalog;kind=navigation"/>
+      const links = `  <link rel="self" href="${selfUrl}" type="application/atom+xml;profile=opds-catalog;kind=navigation"/>
+  <link rel="start" href="${selfUrl}" type="application/atom+xml;profile=opds-catalog;kind=navigation"/>
+  <link rel="up" href="${Catalog.RootUrl}" type="application/atom+xml;profile=opds-catalog;kind=navigation"/>
 `;
       /* eslint-enable indent */
-      const entries = await Catalog.getEntries(catalogType);
+      const langLinks = await Catalog.getLanguageLinks(
+        catalogType,
+        Catalog.DesiredLang
+      );
+      const entries = await Catalog.getEntries(
+        catalogType,
+        Catalog.DesiredLang
+      );
       return (
         header +
         links +
+        langLinks +
         entries +
         /* eslint-disable indent */
         `</feed>
@@ -64,34 +116,92 @@ export default class Catalog {
     }
   }
 
-  // Get the content of the top-level catalog.  This merely points to two other catalogs: one for epubs and pdfs,
-  // and the other for bloompubs.
+  // Get the content of the top-level catalog.  This merely points to two other catalogs: one for epubs only,
+  // and the other for all artifacts (including none available).
   private static getTopLevelCatalogContent(): string {
     /* eslint-disable indent */
-    return `  <link rel="self" href="${rootUrl}.xml" type="application/atom+xml;profile=opds-catalog;kind=navigation"/>
-  <link rel="start" href="${rootUrl}.xml" type="application/atom+xml;profile=opds-catalog;kind=navigation"/>
+    let paramString: string = Catalog.GetParamsForUrl();
+    return `  <link rel="self" href="${
+      Catalog.RootUrl
+    }" type="application/atom+xml;profile=opds-catalog;kind=navigation"/>
+  <link rel="start" href="${
+    Catalog.RootUrl
+  }" type="application/atom+xml;profile=opds-catalog;kind=navigation"/>
   <entry>
-    <id>bloomlibrary-epub-and-pdf-opdsfeed</id>
-    <title>ePUB and PDF Books</title>
+    <id>bloomlibrary-epub-only-opdsfeed</id>
+    <title>ePUB Books only</title>
     <updated>${new Date().toISOString()}</updated>
-    <link rel="subsection" href="${rootUrl}-epub-pdf.xml" type="application/atom+xml;profile=opds-catalog;kind=acquisition"/>
+    <link rel="subsection" href="${
+      this.RootUrl
+    }?epub${paramString}" type="application/atom+xml;profile=opds-catalog;kind=acquisition"/>
   </entry>
   <entry>
-    <id>bloomlibrary-bloompub-opdsfeed</id>
-    <title>BloomPub Books</title>
+    <id>bloomlibrary-all-opdsfeed</id>
+    <title>All Books (ePUB, PDF, BloomPub)</title>
     <updated>${new Date().toISOString()}</updated>
-    <link rel="subsection" href="${rootUrl}-bloompub.xml" type="application/atom+xml;profile=opds-catalog;kind=acquisition"/>
+    <link rel="subsection" href="${
+      Catalog.RootUrl
+    }?all${paramString}" type="application/atom+xml;profile=opds-catalog;kind=acquisition"/>
   </entry>
 `;
     /* eslint-enable indent */
   }
 
-  // Get all the entries for the given type of catalog.
-  private static async getEntries(catalogType: CatalogType): Promise<any> {
+  private static GetParamsForUrl(): string {
+    return `${this.DesiredLang === "en" ? "" : "&lang=" + this.DesiredLang}${
+      this.Source === this.DefaultSource ? "" : "&src=" + this.Source
+    }`;
+  }
+
+  // Get all the language links for the given type of catalog and desired language.
+  private static async getLanguageLinks(
+    catalogType: CatalogType,
+    desiredLang: string
+  ): Promise<any> {
+    return new Promise<string>((resolve, reject) => {
+      let languagesMap = new Map();
+      Books.getLanguages().then(languages =>
+        resolve(
+          languages
+            .map(lang => {
+              let link: string = "";
+              link =
+                link +
+                /* eslint-disable indent */
+                `  <link rel="http://opds-spec.org/facet" href="${
+                  this.RootUrl
+                }?${catalogType === CatalogType.EPUB ? "epub" : "all"}&lang=${
+                  lang.isoCode
+                }${
+                  this.Source === this.DefaultSource
+                    ? ""
+                    : "&src=" + this.Source
+                }" title="${
+                  lang.name
+                }" opds:facetGroup="Languages" opds:activeFacet="${
+                  lang.isoCode === desiredLang ? "true" : "false"
+                }"/><!-- usageCount=${lang.usageCount} -->
+`;
+              /* eslint-enable indent */
+              return link;
+            })
+            .join("")
+        )
+      );
+    });
+  }
+
+  // Get all the entries for the given type of catalog and desired language.
+  private static async getEntries(
+    catalogType: CatalogType,
+    desiredLang: string
+  ): Promise<any> {
     return new Promise<string>((resolve, reject) => {
       Books.getBooks().then(books =>
         resolve(
-          books.map(book => Books.getEntryFromBook(book, catalogType)).join("")
+          books
+            .map(book => Books.getEntryFromBook(book, catalogType, desiredLang))
+            .join("")
         )
       );
     });

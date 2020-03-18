@@ -16,17 +16,21 @@ const opds: AzureFunction = async function(
   );
   const idxQuestion = req.url.indexOf("?");
   let catalogType: CatalogType = CatalogType.MAIN;
+  let baseUrl: string;
   if (idxQuestion > 0) {
     const type = req.url.substring(idxQuestion + 1);
-    if (type.toLowerCase() == "epub") {
-      // epub is shorthand for "epub and pdf"
-      catalogType = CatalogType.EPUBANDPDF;
-    } else if (type.toLowerCase() == "bloompub") {
-      catalogType = CatalogType.BLOOMPUB;
+    baseUrl = req.url.substring(0, idxQuestion);
+    if (type.toLowerCase().startsWith(CatalogType.EPUB)) {
+      catalogType = CatalogType.EPUB;
+    } else if (type.toLowerCase().startsWith(CatalogType.ALL)) {
+      // "all" include ePUB, PDF, and BloomPub
+      catalogType = CatalogType.ALL;
     }
+  } else {
+    baseUrl = req.url;
   }
   context.res = {
-    body: await Catalog.getCatalog(catalogType)
+    body: await Catalog.getCatalog(catalogType, baseUrl, req.query)
   };
 };
 
