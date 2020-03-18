@@ -13,8 +13,9 @@
   "//": "typescript and @azure/functions need to be here rather than devDependencies so the",
   "// ": "Azure deployment script can run the typescript tranpilation using our local typescript",
   "dependencies": {
-    "axios": "^0.19.2",
     "@azure/functions": "^1.2.0",
+    "@types/node": "^13.9.1",
+    "axios": "^0.19.2",
     "typescript": "^3.8.3"
   },
   "devDependencies": {
