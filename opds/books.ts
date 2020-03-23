@@ -1,20 +1,63 @@
 import axios from "axios";
-import { CatalogType } from "./catalog";
+import Catalog, { CatalogType, CatalogSource } from "./catalog";
 
 export default class Books {
+  private static getParseUrl(tableName: string): string {
+    switch (Catalog.Source) {
+      case CatalogSource.DEVELOPMENT:
+      default:
+        return "https://dev-parse.bloomlibrary.org/classes/" + tableName;
+      case CatalogSource.PRODUCTION:
+        return "/https://parse.bloomlibrary.org/classes/" + tableName;
+    }
+  }
+  private static getParseAppId(): string {
+    switch (Catalog.Source) {
+      case CatalogSource.DEVELOPMENT:
+      default:
+        return process.env["OpdsParseAppIdDev"];
+      case CatalogSource.PRODUCTION:
+        return process.env["OpdsParseAppIdProd"];
+    }
+  }
+
+  // Get all the books in circulation with the desired language listed
+  // Further filtering may be needed, but those two filters should reduce the transfer considerably.
   public static getBooks(): Promise<any[]> {
     return new Promise<any[]>((resolve, reject) =>
       axios
-        .get(
-          "https://bloom-parse-server-develop.azurewebsites.net/parse/classes/books",
-          {
-            headers: {
-              "X-Parse-Application-Id":
-                "yrXftBF6mbAuVu3fO6LnhCJiHxZPIdE7gl1DUVGR"
-            },
-            params: { /*limit: 100,*/ include: "uploader,langPointers" }
+        .get(this.getParseUrl("books"), {
+          headers: {
+            "X-Parse-Application-Id": this.getParseAppId()
+          },
+          params: {
+            // ENHANCE: if we want partial pages like GDL, use limit and skip (with function params to achieve this)
+            limit: 100000,
+            //skip: 100,
+            order: "title",
+            include: "uploader,langPointers",
+            where: `{"langPointers":{"$inQuery":{"where":{"isoCode":"${Catalog.DesiredLang}"},"className":"language"}}, "inCirculation":{"$ne":false}}`
           }
-        )
+        })
+        .then(result => {
+          resolve(result.data.results);
+        })
+        .catch(err => {
+          console.log("ERROR: caught axios.get error: " + err);
+          reject(err);
+        })
+    );
+  }
+
+  // This doesn't quite fit in a "Books" class, but seems too small for its own class...
+  public static getLanguages(): Promise<any[]> {
+    return new Promise<any[]>((resolve, reject) =>
+      axios
+        .get(this.getParseUrl("language"), {
+          headers: {
+            "X-Parse-Application-Id": this.getParseAppId()
+          }
+        })
         .then(result => {
           resolve(result.data.results);
         })
@@ -24,37 +67,74 @@ export default class Books {
     );
   }
 
-  public static getEntryFromBook(book: any, catalogType: CatalogType): string {
-    let entry: string;
-    switch (catalogType) {
-      case CatalogType.EPUBANDPDF:
-        if (
-          book.show &&
-          !Books.shouldPublishArtifact(book.show.epub) &&
-          !Books.shouldPublishArtifact(book.show.pdf)
-        ) {
-          return "";
-        }
-        break;
-      case CatalogType.BLOOMPUB:
-        if (book.show && !Books.shouldPublishArtifact(book.show.bloomReader)) {
-          return "";
-        }
-        break;
+  // Generate an entry for the given book if one is desired.
+  // Note that the list of books has already been filtered for inCirculation not being false and
+  // for desiredLang being listed in book.langPointers.
+  public static getEntryFromBook(
+    book: any,
+    catalogType: CatalogType,
+    desiredLang: string
+  ): string {
+    let entry: string = "";
+    //     /* eslint-disable indent */
+    //     entry = `<!-- ${JSON.stringify(book)} -->
+    // `;
+    //     /* eslint-enable indent */
+    // filter on internet restrictions
+    if (book.internetLimits) {
+      // Some country's laws don't allow export/translation of their cultural stories,
+      // so play it ultrasafe.  We don't have any idea where the request is coming from,
+      // so we don't know if the restriction applies (if it is a restriction on distribution
+      // of published artifacts).  So we assume that books which have this value set should
+      // always be omitted from public catalogs.  If we start getting an expanded set of
+      // specific restrictions, we may look at whether only individual artifacts are affected
+      // instead of the entire book entry.
+      return entry;
     }
-    /* eslint-disable indent */
-    entry = `  <entry>
+
+    // filter on ePUB catalog restrictions
+    if (catalogType === CatalogType.EPUB) {
+      if (book.harvestState !== "Done") {
+        // If the ePUB hasn't been harvested, don't bother showing the book.
+        return entry;
+      }
+      if (book.show && !Books.shouldPublishArtifact(book.show.epub)) {
+        // If the ePUB artifact shouldn't be shown, don't generate a book entry for an ePUB catalog.
+        return entry;
+      }
+      if (!Books.inDesiredLanguage(book, catalogType, desiredLang)) {
+        // If the ePUB appears not to be in the desired language, don't generate a book entry for
+        // an ePUB catalog.
+        return entry;
+      }
+    }
+    // When catalogType == ALL, the book.harvestState and book.show values are checked for individual
+    //artifacts in getLinkFields().  Entries are wanted in that case even if artifact links don't exist.
+
+    // REVIEW: are there any other filters we should apply here?  for example, should "incoming" books be listed?
+
+    entry =
+      entry +
+      /* eslint-disable indent */
+      `  <entry>
     <id>${book.bookInstanceId}</id>
-    <title>${book.title}</title>
+    <title>${Books.htmlEncode(book.title)}</title>
 `;
     /* eslint-enable indent */
-    //entry = entry + `<xx:test>${JSON.stringify(b)}</xx:test>\n`;
+    if (book.summary && book.summary.length > 0) {
+      entry =
+        entry +
+        /* eslint-disable indent */
+        `    <summary>${book.summary}</summary>
+`;
+    }
+    /* eslint-enable indent */
     if (book.authors && book.authors.length > 0) {
       book.authors.map(author => {
         entry =
           entry +
           /* eslint-disable indent */
-          `    <author><name>${author}</name></author>
+          `    <author><name>${Books.htmlEncode(author)}</name></author>
 `;
         /* eslint-enable indent */
       });
@@ -70,7 +150,9 @@ export default class Books {
       entry =
         entry +
         /* eslint-disable indent */
-        `    <dcterms:publisher>${book.publisher}</dcterms:publisher>
+        `    <dcterms:publisher>${Books.htmlEncode(
+          book.publisher
+        )}</dcterms:publisher>
 `;
       /* eslint-enable indent */
     }
@@ -78,7 +160,7 @@ export default class Books {
       entry =
         entry +
         /* eslint-disable indent */
-        `    <rights>${book.copyright}</rights>
+        `    <rights>${Books.htmlEncode(book.copyright)}</rights>
 `;
       /* eslint-enable indent */
     }
@@ -86,11 +168,13 @@ export default class Books {
       entry =
         entry +
         /* eslint-disable indent */
-        `    <dcterms:license>${book.license}</dcterms:license>
+        `    <dcterms:license>${Books.htmlEncode(
+          book.license
+        )}</dcterms:license>
 `;
       /* eslint-enable indent */
     }
-    entry = entry + Books.getLanguageFields(book, catalogType);
+    entry = entry + Books.getLanguageFields(book, catalogType, desiredLang);
     entry = entry + Books.getLinkFields(book, catalogType);
     return (
       entry +
@@ -101,7 +185,93 @@ export default class Books {
     );
   }
 
+  private static inDesiredLanguage(
+    book: any,
+    catalogType: CatalogType,
+    desiredLang: string
+  ): boolean {
+    if (catalogType == CatalogType.EPUB) {
+      if (book.allTitles) {
+        // book.allTitles looks like a JSON string, but can contain invalid data that won't parse.
+        // So we'll use string searching to parse it looking for a matching title and its language.
+        // first we need to quote \ and " in the title string should they appear.
+        const title = book.title.replace("\\", "\\\\").replace('"', '\\"');
+        const idxTitle = book.allTitles.indexOf('"' + title + '"');
+        if (idxTitle > 0) {
+          const idxTerm = book.allTitles.lastIndexOf('"', idxTitle - 1);
+          if (idxTerm > 0) {
+            const idxBegin = book.allTitles.lastIndexOf('"', idxTerm - 1);
+            if (idxBegin > 0) {
+              const lang = book.allTitles.substring(idxBegin + 1, idxTerm);
+              // console.log(
+              //   `INFO: found "${book.title}" in allTitles: lang=${lang}`
+              // );
+              return lang === desiredLang;
+            }
+          }
+        }
+        console.log(
+          `WARNING: did not find "${title} in allTitles (${book.allTitles})`
+        );
+      }
+      // assume the first language in langPointers is the language of the ePUB: this may well be wrong
+      // but we don't have any better information to go by.
+      if (book.langPointers && book.langPointers.length > 0) {
+        console.log(
+          `WARNING: assuming book.langPointers[0] (${book.langPointers[0].isoCode}) is the language for the "${book.title}" ePUB!`
+        );
+        return desiredLang == book.langPointers[0].isoCode;
+      } else if (book.languages && book.languages.length > 0) {
+        console.log(
+          `WARNING: assuming book.languages[0] (${book.languages[0]}) is the language for the "${book.title}" ePUB!`
+        );
+        return desiredLang == book.languages[0];
+      } else {
+        return false;
+      }
+    }
+    // Assume any matching language will do for the collection of ePUB, PDF, and BloomPub.
+    if (book.langPointers && book.langPointers.length) {
+      for (let i = 0; i < book.langPointers.length; ++i) {
+        const lang = book.langPointers[i];
+        if (lang.isoCode === desiredLang) {
+          return true;
+        }
+      }
+    }
+    if (book.languages && book.languages.length) {
+      for (let i = 0; i < book.languages.length; ++i) {
+        if (book.languages[i] === desiredLang) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  // It's hard to believe that javascript doesn't have a standard method for this!
+  // This is a rather minimal implementation.
+  private static htmlEncode(text: string): string {
+    if (text.includes("&")) {
+      text = text.replace("&", "&amp;"); // always needed
+    }
+    if (text.includes("<")) {
+      text = text.replace("<", "&lt;"); // needed in text nodes
+    }
+    if (text.includes(">")) {
+      text = text.replace(">", "&gt;"); // needed in text nodes
+    }
+    if (text.includes('"')) {
+      text = text.replace('"', "&quot;"); // needed in attribute values
+    }
+    if (text.includes("'")) {
+      text = text.replace("'", "&apos;"); // needed in attribute values
+    }
+    return text;
+  }
+
   // Should we publish this artifact to the world?
+  // REVIEW: should we assume artifacts don't exist if show is undefined?
   private static shouldPublishArtifact(show: any): boolean {
     if (show === undefined) {
       return true; // assume it's okay if we can't find a check.
@@ -129,7 +299,30 @@ export default class Books {
     const baseUrl = book.baseUrl.replace(/%2f/g, "/"); // I don't know why anyone thinks / needs to be url-encoded.
     const name = Books.extractBookFilename(baseUrl);
 
-    if (catalogType === CatalogType.EPUBANDPDF) {
+    if (catalogType === CatalogType.EPUB) {
+      // already checked book.show.epub and book.harvestState !== "Done"
+      const epubLink =
+        Books.createS3LinkBase(baseUrl, book) + "epub/" + name + ".epub";
+      entry =
+        entry +
+        /* eslint-disable indent */
+        `    <link rel="http://opds-spec.org/acquisition" href="${epubLink}" type="application/epub+zip" />
+`;
+      /* eslint-enable indent */
+    } else if (catalogType === CatalogType.ALL) {
+      if (
+        book.harvestState === "Done" &&
+        (!book.show || Books.shouldPublishArtifact(book.show.epub))
+      ) {
+        const epubLink =
+          Books.createS3LinkBase(baseUrl, book) + "epub/" + name + ".epub";
+        entry =
+          entry +
+          /* eslint-disable indent */
+          `    <link rel="http://opds-spec.org/acquisition" href="${epubLink}" type="application/epub+zip" />
+  `;
+        /* eslint-enable indent */
+      }
       if (!book.show || Books.shouldPublishArtifact(book.show.pdf)) {
         const pdfLink = baseUrl + name + ".pdf";
         entry =
@@ -139,26 +332,19 @@ export default class Books {
 `;
         /* eslint-enable indent */
       }
-      if (!book.show || Books.shouldPublishArtifact(book.show.epub)) {
-        const epubLink =
-          Books.createS3LinkBase(baseUrl, book) + "epub/" + name + ".epub";
+      if (
+        book.harvestState === "Done" &&
+        (!book.show || Books.shouldPublishArtifact(book.show.bloomReader))
+      ) {
+        const bloomdLink =
+          Books.createS3LinkBase(baseUrl, book) + name + ".bloomd";
         entry =
           entry +
           /* eslint-disable indent */
-          `    <link rel="http://opds-spec.org/acquisition" href="${epubLink}" type="application/epub+zip" />
+          `    <link rel="http://opds-spec.org/acquisition" href="${bloomdLink}" type="application/bloomd+zip" />
 `;
         /* eslint-enable indent */
       }
-    } else if (catalogType === CatalogType.BLOOMPUB) {
-      // already checked book.show.bloomReader
-      const bloomdLink =
-        Books.createS3LinkBase(baseUrl, book) + name + ".bloomd";
-      entry =
-        entry +
-        /* eslint-disable indent */
-        `    <link rel="http://opds-spec.org/acquisition" href="${bloomdLink}" type="application/bloomd+zip" />
-`;
-      /* eslint-enable indent */
     }
     return entry;
   }
@@ -182,54 +368,22 @@ export default class Books {
 
   private static getLanguageFields(
     book: any,
-    catalogType: CatalogType
+    catalogType: CatalogType,
+    desiredLang: string
   ): string {
-    let entry: string = "";
-    if (catalogType === CatalogType.EPUBANDPDF) {
-      if (book.allTitles) {
-        // book.allTitles looks like a JSON string, but can contain invalid data that won't parse.
-        // So we'll use string searching to parse it.
-        const idxTitle = book.allTitles.indexOf('"' + book.title);
-        if (idxTitle > 0) {
-          const idxTerm = book.allTitles.lastIndexOf('"', idxTitle - 1);
-          if (idxTerm > 0) {
-            const idxBegin = book.allTitles.lastIndexOf('"', idxTerm - 1);
-            if (idxBegin > 0) {
-              const lang = book.allTitles.substring(idxBegin + 1, idxTerm);
-              /* eslint-disable indent */
-              return `    <dcterms:language>${lang}</dcterms:language>
+    if (catalogType === CatalogType.EPUB) {
+      /* eslint-disable indent */
+      return `    <dcterms:language>${desiredLang}</dcterms:language>
 `;
-              /* eslint-enable indent */
-            }
-          }
-        }
-      }
-      // assume the first language in langPointers is what we want
-      if (book.langPointers && book.langPointers.length > 0) {
-        console.log(
-          `WARNING: language for ${book.title} is coming from book.langPointers!`
-        );
-        /* eslint-disable indent */
-        return `    <dcterms:language>${book.langPointers[0].isoCode}</dcterms:language>
-`;
-        /* eslint-enable indent */
-      } else if (book.languages && book.languages.length > 0) {
-        console.log(
-          `WARNING: language for ${book.title} is coming from book.languages!`
-        );
-        /* eslint-disable indent */
-        return `    <dcterms:language>${book.languages[0]}</dcterms:language>
-`;
-        /* eslint-enable indent */
-      }
-      return entry;
+      /* eslint-enable indent */
     } else {
+      let languages: string = "";
       if (book.langPointers && book.langPointers.length > 0) {
         // The Dublin Core standard prefers the ISO 639 code for the language, although
         // StoryWeaver uses language name in their OPDS catalog.
         book.langPointers.map(lang => {
-          entry =
-            entry +
+          languages =
+            languages +
             /* eslint-disable indent */
             `    <dcterms:language>${lang.isoCode}</dcterms:language>
 `;
@@ -237,15 +391,15 @@ export default class Books {
         });
       } else if (book.languages && book.languages.length > 0) {
         book.languages.map(lang => {
-          entry =
-            entry +
+          languages =
+            languages +
             /* eslint-disable indent */
             `    <dcterms:language>${lang}</dcterms:language>
 `;
           /* eslint-enable indent */
         });
       }
-      return entry;
+      return languages;
     }
   }
 

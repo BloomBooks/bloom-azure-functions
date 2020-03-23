@@ -1,5 +1,4 @@
 import { AzureFunction, Context, HttpRequest } from "@azure/functions";
-import { CatalogType } from "./catalog";
 import Catalog from "./catalog";
 
 // See https://specs.opds.io/opds-1.2.html for the OPDS catalog standard.
@@ -14,19 +13,16 @@ const opds: AzureFunction = async function(
   context.log(
     "HTTP trigger function 'opds' processed a request. url=" + req.url
   );
+  let baseUrl: string;
   const idxQuestion = req.url.indexOf("?");
-  let catalogType: CatalogType = CatalogType.MAIN;
   if (idxQuestion > 0) {
-    const type = req.url.substring(idxQuestion + 1);
-    if (type.toLowerCase() == "epub") {
-      // epub is shorthand for "epub and pdf"
-      catalogType = CatalogType.EPUBANDPDF;
-    } else if (type.toLowerCase() == "bloompub") {
-      catalogType = CatalogType.BLOOMPUB;
-    }
+    baseUrl = req.url.substring(0, idxQuestion);
+  } else {
+    baseUrl = req.url;
   }
   context.res = {
-    body: await Catalog.getCatalog(catalogType)
+    headers: { "Content-Type": "application/xml" },
+    body: await Catalog.getCatalog(baseUrl, req.query)
   };
 };
 
