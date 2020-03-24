@@ -1,11 +1,12 @@
 import Books from "./books";
+import { stringify } from "querystring";
 
 // NB: The OPDS catalogs from Global Digital Library and StoryWeaver both give both epub and pdf links,
 // with sometimes only one or the other.  They also both provide links to two image files, one marked as
 // a thumbnail.
 export enum CatalogType {
   // nothing but links to the toplevel catalogs
-  MAIN = "main",
+  TOP = "top",
   // ePUB artifacts only: no entry if no ePUB show allowed
   EPUB = "epub",
   // // BloomPub artifacts only: no entry if no BloomPub show allowed
@@ -45,11 +46,11 @@ export default class Catalog {
         catalogType = CatalogType.EPUB;
         break;
       case CatalogType.ALL:
+      default:
         catalogType = CatalogType.ALL;
         break;
-      case CatalogType.MAIN:
-      default:
-        catalogType = CatalogType.MAIN;
+      case CatalogType.TOP:
+        catalogType = CatalogType.TOP;
         break;
     }
     // we have to trust whatever language code the user throws at us.
@@ -88,7 +89,7 @@ export default class Catalog {
 `;
     /* eslint-enable indent */
 
-    if (catalogType == CatalogType.MAIN) {
+    if (catalogType == CatalogType.TOP) {
       return (
         header +
         Catalog.getTopLevelCatalogContent() +
@@ -180,6 +181,13 @@ export default class Catalog {
       Books.getLanguages().then(languages =>
         resolve(
           languages
+            .sort((a, b) => {
+              return a.name
+                .toLocaleLowerCase("en-US")
+                .localeCompare(b.name.toLocaleLowerCase("en-US"), "en-US", {
+                  sensitivity: "base"
+                });
+            })
             .map(lang => {
               let link: string =
                 /* eslint-disable indent */

@@ -15,8 +15,8 @@ The URL used to access the function always ends with *opds* possibly followed by
 first query parameter is separated from the URL by a ? (question mark).  Other query parameters are separated from
 each other by an & (ampersand).  The recognized query parameters are
 
-- **type=**XXX - (default value is *main*) Specify which type of catalog to return.  Possible values are
-    1. **main** - Return the top-level OPDS page pointing to the ePUB and "all" pages.
+- **type=**XXX - (default value is *all*) Specify which type of catalog to return.  Possible values are
+    1. **top** - Return the top-level OPDS page pointing to the ePUB and "all" pages.
     2. **epub** - Return a page which lists only entries that have a visible ePUB file to download and which
 shows links only to epub artifacts.
     3. **all** - Return a page listing all visible entries (for the desired language) whether or not they have any
