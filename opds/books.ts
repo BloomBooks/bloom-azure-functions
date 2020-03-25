@@ -179,7 +179,11 @@ export default class Books {
       /* eslint-enable indent */
     }
     entry = entry + Books.getLanguageFields(book, catalogType, desiredLang);
-    entry = entry + Books.getLinkFields(book, catalogType);
+    const links = Books.getLinkFields(book, catalogType);
+    if (!links || links.length == 0) {
+      return ""; // an entry without any links is rather useless, and can mess up clients
+    }
+    entry = entry + links;
     return (
       entry +
       /* eslint-disable indent */
@@ -299,7 +303,10 @@ export default class Books {
   // Get the link fields for the given book and catalog type.
   private static getLinkFields(book: any, catalogType: CatalogType) {
     let entry: string = "";
-    // CHECK: is there a standard book image file we should offer?
+    if (!book.baseUrl) {
+      //console.log("DEBUG: bad book = " + book ? JSON.stringify(book) : book);
+      return entry;
+    }
     const baseUrl = book.baseUrl.replace(/%2f/g, "/"); // I don't know why anyone thinks / needs to be url-encoded.
     const name = Books.extractBookFilename(baseUrl);
     const imageHref = this.getThumbnailUrl(book);
