@@ -23,7 +23,7 @@ shows links only to epub artifacts.
 visible artifacts, and showing links to all visible artifacts.  The ePUB and PDF artifacts may or may not be in
 the desired language if multiple languages are listed for the book.
 - **lang=**XXX - (default value is *en*) Specify the ISO code of the desired language.
-- **src=**XXX - (default value is *dev*, will become *prod*) Specify the source parse table that provides the book
+- **src=**XXX - (default value is *prod*) Specify the source parse table that provides the book
 information.  Possible values are
     1. **prod** - production Bloom Library parse table
     2. **dev** - development Bloom Library parse table

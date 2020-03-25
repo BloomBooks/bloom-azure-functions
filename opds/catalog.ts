@@ -61,10 +61,10 @@ export default class Catalog {
     // normalize the source regardless of what the user throws at us.
     switch (params["src"] ? params["src"].toLowerCase() : null) {
       case CatalogSource.DEVELOPMENT:
-      default:
         Catalog.Source = CatalogSource.DEVELOPMENT;
         break;
       case CatalogSource.PRODUCTION:
+      default:
         Catalog.Source = CatalogSource.PRODUCTION;
         break;
     }
