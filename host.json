@@ -1,5 +1,14 @@
 {
   "version": "2.0",
+  "extensions": {
+    "http": {
+      "routePrefix": ""
+    }
+  },
+  "//http":"This was how you set the routePrefix in V1, which SO (https://stackoverflow.com/a/52128045/7442826) indicates is still helpful in some circumstance",
+  "http": {
+    "routePrefix": ""
+  },
   "extensionBundle": {
     "id": "Microsoft.Azure.Functions.ExtensionBundle",
     "version": "[1.*, 2.0.0)"
