@@ -2,9 +2,19 @@
 
 These files work with the `ms-azuretools.vscode-azurefunctions` extension in vscode.
 
-To debug locally, `F1`, `Debug: Start Debugging`
+To debug locally, `F5` (`F1`, `Debug: Start Debugging`). For some reason this asks you to log into Azure. If all goes well, the terminal will output a url 
 
-To deploy, `F1`, `Azure Functions: Deploy to function app` (or click the upwards blue arrow in the extension tab)
+Once the code is committed to master, deployment to production is automated. Currently we have only one deployment: production. So all the testing you need to do, you need to do locally.
+
+## Adding a new function
+
+To add a new function, use the azure extension vscode; it has a lightning-bolt icon for "Create Function". Click that and then choose "HTTP trigger". It will offer a name like "HTTPTrigger1", replace that with the name of your function. That will create a folder; it is this folder name which controls the actual name of the trigger in the URL.
+
+The actual URL is influenced by 
+* a cloudflare page rule which redirects from `api.bloomlibrary.org` to this set of azure functions.
+* the `hosts.json` file, which we have modified to insert `/v1/` before the name of your function.
+
+The resulting production url for functions is then `api.bloomlibrary.org/v1/__FUNCTION__`
 
 
 # opds Function
