@@ -17,6 +17,18 @@ The actual URL is influenced by
 The resulting production url for functions is then `api.bloomlibrary.org/v1/__FUNCTION__`
 
 
+# Shared Environment Variables
+
+Two environment variables need to be set for the **opds** and **book-resource** functions to access the relevant parse tables.
+
+- *OpdsParseAppIdDev* - the AppId key to the development parse table (for *src=dev* in the input URL, the default for
+the alpha stage of initial development)
+- *OpdsParseAppIdProd* -  the AppId key to the production parse table (for *src=prod* in the input URL, the default
+after the alpha stage of initial development)
+
+See [Azure documentation](https://docs.microsoft.com/en-us/azure/azure-functions/functions-reference-node#environment-variables)
+for a discussion of how these environment variables can be set.
+
 # opds Function
 
 ## URL Parameters
@@ -67,14 +79,27 @@ makes them invisible.  (In the *type=all* OPDS pages, books may have an entry wi
 expect this to be rare since PDF files are always uploaded to Bloom Library along with the book.)  Books may have
 several languages listed in their entry, and one of those languages must be the desired language.
 
-## Environment Variables
+# book-resource Function
 
-Two environment variables need to be set for the **opds** function to access the relevant parse tables.
+## URL format
 
-- *OpdsParseAppIdDev* - the AppId key to the development parse table (for *src=dev* in the input URL, the default for
-the alpha stage of initial development)
-- *OpdsParseAppIdProd* -  the AppId key to the production parse table (for *src=prod* in the input URL, the default
-after the alpha stage of initial development)
+The URL used to access this function always contains *book-resource* followed by the parse books
+table id for the desired book and then followed by either a filename or by a keyword and a
+filename to identify exactly which artifact is desired.  For example, consider:
 
-See [Azure documentation](https://docs.microsoft.com/en-us/azure/azure-functions/functions-reference-node#environment-variables)
-for a discussion of how these environment variables can be set.
+`https://api.bloomlibrary.org/v1/ETU9lFxoBr/thumbnail.png`
+
+This obtains the standard thumbnail image for the book with the parse table id of *ETU9lFxoBr*.
+Or consider:
+
+`https://api.bloomlibrary.org/v1/1x8DZ99/audio/123.wav`
+
+This obtains the audio file *123.wav* for the book with the parse table id of *1x8DZ99*.
+
+The URL may also have these query parameters at the end:
+
+- **src=**XXX - (default value is *prod*) Specify the source parse table that provides the book
+information.  Possible values are
+    1. **prod** - production Bloom Library parse table
+    2. **dev** - development Bloom Library parse table
+

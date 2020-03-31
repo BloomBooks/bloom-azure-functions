@@ -1,5 +1,5 @@
-import Books from "./books";
-import { stringify } from "querystring";
+import BookEntry from "./bookentry";
+import BookInfo, { BookInfoSource } from "../common/bookinfo";
 
 // NB: The OPDS catalogs from Global Digital Library and StoryWeaver both give both epub and pdf links,
 // with sometimes only one or the other.  They also both provide links to two image files, one marked as
@@ -18,19 +18,9 @@ export enum CatalogType {
   ALL = "all"
 }
 
-// For testing and development, we prefer to use the parse table associated with the development Bloom Library.
-// For production, we need to use the parse table associated with the production Bloom Library.
-export enum CatalogSource {
-  DEVELOPMENT = "dev",
-  PRODUCTION = "prod"
-}
-
 export default class Catalog {
   public static RootUrl: string; // based on original HttpRequest url
-  public static Source: string; // value of &src=XXX param
-  public static DesiredLang: string; // value of &lang=XXX param
-  // development during alpha: change to production for beta?
-  public static DefaultSource: string = CatalogSource.DEVELOPMENT;
+  public static DesiredLang: string; // value of &lang=XXX param (or "en" by default)
 
   public static async getCatalog(
     baseUrl: string,
@@ -58,16 +48,9 @@ export default class Catalog {
     if (!Catalog.DesiredLang) {
       Catalog.DesiredLang = "en"; //default to English
     }
-    // normalize the source regardless of what the user throws at us.
-    switch (params["src"] ? params["src"].toLowerCase() : null) {
-      case CatalogSource.DEVELOPMENT:
-        Catalog.Source = CatalogSource.DEVELOPMENT;
-        break;
-      case CatalogSource.PRODUCTION:
-      default:
-        Catalog.Source = CatalogSource.PRODUCTION;
-        break;
-    }
+
+    BookInfo.setBookInfoSource(params["src"], BookInfoSource.PRODUCTION);
+
     let title: string;
     switch (catalogType) {
       case CatalogType.EPUB:
@@ -169,7 +152,11 @@ export default class Catalog {
   private static GetParamsForUrl(): string {
     return `${
       this.DesiredLang === "en" ? "" : "&amp;lang=" + this.DesiredLang
-    }${this.Source === this.DefaultSource ? "" : "&amp;src=" + this.Source}`;
+    }${
+      BookInfo.Source === BookInfo.DefaultSource
+        ? ""
+        : "&amp;src=" + BookInfo.Source
+    }`;
   }
 
   // Get all the language links for the given type of catalog and desired language.
@@ -178,7 +165,7 @@ export default class Catalog {
     desiredLang: string
   ): Promise<any> {
     return new Promise<string>((resolve, reject) => {
-      Books.getLanguages().then(languages =>
+      BookInfo.getLanguages().then(languages =>
         resolve(
           languages
             .sort((a, b) => {
@@ -196,9 +183,9 @@ export default class Catalog {
                 }?type=${
                   catalogType === CatalogType.EPUB ? "epub" : "all"
                 }&amp;lang=${lang.isoCode}${
-                  this.Source === this.DefaultSource
+                  BookInfo.Source === BookInfo.DefaultSource
                     ? ""
-                    : "&amp;src=" + this.Source
+                    : "&amp;src=" + BookInfo.Source
                 }" title="${
                   lang.name
                 }" opds:facetGroup="Languages" opds:activeFacet="${
@@ -220,10 +207,12 @@ export default class Catalog {
     desiredLang: string
   ): Promise<any> {
     return new Promise<string>((resolve, reject) => {
-      Books.getBooks().then(books =>
+      BookInfo.getBooks(Catalog.DesiredLang).then(books =>
         resolve(
           books
-            .map(book => Books.getEntryFromBook(book, catalogType, desiredLang))
+            .map(book =>
+              BookEntry.getEntryFromBook(book, catalogType, desiredLang)
+            )
             .join("")
         )
       );
