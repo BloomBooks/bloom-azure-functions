@@ -5,10 +5,8 @@
       "type": "httpTrigger",
       "direction": "in",
       "name": "req",
-      "methods": [
-        "get"
-      ],
-      "route": "book-resource/{bookid}/{part1}/{part2?}"
+      "methods": ["get"],
+      "route": "fs/{bucket}/{bookid}/{part1}/{part2?}/{part3?}"
     },
     {
       "type": "http",
@@ -16,5 +14,5 @@
       "name": "res"
     }
   ],
-  "scriptFile": "../dist/book-resource/index.js"
+  "scriptFile": "../dist/fs/index.js"
 }

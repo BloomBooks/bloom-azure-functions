@@ -53,21 +53,130 @@ export default class BookInfo {
     }
   }
 
-  public static createS3LinkBase(book: any) {
-    const baseUrl = book.baseUrl.replace(/%2f/g, "/"); // I don't know why anyone thinks / needs to be url-encoded.
-    const harvestHead = baseUrl.includes("/BloomLibraryBooks-Sandbox/")
-      ? "https://s3.amazonaws.com/bloomharvest-sandbox/"
-      : "https://s3.amazonaws.com/bloomharvest/";
-    const safeUploader = book.uploader
-      ? BookInfo.MakeUrlSafe(book.uploader.username)
-      : "UNKNOWN";
-    return harvestHead + safeUploader + "/" + book.bookInstanceId + "/";
+  public static createS3LinkBase(book: any, bucket: string): string {
+    const baseUrl: string = book.baseUrl.replace(/%2f/g, "/"); // I don't know why anyone thinks / needs to be url-encoded.
+    const urlWithoutFinalSlash = baseUrl.replace(/\/$/, "");
+    const idx = urlWithoutFinalSlash.lastIndexOf("/");
+    let url = urlWithoutFinalSlash.substring(0, idx);
+    if (bucket === "bloomharvest-sandbox") {
+      url = url.replace("BloomLibraryBooks-Sandbox", bucket);
+    } else if (bucket === "bloomharvest") {
+      url = url.replace("BloomLibraryBooks", bucket);
+    }
+    const idxCheck = url.indexOf("/" + bucket + "/");
+    if (idxCheck < 0) {
+      console.log(
+        "ERROR: confusion between input bucket and url based on book's baseUrl"
+      );
+    }
+    return url;
   }
 
   public static MakeUrlSafe(text: string): string {
     // This needs to match whatever Harvester is using.  The first replace is probably enough.
     var text1 = text.replace("@", "%40");
     return text1.replace(/ /g, "+");
+  }
+
+  public static getBookFileName(book: any): string {
+    const baseUrl = book.baseUrl.replace(/%2f/g, "/"); // I don't know why anyone thinks / needs to be url-encoded.
+    const name = BookInfo.extractBookFilename(baseUrl);
+    return name;
+  }
+
+  private static extractBookFilename(baseUrl: string): string {
+    const urlWithoutFinalSlash = baseUrl.replace(/\/$/, "");
+    return urlWithoutFinalSlash.substring(
+      urlWithoutFinalSlash.lastIndexOf("/") + 1
+    );
+  }
+
+  // Get the URL where we find book thumbnails if they have not been harvested recently
+  // enough to have a harvester-produced thumbnail. Includes a fake query designed to defeat
+  // caching of the thumbnail if the book might have been modified since last cached.
+  private static getLegacyThumbnailUrl(book: any) {
+    return book.baseUrl + "thumbnail-256.png?version=" + book.updatedAt;
+  }
+
+  // Get the URL where we find book thumbnails if they have been harvested recently
+  // enough tohave a harvester-produced thumbnail. Includes a fake query designed to defeat
+  // caching of the thumbnail if the book might have been modified since last cached.
+  private static getHarvesterProducedThumbnailUrl(
+    book: any
+  ): string | undefined {
+    const harvestTime = book.harvestStartedAt;
+    if (!harvestTime || new Date(harvestTime.iso) < new Date(2020, 1, 11, 11)) {
+      // That data above is FEBRUARY 12! at 11am. If the harvest time is before that,
+      // the book was not havested recently enough to have a useful harvester thumbnail.
+      // (We'd prefer to do this with harvester version, or even to just be
+      // able to assume that any harvested book has this, but it's not yet so.
+      // When it is, we can use harvestState === "Done" and remove harvestStartedAt from
+      // Book, IBasicBookInfo, and the keys for BookGroup queries.)
+      return undefined;
+    }
+    let harvesterBaseUrl = this.getHarvesterBaseUrl(book);
+    if (!harvesterBaseUrl) {
+      return undefined;
+    }
+    return (
+      harvesterBaseUrl +
+      "thumbnails/thumbnail-256.png?version=" +
+      book.updatedAt
+    );
+  }
+
+  // Get the place we should look for a book thumbnail.
+  public static getThumbnailUrl(book: any) {
+    return (
+      this.getHarvesterProducedThumbnailUrl(book) ||
+      this.getLegacyThumbnailUrl(book)
+    );
+  }
+
+  private static isHarvested(book: any) {
+    return book && book.harvestState === "Done";
+  }
+
+  public static getHarvesterBaseUrl(book: any): string | undefined {
+    if (!book) {
+      return undefined;
+    }
+    const baseUrl = book.baseUrl;
+    if (baseUrl == null) {
+      return undefined;
+    }
+    if (!this.isHarvested(book)) {
+      return undefined;
+    }
+
+    // typical input url:
+    // https://s3.amazonaws.com/BloomLibraryBooks-Sandbox/ken%40example.com%2faa647178-ed4d-4316-b8bf-0dc94536347d%2fsign+language+test%2f
+    // want:
+    // https://s3.amazonaws.com/bloomharvest-sandbox/ken%40example.com%2faa647178-ed4d-4316-b8bf-0dc94536347d/
+    // We come up with that URL by
+    //  (a) changing BloomLibraryBooks{-Sandbox} to bloomharvest{-sandbox}
+    //  (b) strip off everything after the next-to-final slash
+    let folderWithoutLastSlash = baseUrl;
+    if (baseUrl.endsWith("%2f")) {
+      folderWithoutLastSlash = baseUrl.substring(0, baseUrl.length - 3);
+    }
+    const index = folderWithoutLastSlash.lastIndexOf("%2f");
+    const pathWithoutBookName = folderWithoutLastSlash.substring(0, index);
+    return (
+      pathWithoutBookName
+        .replace("BloomLibraryBooks-Sandbox", "bloomharvest-sandbox")
+        .replace("BloomLibraryBooks", "bloomharvest") + "/"
+    );
+    // Using slash rather than %2f at the end helps us download as the filename we want.
+    // Otherwise, the filename can be something like ken@example.com_007b3c03-52b7-4689-80bd-06fd4b6f9f28_Fox+and+Frog.bloomd
+  }
+
+  public static getImageContentType(href: string) {
+    let imageType = "image/jpeg";
+    if (href && href.toLowerCase().includes(".png")) {
+      imageType = "image/png";
+    }
+    return imageType;
   }
 
   // Get all of the languages recorded for all of the books.  Due to the messy data
@@ -123,7 +232,7 @@ export default class BookInfo {
 
   // Get the complete information for the single book identified by the objectId value.
   public static getBookInfo(objectId: string): Promise<any> {
-    return new Promise<any>((resolve, reject) =>
+    return new Promise<any[]>((resolve, reject) =>
       axios
         .get(BookInfo.getParseUrl("books"), {
           headers: {
