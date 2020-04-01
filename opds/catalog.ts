@@ -211,7 +211,7 @@ export default class Catalog {
         resolve(
           books
             .map(book =>
-              BookEntry.getEntryFromBook(book, catalogType, desiredLang)
+              BookEntry.getOpdsEntryForBook(book, catalogType, desiredLang)
             )
             .join("")
         )

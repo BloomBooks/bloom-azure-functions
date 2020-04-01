@@ -19,7 +19,7 @@ The resulting production url for functions is then `api.bloomlibrary.org/v1/__FU
 
 # Shared Environment Variables
 
-Two environment variables need to be set for the **opds** and **book-resource** functions to access the relevant parse tables.
+Two environment variables need to be set for the **opds** and **fs** functions to access the relevant parse tables.
 
 - *OpdsParseAppIdDev* - the AppId key to the development parse table (for *src=dev* in the input URL, the default for
 the alpha stage of initial development)
@@ -30,6 +30,10 @@ See [Azure documentation](https://docs.microsoft.com/en-us/azure/azure-functions
 for a discussion of how these environment variables can be set.
 
 # opds Function
+
+The **opds** function generates OPDS catalog pages for the BLoom Library.  Each catalog page
+provides entries for all the published books with available artifacts for a single language
+plus links to the catalog pages for all the other languages with available books.
 
 ## URL Parameters
 
@@ -79,27 +83,33 @@ makes them invisible.  (In the *type=all* OPDS pages, books may have an entry wi
 expect this to be rare since PDF files are always uploaded to Bloom Library along with the book.)  Books may have
 several languages listed in their entry, and one of those languages must be the desired language.
 
-# book-resource Function
+# fs Function
+
+The **fs** function provides "file system" style access to the file content stored in the
+Bloom Library S3 buckets, but hiding the fact in the URL that Amazon S3 storage is used.
 
 ## URL format
 
-The URL used to access this function always contains *book-resource* followed by the parse books
-table id for the desired book and then followed by either a filename or by a keyword and a
-filename to identify exactly which artifact is desired.  For example, consider:
+The URL used to access this function always contains *fs* followed by a keyword for the S3
+bucket, the parse books table id for the desired book, and then either one, two, or three
+parts of the file path to identify exactly which artifact is desired.  For example, consider:
 
-`https://api.bloomlibrary.org/v1/ETU9lFxoBr/thumbnail.png`
+`https://api.bloomlibrary.org/v1/fs/upload/OBdMAASvwn/How+Crab+Got+One+Short+Claw/thumbnail.png`
 
-This obtains the standard thumbnail image for the book with the parse table id of *ETU9lFxoBr*.
-Or consider:
+This obtains the standard thumbnail image uploaded with the book with the id *OBdMAASvwn*
+and the title "How Crab Got One Short Claw" from the main Bloom Library bucket.  Or
+consider:
 
-`https://api.bloomlibrary.org/v1/1x8DZ99/audio/123.wav`
+`https://api.bloomlibrary.org/v1/fs/harvest/OBdMAASvwn/thumbnails/thumbnail-70.png`
 
-This obtains the audio file *123.wav* for the book with the parse table id of *1x8DZ99*.
+This obtains the harvested thumbnail image sized to 70x70 pixels for the same book.
 
-The URL may also have these query parameters at the end:
+The available S3 bucket keywords are interpreted as follows:
 
-- **src=**XXX - (default value is *prod*) Specify the source parse table that provides the book
-information.  Possible values are
-    1. **prod** - production Bloom Library parse table
-    2. **dev** - development Bloom Library parse table
+- **upload** = BloomLibraryBooks
+- **dev-upload** = BloomLibraryBooks-Sandbox
+- **harvest** = bloomharvest
+- **dev-harvest** = bloomharvest-sandbox
 
+Either the content of the specified file is returned to the caller, or an error message (usually
+404 "webpage not found") is returned.
