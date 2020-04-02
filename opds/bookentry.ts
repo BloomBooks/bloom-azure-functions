@@ -1,80 +1,18 @@
-import axios from "axios";
-import Catalog, { CatalogType, CatalogSource } from "./catalog";
+import { CatalogType } from "./catalog";
+import BookInfo, { BookInfoSource } from "../common/bookinfo";
 
-export default class Books {
-  private static getParseUrl(tableName: string): string {
-    switch (Catalog.Source) {
-      case CatalogSource.DEVELOPMENT:
-      default:
-        return "https://dev-parse.bloomlibrary.org/classes/" + tableName;
-      case CatalogSource.PRODUCTION:
-        return "https://parse.bloomlibrary.org/classes/" + tableName;
-    }
-  }
-  private static getParseAppId(): string {
-    switch (Catalog.Source) {
-      case CatalogSource.DEVELOPMENT:
-      default:
-        return process.env["OpdsParseAppIdDev"];
-      case CatalogSource.PRODUCTION:
-        return process.env["OpdsParseAppIdProd"];
-    }
-  }
-
-  // Get all the books in circulation with the desired language listed
-  // Further filtering may be needed, but those two filters should reduce the transfer considerably.
-  public static getBooks(): Promise<any[]> {
-    return new Promise<any[]>((resolve, reject) =>
-      axios
-        .get(this.getParseUrl("books"), {
-          headers: {
-            "X-Parse-Application-Id": this.getParseAppId()
-          },
-          params: {
-            // ENHANCE: if we want partial pages like GDL, use limit and skip (with function params to achieve this)
-            limit: 100000,
-            //skip: 100,
-            order: "title",
-            include: "uploader,langPointers",
-            where: `{"langPointers":{"$inQuery":{"where":{"isoCode":"${Catalog.DesiredLang}"},"className":"language"}}, "inCirculation":{"$ne":false}}`
-          }
-        })
-        .then(result => {
-          resolve(result.data.results);
-        })
-        .catch(err => {
-          console.log("ERROR: caught axios.get error: " + err);
-          reject(err);
-        })
-    );
-  }
-
-  // This doesn't quite fit in a "Books" class, but seems too small for its own class...
-  public static getLanguages(): Promise<any[]> {
-    return new Promise<any[]>((resolve, reject) =>
-      axios
-        .get(this.getParseUrl("language"), {
-          headers: {
-            "X-Parse-Application-Id": this.getParseAppId()
-          },
-          params: {
-            limit: 10000,
-            where: '{"usageCount":{"$ne":0}}'
-          }
-        })
-        .then(result => {
-          resolve(result.data.results);
-        })
-        .catch(err => {
-          reject(err);
-        })
-    );
-  }
-
-  // Generate an entry for the given book if one is desired.
+// This static class wraps methods for getting OPDS entry XML text for books in Bloom Library.
+// The "book: any" argument found in many of these methods contains the complete parse books table
+// data for one book, with uploader and langPointers fully dereferenced.
+export default class BookEntry {
+  // Generate an OPDS entry for the given book if one is desired and return it as a string with an
+  // XML <entry> element.  If the book should not have an OPDS entry (because of no published
+  // artifacts or some other reason), then an empty string is returned.
   // Note that the list of books has already been filtered for inCirculation not being false and
-  // for desiredLang being listed in book.langPointers.
-  public static getEntryFromBook(
+  // for desiredLang being listed in book.langPointers, so those values do not need to be checked
+  // in this code.  It still needs to check whether individual artifacts exist and are approved for
+  // publication, and whether the book is restricted from internet distribution for some reason.
+  public static getOpdsEntryForBook(
     book: any,
     catalogType: CatalogType,
     desiredLang: string
@@ -97,23 +35,23 @@ export default class Books {
     }
 
     // filter on ePUB catalog restrictions
+    // When catalogType == ALL, the book.harvestState and book.show values are checked for individual
+    // artifacts in getLinkFields().
     if (catalogType === CatalogType.EPUB) {
       if (book.harvestState !== "Done") {
         // If the ePUB hasn't been harvested, don't bother showing the book.
         return entry;
       }
-      if (book.show && !Books.shouldPublishArtifact(book.show.epub)) {
+      if (book.show && !BookEntry.shouldPublishArtifact(book.show.epub)) {
         // If the ePUB artifact shouldn't be shown, don't generate a book entry for an ePUB catalog.
         return entry;
       }
-      if (!Books.inDesiredLanguage(book, catalogType, desiredLang)) {
+      if (!BookEntry.inDesiredLanguage(book, catalogType, desiredLang)) {
         // If the ePUB appears not to be in the desired language, don't generate a book entry for
         // an ePUB catalog.
         return entry;
       }
     }
-    // When catalogType == ALL, the book.harvestState and book.show values are checked for individual
-    //artifacts in getLinkFields().  Entries are wanted in that case even if artifact links don't exist.
 
     // REVIEW: are there any other filters we should apply here?  for example, should "incoming" books be listed?
 
@@ -122,14 +60,14 @@ export default class Books {
       /* eslint-disable indent */
       `  <entry>
     <id>${book.bookInstanceId}</id>
-    <title>${Books.htmlEncode(book.title)}</title>
+    <title>${BookEntry.htmlEncode(book.title)}</title>
 `;
     /* eslint-enable indent */
     if (book.summary && book.summary.length > 0) {
       entry =
         entry +
         /* eslint-disable indent */
-        `    <summary>${Books.htmlEncode(book.summary)}</summary>
+        `    <summary>${BookEntry.htmlEncode(book.summary)}</summary>
 `;
     }
     /* eslint-enable indent */
@@ -138,7 +76,7 @@ export default class Books {
         entry =
           entry +
           /* eslint-disable indent */
-          `    <author><name>${Books.htmlEncode(author)}</name></author>
+          `    <author><name>${BookEntry.htmlEncode(author)}</name></author>
 `;
         /* eslint-enable indent */
       });
@@ -154,7 +92,7 @@ export default class Books {
       entry =
         entry +
         /* eslint-disable indent */
-        `    <dcterms:publisher>${Books.htmlEncode(
+        `    <dcterms:publisher>${BookEntry.htmlEncode(
           book.publisher
         )}</dcterms:publisher>
 `;
@@ -164,7 +102,7 @@ export default class Books {
       entry =
         entry +
         /* eslint-disable indent */
-        `    <rights>${Books.htmlEncode(book.copyright)}</rights>
+        `    <rights>${BookEntry.htmlEncode(book.copyright)}</rights>
 `;
       /* eslint-enable indent */
     }
@@ -172,16 +110,18 @@ export default class Books {
       entry =
         entry +
         /* eslint-disable indent */
-        `    <dcterms:license>${Books.htmlEncode(
+        `    <dcterms:license>${BookEntry.htmlEncode(
           book.license
         )}</dcterms:license>
 `;
       /* eslint-enable indent */
     }
-    entry = entry + Books.getLanguageFields(book, catalogType, desiredLang);
-    const links = Books.getLinkFields(book, catalogType);
+    entry = entry + BookEntry.getLanguageFields(book, catalogType, desiredLang);
+    const links = BookEntry.getLinkFields(book, catalogType);
     if (!links || links.length == 0) {
-      return ""; // an entry without any links is rather useless, and can mess up clients
+      // An entry without any links is rather useless, and can mess up clients
+      // (It's also probably not valid according to the OPDS standard.)
+      return "";
     }
     entry = entry + links;
     return (
@@ -302,32 +242,28 @@ export default class Books {
 
   // Get the link fields for the given book and catalog type.
   private static getLinkFields(book: any, catalogType: CatalogType) {
-    let entry: string = "";
+    let artifactLinks: string = "";
     if (!book.baseUrl) {
       //console.log("DEBUG: bad book = " + book ? JSON.stringify(book) : book);
-      return entry;
+      return artifactLinks;
     }
-    const baseUrl = book.baseUrl.replace(/%2f/g, "/"); // I don't know why anyone thinks / needs to be url-encoded.
-    const name = Books.extractBookFilename(baseUrl);
-    const imageHref = this.getThumbnailUrl(book);
-    let imageType = "image/jpeg";
-    if (imageHref && imageHref.toLowerCase().includes(".png")) {
-      imageType = "image/png";
-    }
+    const name = BookInfo.getBookFileName(book);
+    const imageHref = BookInfo.getThumbnailUrl(book);
+    const imageType = BookInfo.getImageContentType(imageHref);
 
     if (catalogType === CatalogType.EPUB) {
       // already checked book.show.epub and book.harvestState !== "Done"
       const epubLink =
-        Books.createS3LinkBase(baseUrl, book) + "epub/" + name + ".epub";
-      entry =
-        entry +
+        BookInfo.getHarvesterBaseUrl(book) + "epub/" + name + ".epub";
+      artifactLinks =
+        artifactLinks +
         /* eslint-disable indent */
         `    <link rel="http://opds-spec.org/acquisition/open-access" href="${epubLink}" type="application/epub+zip" />
 `;
       /* eslint-enable indent */
       if (imageHref) {
-        entry =
-          entry +
+        artifactLinks =
+          artifactLinks +
           /* eslint-disable indent */
           `    <link rel="http://opds-spec.org/image" href="${imageHref}" type="${imageType}" />
 `;
@@ -336,21 +272,21 @@ export default class Books {
     } else if (catalogType === CatalogType.ALL) {
       if (
         book.harvestState === "Done" &&
-        (!book.show || Books.shouldPublishArtifact(book.show.epub))
+        (!book.show || BookEntry.shouldPublishArtifact(book.show.epub))
       ) {
         const epubLink =
-          Books.createS3LinkBase(baseUrl, book) + "epub/" + name + ".epub";
-        entry =
-          entry +
+          BookInfo.getHarvesterBaseUrl(book) + "epub/" + name + ".epub";
+        artifactLinks =
+          artifactLinks +
           /* eslint-disable indent */
           `    <link rel="http://opds-spec.org/acquisition/open-access" href="${epubLink}" type="application/epub+zip" />
   `;
         /* eslint-enable indent */
       }
-      if (!book.show || Books.shouldPublishArtifact(book.show.pdf)) {
-        const pdfLink = baseUrl + name + ".pdf";
-        entry =
-          entry +
+      if (!book.show || BookEntry.shouldPublishArtifact(book.show.pdf)) {
+        const pdfLink = book.baseUrl.replace(/%2f/g, "/") + name + ".pdf";
+        artifactLinks =
+          artifactLinks +
           /* eslint-disable indent */
           `    <link rel="http://opds-spec.org/acquisition/open-access" href="${pdfLink}" type="application/pdf" />
 `;
@@ -358,51 +294,34 @@ export default class Books {
       }
       if (
         book.harvestState === "Done" &&
-        (!book.show || Books.shouldPublishArtifact(book.show.bloomReader))
+        (!book.show || BookEntry.shouldPublishArtifact(book.show.bloomReader))
       ) {
         const bloomdLink =
-          Books.createS3LinkBase(baseUrl, book) + name + ".bloomd";
-        entry =
-          entry +
+          BookInfo.getHarvesterBaseUrl(book) + name + ".bloomd";
+        artifactLinks =
+          artifactLinks +
           /* eslint-disable indent */
           `    <link rel="http://opds-spec.org/acquisition/open-access" href="${bloomdLink}" type="application/bloomd+zip" title="BloomPub" />
 `;
         /* eslint-enable indent */
-        entry =
-          entry +
+        artifactLinks =
+          artifactLinks +
           `    <link rel="http://opds-spec.org/acquisition/open-access" href="https://${
-            Catalog.Source === CatalogSource.DEVELOPMENT ? "dev." : ""
+            BookInfo.Source === BookInfoSource.DEVELOPMENT ? "dev." : ""
           }bloomlibrary.org/readBook/${
             book.objectId
           }" type="application/bloomd+html" title="Read Online" />`;
       }
       if (imageHref) {
-        entry =
-          entry +
+        artifactLinks =
+          artifactLinks +
           /* eslint-disable indent */
           `    <link rel="http://opds-spec.org/image" href="${imageHref}" type="${imageType}" />
 `;
         /* eslint-enable indent */
       }
     }
-    return entry;
-  }
-
-  private static extractBookFilename(baseUrl: string) {
-    const urlWithoutFinalSlash = baseUrl.replace(/\/$/, "");
-    return urlWithoutFinalSlash.substring(
-      urlWithoutFinalSlash.lastIndexOf("/") + 1
-    );
-  }
-
-  private static createS3LinkBase(baseUrl: string, book: any) {
-    const harvestHead = baseUrl.includes("/BloomLibraryBooks-Sandbox/")
-      ? "https://s3.amazonaws.com/bloomharvest-sandbox/"
-      : "https://s3.amazonaws.com/bloomharvest/";
-    const safeUploader = book.uploader
-      ? Books.MakeUrlSafe(book.uploader.username)
-      : "UNKNOWN";
-    return harvestHead + safeUploader + "/" + book.bookInstanceId + "/";
+    return artifactLinks; // may be an empty string if there are no artifacts we can link to
   }
 
   private static getLanguageFields(
@@ -440,92 +359,6 @@ export default class Books {
       }
       return languages;
     }
-  }
-
-  private static MakeUrlSafe(text: string): string {
-    // This needs to match whatever Harvester is using.  The first replace is probably enough.
-    var text1 = text.replace("@", "%40");
-    return text1.replace(/ /g, "+");
-  }
-
-  // Get the URL where we find book thumbnails if they have not been harvested recently
-  // enough tohave a harvester-produced thumbnail. Includes a fake query designed to defeat
-  // caching of the thumbnail if the book might have been modified since last cached.
-  private static getLegacyThumbnailUrl(book: any) {
-    return book.baseUrl + "thumbnail-256.png?version=" + book.updatedAt;
-  }
-
-  // Get the URL where we find book thumbnails if they have been harvested recently
-  // enough tohave a harvester-produced thumbnail. Includes a fake query designed to defeat
-  // caching of the thumbnail if the book might have been modified since last cached.
-  private static getHarvesterProducedThumbnailUrl(
-    book: any
-  ): string | undefined {
-    const harvestTime = book.harvestStartedAt;
-    if (!harvestTime || new Date(harvestTime.iso) < new Date(2020, 1, 11, 11)) {
-      // That data above is FEBRUARY 12! at 11am. If the harvest time is before that,
-      // the book was not havested recently enough to have a useful harvester thumbnail.
-      // (We'd prefer to do this with harvester version, or even to just be
-      // able to assume that any harvested book has this, but it's not yet so.
-      // When it is, we can use harvestState === "Done" and remove harvestStartedAt from
-      // Book, IBasicBookInfo, and the keys for BookGroup queries.)
-      return undefined;
-    }
-    let harvesterBaseUrl = this.getHarvesterBaseUrl(book);
-    if (!harvesterBaseUrl) {
-      return undefined;
-    }
-    return (
-      harvesterBaseUrl +
-      "thumbnails/thumbnail-256.png?version=" +
-      book.updatedAt
-    );
-  }
-
-  // Get the place we should look for a book thumbnail.
-  private static getThumbnailUrl(book: any) {
-    return (
-      this.getHarvesterProducedThumbnailUrl(book) ||
-      this.getLegacyThumbnailUrl(book)
-    );
-  }
-
-  private static isHarvested(book: any) {
-    return book && book.harvestState === "Done";
-  }
-
-  private static getHarvesterBaseUrl(book: any): string | undefined {
-    if (!book) {
-      return undefined;
-    }
-    const baseUrl = book.baseUrl;
-    if (baseUrl == null) {
-      return undefined;
-    }
-    if (!this.isHarvested(book)) {
-      return undefined;
-    }
-
-    // typical input url:
-    // https://s3.amazonaws.com/BloomLibraryBooks-Sandbox/ken%40example.com%2faa647178-ed4d-4316-b8bf-0dc94536347d%2fsign+language+test%2f
-    // want:
-    // https://s3.amazonaws.com/bloomharvest-sandbox/ken%40example.com%2faa647178-ed4d-4316-b8bf-0dc94536347d/
-    // We come up with that URL by
-    //  (a) changing BloomLibraryBooks{-Sandbox} to bloomharvest{-sandbox}
-    //  (b) strip off everything after the next-to-final slash
-    let folderWithoutLastSlash = baseUrl;
-    if (baseUrl.endsWith("%2f")) {
-      folderWithoutLastSlash = baseUrl.substring(0, baseUrl.length - 3);
-    }
-    const index = folderWithoutLastSlash.lastIndexOf("%2f");
-    const pathWithoutBookName = folderWithoutLastSlash.substring(0, index);
-    return (
-      pathWithoutBookName
-        .replace("BloomLibraryBooks-Sandbox", "bloomharvest-sandbox")
-        .replace("BloomLibraryBooks", "bloomharvest") + "/"
-    );
-    // Using slash rather than %2f at the end helps us download as the filename we want.
-    // Otherwise, the filename can be something like ken@example.com_007b3c03-52b7-4689-80bd-06fd4b6f9f28_Fox+and+Frog.bloomd
   }
 }
 // Exemplar from StoryWeaver OPDS catalog (which singlehandedly causes GNU emacs 25.2 to crash)
