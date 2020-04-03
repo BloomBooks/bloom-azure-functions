@@ -243,16 +243,20 @@ export default class BookEntry {
   // Get the link fields for the given book and catalog type.
   private static getLinkFields(book: any, catalogType: CatalogType) {
     let artifactLinks: string = "";
-    if (!book.baseUrl) {
+    // uploaded base URL = https://api.bloomlibrary.org/v1/fs/upload/<book.objectId>/
+    const uploadBaseUrl = BookInfo.getUploadBaseUrl(book);
+    if (!uploadBaseUrl) {
       //console.log("DEBUG: bad book = " + book ? JSON.stringify(book) : book);
       return artifactLinks;
     }
+    // harvested base URL = https://api.bloomlibrary.org/v1/fs/harvest/<book.objectId>/
+    const harvestBaseUrl = BookInfo.getHarvesterBaseUrl(book);
     const name = BookInfo.getBookFileName(book);
     const imageHref = BookInfo.getThumbnailUrl(book);
     const imageType = BookInfo.getImageContentType(imageHref);
 
     if (catalogType === CatalogType.EPUB) {
-      // already checked book.show.epub and book.harvestState !== "Done"
+      // already checked book.show.epub and book.harvestState === "Done"
       const epubLink =
         BookInfo.getHarvesterBaseUrl(book) + "epub/" + name + ".epub";
       artifactLinks =
@@ -271,11 +275,10 @@ export default class BookEntry {
       }
     } else if (catalogType === CatalogType.ALL) {
       if (
-        book.harvestState === "Done" &&
+        harvestBaseUrl &&
         (!book.show || BookEntry.shouldPublishArtifact(book.show.epub))
       ) {
-        const epubLink =
-          BookInfo.getHarvesterBaseUrl(book) + "epub/" + name + ".epub";
+        const epubLink = `${harvestBaseUrl}epub/${name}.epub`;
         artifactLinks =
           artifactLinks +
           /* eslint-disable indent */
@@ -284,7 +287,7 @@ export default class BookEntry {
         /* eslint-enable indent */
       }
       if (!book.show || BookEntry.shouldPublishArtifact(book.show.pdf)) {
-        const pdfLink = book.baseUrl.replace(/%2f/g, "/") + name + ".pdf";
+        const pdfLink = `${uploadBaseUrl}${name}/${name}.pdf`;
         artifactLinks =
           artifactLinks +
           /* eslint-disable indent */
@@ -293,24 +296,25 @@ export default class BookEntry {
         /* eslint-enable indent */
       }
       if (
-        book.harvestState === "Done" &&
+        harvestBaseUrl &&
         (!book.show || BookEntry.shouldPublishArtifact(book.show.bloomReader))
       ) {
-        const bloomdLink =
-          BookInfo.getHarvesterBaseUrl(book) + name + ".bloomd";
+        const bloomdLink = `${harvestBaseUrl}${name}.bloomd`;
         artifactLinks =
           artifactLinks +
           /* eslint-disable indent */
           `    <link rel="http://opds-spec.org/acquisition/open-access" href="${bloomdLink}" type="application/bloomd+zip" title="BloomPub" />
 `;
         /* eslint-enable indent */
+        const readLink = `https://${
+          BookInfo.Source === BookInfoSource.DEVELOPMENT ? "dev." : ""
+        }bloomlibrary.org/readBook/${book.objectId}`;
         artifactLinks =
           artifactLinks +
-          `    <link rel="http://opds-spec.org/acquisition/open-access" href="https://${
-            BookInfo.Source === BookInfoSource.DEVELOPMENT ? "dev." : ""
-          }bloomlibrary.org/readBook/${
-            book.objectId
-          }" type="application/bloomd+html" title="Read Online" />`;
+          /* eslint-disable indent */
+          `    <link rel="http://opds-spec.org/acquisition/open-access" href="${readLink}" type="application/bloomd+html" title="Read Online" />
+`;
+        /* eslint-enable indent */
       }
       if (imageHref) {
         artifactLinks =

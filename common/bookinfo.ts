@@ -95,7 +95,12 @@ export default class BookInfo {
   // enough to have a harvester-produced thumbnail. Includes a fake query designed to defeat
   // caching of the thumbnail if the book might have been modified since last cached.
   private static getLegacyThumbnailUrl(book: any) {
-    return book.baseUrl + "thumbnail-256.png?version=" + book.updatedAt;
+    const baseUrl = this.getUploadBaseUrl(book);
+    if (!baseUrl) {
+      return undefined;
+    }
+    const name = this.getBookFileName(book);
+    return `${baseUrl}${name}/thumbnail-256.png?version=${book.updatedAt}`;
   }
 
   // Get the URL where we find book thumbnails if they have been harvested recently
@@ -137,38 +142,49 @@ export default class BookInfo {
     return book && book.harvestState === "Done";
   }
 
+  public static readonly ApiBaseUrl = "https://api.bloomlibrary.org/v1/fs/";
+
+  public static getUploadBaseUrl(book: any): string | undefined {
+    if (!book) {
+      return undefined;
+    }
+    if (!book.baseUrl) {
+      return undefined;
+    }
+    if (book.baseUrl.includes("/BloomLibraryBooks-Sandbox/")) {
+      return `${this.ApiBaseUrl}dev-upload/${book.objectId}/`;
+    } else if (book.baseUrl.includes("/BloomLibraryBooks/")) {
+      return `${this.ApiBaseUrl}upload/${book.objectId}/`;
+    } else {
+      return undefined; // things have changed: we don't know what's what any longer...
+    }
+  }
+
   public static getHarvesterBaseUrl(book: any): string | undefined {
     if (!book) {
       return undefined;
     }
-    const baseUrl = book.baseUrl;
-    if (baseUrl == null) {
+    if (book.baseUrl == null) {
       return undefined;
     }
     if (!this.isHarvested(book)) {
       return undefined;
     }
-
-    // typical input url:
+    // typical book.baseUrl:
     // https://s3.amazonaws.com/BloomLibraryBooks-Sandbox/ken%40example.com%2faa647178-ed4d-4316-b8bf-0dc94536347d%2fsign+language+test%2f
     // want:
-    // https://s3.amazonaws.com/bloomharvest-sandbox/ken%40example.com%2faa647178-ed4d-4316-b8bf-0dc94536347d/
+    // https://api.bloomlibrary.org/v1/fs/dev-harvest/U8INuhZHlU/
     // We come up with that URL by
-    //  (a) changing BloomLibraryBooks{-Sandbox} to bloomharvest{-sandbox}
-    //  (b) strip off everything after the next-to-final slash
-    let folderWithoutLastSlash = baseUrl;
-    if (baseUrl.endsWith("%2f")) {
-      folderWithoutLastSlash = baseUrl.substring(0, baseUrl.length - 3);
+    //  (a) start new URL with "https://api.bloomlibrary.org/v1/fs/"
+    //  (a) match BloomLibraryBooks{-Sandbox} in input URL to {dev-}harvest in output URL
+    //  (c) append another / and book's objectId
+    if (book.baseUrl.includes("/BloomLibraryBooks-Sandbox/")) {
+      return `${this.ApiBaseUrl}dev-harvest/${book.objectId}/`;
+    } else if (book.baseUrl.includes("/BloomLibraryBooks/")) {
+      return `${this.ApiBaseUrl}harvest/${book.objectId}/`;
+    } else {
+      return undefined; // things have changed: we don't know what's what any longer...
     }
-    const index = folderWithoutLastSlash.lastIndexOf("%2f");
-    const pathWithoutBookName = folderWithoutLastSlash.substring(0, index);
-    return (
-      pathWithoutBookName
-        .replace("BloomLibraryBooks-Sandbox", "bloomharvest-sandbox")
-        .replace("BloomLibraryBooks", "bloomharvest") + "/"
-    );
-    // Using slash rather than %2f at the end helps us download as the filename we want.
-    // Otherwise, the filename can be something like ken@example.com_007b3c03-52b7-4689-80bd-06fd4b6f9f28_Fox+and+Frog.bloomd
   }
 
   public static getImageContentType(href: string) {
