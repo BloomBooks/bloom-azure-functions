@@ -103,6 +103,8 @@ export default class BookData {
         bucket = "bloomharvest-sandbox";
         source = BookInfoSource.DEVELOPMENT;
         break;
+      default:
+        return null;
     }
     BookInfo.setBookInfoSource(source, BookInfoSource.PRODUCTION);
     let infoArray: any[] = await BookInfo.getBookInfo(params.bookid);
@@ -110,7 +112,7 @@ export default class BookData {
       return null;
     }
     const bookInfo = infoArray[0];
-    let url = BookInfo.createS3LinkBase(bookInfo, bucket);
+    let url = BookInfo.getS3LinkBase(bookInfo, bucket);
     if (params.part1 && params.part1.length > 0) {
       url = url + "/" + params.part1;
     }

@@ -4,7 +4,7 @@ import axios from "axios";
 // For production, we need to use the parse table associated with the production Bloom Library.
 export enum BookInfoSource {
   DEVELOPMENT = "dev",
-  PRODUCTION = "prod"
+  PRODUCTION = "prod",
 }
 
 export default class BookInfo {
@@ -53,15 +53,25 @@ export default class BookInfo {
     }
   }
 
-  public static createS3LinkBase(book: any, bucket: string): string {
+  // Given the book parse data and bucket, get the base URL for accessing the data stored on S3.
+  // The base URL will look like one of the following:
+  // https://s3.amazonaws.com/BloomLibraryBooks/<uploader-email>/<book-instance-guid>/<book-title>
+  // https://s3.amazonaws.com/bloomharvest/<uploader-email>/<book-instance-guid>
+  public static getS3LinkBase(book: any, bucket: string): string {
     const baseUrl: string = book.baseUrl.replace(/%2f/g, "/"); // I don't know why anyone thinks / needs to be url-encoded.
     const urlWithoutFinalSlash = baseUrl.replace(/\/$/, "");
-    const idx = urlWithoutFinalSlash.lastIndexOf("/");
-    let url = urlWithoutFinalSlash.substring(0, idx);
-    if (bucket === "bloomharvest-sandbox") {
-      url = url.replace("BloomLibraryBooks-Sandbox", bucket);
-    } else if (bucket === "bloomharvest") {
-      url = url.replace("BloomLibraryBooks", bucket);
+    let url: string;
+    if (bucket.startsWith("BloomLibraryBooks")) {
+      url = urlWithoutFinalSlash;
+    } else {
+      // chop off the title at the end of baseUrl.
+      const idx = urlWithoutFinalSlash.lastIndexOf("/");
+      url = urlWithoutFinalSlash.substring(0, idx);
+      if (bucket === "bloomharvest-sandbox") {
+        url = url.replace("BloomLibraryBooks-Sandbox", bucket);
+      } else if (bucket === "bloomharvest") {
+        url = url.replace("BloomLibraryBooks", bucket);
+      }
     }
     const idxCheck = url.indexOf("/" + bucket + "/");
     if (idxCheck < 0) {
@@ -99,8 +109,7 @@ export default class BookInfo {
     if (!baseUrl) {
       return undefined;
     }
-    const name = this.getBookFileName(book);
-    return `${baseUrl}${name}/thumbnail-256.png?version=${book.updatedAt}`;
+    return `${baseUrl}/thumbnail-256.png?version=${book.updatedAt}`;
   }
 
   // Get the URL where we find book thumbnails if they have been harvested recently
@@ -123,11 +132,7 @@ export default class BookInfo {
     if (!harvesterBaseUrl) {
       return undefined;
     }
-    return (
-      harvesterBaseUrl +
-      "thumbnails/thumbnail-256.png?version=" +
-      book.updatedAt
-    );
+    return `${harvesterBaseUrl}/thumbnails/thumbnail-256.png?version=${book.updatedAt}`;
   }
 
   // Get the place we should look for a book thumbnail.
@@ -142,8 +147,16 @@ export default class BookInfo {
     return book && book.harvestState === "Done";
   }
 
-  public static readonly ApiBaseUrl = "https://api.bloomlibrary.org/v1/fs/";
+  public static readonly ApiBaseUrl = "https://api.bloomlibrary.org/v1/fs";
 
+  // typical book.baseUrl:
+  // https://s3.amazonaws.com/BloomLibraryBooks-Sandbox/ken%40example.com%2faa647178-ed4d-4316-b8bf-0dc94536347d%2fsign+language+test%2f
+  // want:
+  // https://api.bloomlibrary.org/v1/fs/dev-upload/U8INuhZHlU
+  // We come up with that URL by
+  //  (a) start new URL with "https://api.bloomlibrary.org/v1/fs"
+  //  (a) match BloomLibraryBooks{-Sandbox} in input URL to {dev-}upload in output URL
+  //  (c) append another / and book's objectId
   public static getUploadBaseUrl(book: any): string | undefined {
     if (!book) {
       return undefined;
@@ -152,14 +165,22 @@ export default class BookInfo {
       return undefined;
     }
     if (book.baseUrl.includes("/BloomLibraryBooks-Sandbox/")) {
-      return `${this.ApiBaseUrl}dev-upload/${book.objectId}/`;
+      return `${this.ApiBaseUrl}/dev-upload/${book.objectId}`;
     } else if (book.baseUrl.includes("/BloomLibraryBooks/")) {
-      return `${this.ApiBaseUrl}upload/${book.objectId}/`;
+      return `${this.ApiBaseUrl}/upload/${book.objectId}`;
     } else {
       return undefined; // things have changed: we don't know what's what any longer...
     }
   }
 
+  // typical book.baseUrl:
+  // https://s3.amazonaws.com/BloomLibraryBooks-Sandbox/ken%40example.com%2faa647178-ed4d-4316-b8bf-0dc94536347d%2fsign+language+test%2f
+  // want:
+  // https://api.bloomlibrary.org/v1/fs/dev-harvest/U8INuhZHlU
+  // We come up with that URL by
+  //  (a) start new URL with "https://api.bloomlibrary.org/v1/fs/"
+  //  (a) match BloomLibraryBooks{-Sandbox} in input URL to {dev-}harvest in output URL
+  //  (c) append another / and book's objectId
   public static getHarvesterBaseUrl(book: any): string | undefined {
     if (!book) {
       return undefined;
@@ -170,18 +191,10 @@ export default class BookInfo {
     if (!this.isHarvested(book)) {
       return undefined;
     }
-    // typical book.baseUrl:
-    // https://s3.amazonaws.com/BloomLibraryBooks-Sandbox/ken%40example.com%2faa647178-ed4d-4316-b8bf-0dc94536347d%2fsign+language+test%2f
-    // want:
-    // https://api.bloomlibrary.org/v1/fs/dev-harvest/U8INuhZHlU/
-    // We come up with that URL by
-    //  (a) start new URL with "https://api.bloomlibrary.org/v1/fs/"
-    //  (a) match BloomLibraryBooks{-Sandbox} in input URL to {dev-}harvest in output URL
-    //  (c) append another / and book's objectId
     if (book.baseUrl.includes("/BloomLibraryBooks-Sandbox/")) {
-      return `${this.ApiBaseUrl}dev-harvest/${book.objectId}/`;
+      return `${this.ApiBaseUrl}/dev-harvest/${book.objectId}`;
     } else if (book.baseUrl.includes("/BloomLibraryBooks/")) {
-      return `${this.ApiBaseUrl}harvest/${book.objectId}/`;
+      return `${this.ApiBaseUrl}/harvest/${book.objectId}`;
     } else {
       return undefined; // things have changed: we don't know what's what any longer...
     }
@@ -202,17 +215,17 @@ export default class BookInfo {
       axios
         .get(BookInfo.getParseUrl("language"), {
           headers: {
-            "X-Parse-Application-Id": BookInfo.getParseAppId()
+            "X-Parse-Application-Id": BookInfo.getParseAppId(),
           },
           params: {
             limit: 10000,
-            where: '{"usageCount":{"$ne":0}}'
-          }
+            where: '{"usageCount":{"$ne":0}}',
+          },
         })
-        .then(result => {
+        .then((result) => {
           resolve(result.data.results);
         })
-        .catch(err => {
+        .catch((err) => {
           reject(err);
         })
     );
@@ -225,7 +238,7 @@ export default class BookInfo {
       axios
         .get(BookInfo.getParseUrl("books"), {
           headers: {
-            "X-Parse-Application-Id": BookInfo.getParseAppId()
+            "X-Parse-Application-Id": BookInfo.getParseAppId(),
           },
           params: {
             // ENHANCE: if we want partial pages like GDL, use limit and skip (with function params to achieve this)
@@ -233,13 +246,13 @@ export default class BookInfo {
             //skip: 100,
             order: "title",
             include: "uploader,langPointers",
-            where: `{"langPointers":{"$inQuery":{"where":{"isoCode":"${desiredLang}"},"className":"language"}}, "inCirculation":{"$ne":false}}`
-          }
+            where: `{"langPointers":{"$inQuery":{"where":{"isoCode":"${desiredLang}"},"className":"language"}}, "inCirculation":{"$ne":false}}`,
+          },
         })
-        .then(result => {
+        .then((result) => {
           resolve(result.data.results);
         })
-        .catch(err => {
+        .catch((err) => {
           console.log("ERROR: caught axios.get error: " + err);
           reject(err);
         })
@@ -252,17 +265,17 @@ export default class BookInfo {
       axios
         .get(BookInfo.getParseUrl("books"), {
           headers: {
-            "X-Parse-Application-Id": BookInfo.getParseAppId()
+            "X-Parse-Application-Id": BookInfo.getParseAppId(),
           },
           params: {
             include: "uploader,langPointers",
-            where: `{"objectId":{"$eq":"${objectId}"}}`
-          }
+            where: `{"objectId":{"$eq":"${objectId}"}}`,
+          },
         })
-        .then(result => {
+        .then((result) => {
           resolve(result.data.results);
         })
-        .catch(err => {
+        .catch((err) => {
           console.log("ERROR: caught axios.get error: " + err);
           reject(err);
         })

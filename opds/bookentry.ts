@@ -72,7 +72,7 @@ export default class BookEntry {
     }
     /* eslint-enable indent */
     if (book.authors && book.authors.length > 0) {
-      book.authors.map(author => {
+      book.authors.map((author) => {
         entry =
           entry +
           /* eslint-disable indent */
@@ -257,8 +257,7 @@ export default class BookEntry {
 
     if (catalogType === CatalogType.EPUB) {
       // already checked book.show.epub and book.harvestState === "Done"
-      const epubLink =
-        BookInfo.getHarvesterBaseUrl(book) + "epub/" + name + ".epub";
+      const epubLink = `${harvestBaseUrl}/epub/${name}.epub"`;
       artifactLinks =
         artifactLinks +
         /* eslint-disable indent */
@@ -278,7 +277,7 @@ export default class BookEntry {
         harvestBaseUrl &&
         (!book.show || BookEntry.shouldPublishArtifact(book.show.epub))
       ) {
-        const epubLink = `${harvestBaseUrl}epub/${name}.epub`;
+        const epubLink = `${harvestBaseUrl}/epub/${name}.epub`;
         artifactLinks =
           artifactLinks +
           /* eslint-disable indent */
@@ -287,7 +286,7 @@ export default class BookEntry {
         /* eslint-enable indent */
       }
       if (!book.show || BookEntry.shouldPublishArtifact(book.show.pdf)) {
-        const pdfLink = `${uploadBaseUrl}${name}/${name}.pdf`;
+        const pdfLink = `${uploadBaseUrl}/${name}.pdf`;
         artifactLinks =
           artifactLinks +
           /* eslint-disable indent */
@@ -299,7 +298,7 @@ export default class BookEntry {
         harvestBaseUrl &&
         (!book.show || BookEntry.shouldPublishArtifact(book.show.bloomReader))
       ) {
-        const bloomdLink = `${harvestBaseUrl}${name}.bloomd`;
+        const bloomdLink = `${harvestBaseUrl}/${name}.bloomd`;
         artifactLinks =
           artifactLinks +
           /* eslint-disable indent */
@@ -343,7 +342,7 @@ export default class BookEntry {
       if (book.langPointers && book.langPointers.length > 0) {
         // The Dublin Core standard prefers the ISO 639 code for the language, although
         // StoryWeaver uses language name in their OPDS catalog.
-        book.langPointers.map(lang => {
+        book.langPointers.map((lang) => {
           languages =
             languages +
             /* eslint-disable indent */
@@ -352,7 +351,7 @@ export default class BookEntry {
           /* eslint-enable indent */
         });
       } else if (book.languages && book.languages.length > 0) {
-        book.languages.map(lang => {
+        book.languages.map((lang) => {
           languages =
             languages +
             /* eslint-disable indent */
