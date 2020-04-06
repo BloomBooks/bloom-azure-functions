@@ -103,6 +103,8 @@ export default class BookData {
         bucket = "bloomharvest-sandbox";
         source = BookInfoSource.DEVELOPMENT;
         break;
+      default:
+        return null;
     }
     BookInfo.setBookInfoSource(source, BookInfoSource.PRODUCTION);
     let infoArray: any[] = await BookInfo.getBookInfo(params.bookid);
@@ -110,7 +112,25 @@ export default class BookData {
       return null;
     }
     const bookInfo = infoArray[0];
-    let url = BookInfo.createS3LinkBase(bookInfo, bucket);
+    let url = BookInfo.getS3LinkBase(bookInfo, bucket);
+    if (params.bucket.includes("harvest")) {
+      let artifactName = params.part3;
+      if (!artifactName) {
+        artifactName = params.part2;
+      }
+      if (!artifactName) {
+        artifactName = params.part1;
+      }
+      let artifactLower = artifactName.toLowerCase();
+      if (artifactLower.endsWith(".epub")) {
+        url = url + "/epub";
+      } else if (
+        artifactLower.startsWith("thumbnail") &&
+        (artifactLower.endsWith(".png") || artifactLower.endsWith(".jpg"))
+      ) {
+        url = url + "/thumbnails";
+      }
+    }
     if (params.part1 && params.part1.length > 0) {
       url = url + "/" + params.part1;
     }

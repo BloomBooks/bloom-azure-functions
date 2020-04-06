@@ -3,7 +3,7 @@ import { AzureFunction, Context, HttpRequest } from "@azure/functions";
 import BookData from "./bookdata";
 
 // This function allows us to request a file in a book on S3 without knowing [it is on s3, who the uploader is, etc].
-// Example use: https://api.bloomlibrary.org/v1/fs/upload/U8INuhZHlU/First+Aid/thumbnail.png
+// Example use: https://api.bloomlibrary.org/v1/fs/upload/U8INuhZHlU/thumbnail.png
 const fs: AzureFunction = async function(
   context: Context,
   req: HttpRequest
@@ -13,12 +13,13 @@ const fs: AzureFunction = async function(
   // So we might get fs/dev-harvest/XmdUIm6vEa/Hornbill+and+Cassowary.bloomd
   //           (bucket="dev-harvest", bookid="XmdUIm6vEa", part1="Hornbill+and+Cassowary.bloomd",
   //            part2, part3 = undefined)
-  // fs/dev-upload/zXh5KYoyE6/How+Ant+Lost+His+Friend/How+Ant+Lost+His+Friend.pdf
-  //           (bucket="dev-upload", bookid="zXh5KYoyE6", part1="How+Ant+Lost+His+Friend",
-  //             part2="How+Ant+Lost+His+Friend.pdf", part3 = undefined)
-  // fs/dev-upload/fids0TH3Vy/Fatima+Can+Count/audio/a96c71f9-c066-4e73-927f-9f8dcafee65c.mp3
-  //           (bucket="dev-upload", bookid="fids0TH3Vy", part1="Fatima+Can+Count",
-  //            part2="audio", part3="a96c71f9-c066-4e73-927f-9f8dcafee65c.mp3")
+  // or fs/dev-upload/zXh5KYoyE6/How+Ant+Lost+His+Friend.pdf
+  //           (bucket="dev-upload", bookid="zXh5KYoyE6", part1="How+Ant+Lost+His+Friend.pdf",
+  //             part2, part3 = undefined)
+  // or fs/dev-upload/fids0TH3Vy/audio/a96c71f9-c066-4e73-927f-9f8dcafee65c.mp3
+  //           (bucket="dev-upload", bookid="fids0TH3Vy", part1="audio",
+  //            part2="a96c71f9-c066-4e73-927f-9f8dcafee65c.mp3", part3=undefined)
+  // (part3 is supported, but I'm not sure it's ever used/needed.)
   // Note that the available bucket values are "upload", "dev-upload", "harvest", and "dev-harvest".
   // These keywords are interpreted in BookData.getContentUrl().
 
@@ -33,9 +34,9 @@ const fs: AzureFunction = async function(
   const result = await axios
     .get(urlArtifact, {
       responseType: "arraybuffer",
-      headers: { "Content-Type": contentType }
+      headers: { "Content-Type": contentType },
     })
-    .catch(err => {
+    .catch((err) => {
       errorResult = err;
     });
 
@@ -72,7 +73,7 @@ const fs: AzureFunction = async function(
   context.res = {
     headers: headers,
     body: result.data,
-    status: result.status
+    status: result.status,
   };
 };
 
