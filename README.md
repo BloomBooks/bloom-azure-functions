@@ -94,10 +94,9 @@ The URL used to access this function always contains *fs* followed by a keyword 
 bucket, the parse books table id for the desired book, and then either one, two, or three
 parts of the file path to identify exactly which artifact is desired.  For example, consider:
 
-`https://api.bloomlibrary.org/v1/fs/upload/OBdMAASvwn/How+Crab+Got+One+Short+Claw/thumbnail.png`
+`https://api.bloomlibrary.org/v1/fs/upload/OBdMAASvwn/thumbnail.png`
 
-This obtains the standard thumbnail image uploaded with the book with the id *OBdMAASvwn*
-and the title "How Crab Got One Short Claw" from the main Bloom Library bucket.  Or
+This obtains the standard thumbnail image uploaded with the book with the id *OBdMAASvwn* from the main Bloom Library bucket.  Or
 consider:
 
 `https://api.bloomlibrary.org/v1/fs/harvest/OBdMAASvwn/thumbnails/thumbnail-70.png`
@@ -113,3 +112,7 @@ The available S3 bucket keywords are interpreted as follows:
 
 Either the content of the specified file is returned to the caller, or an error message (usually
 404 "webpage not found") is returned.
+
+## Caching
+
+For just the `harvest/` path, if the path begins with "thumbnails", we return a Cache-Control of 1 year.

@@ -31,7 +31,7 @@ const fs: AzureFunction = async function(
     return;
   }
   let errorResult: any;
-  const result = await axios
+  const s3Result = await axios
     .get(urlArtifact, {
       responseType: "arraybuffer",
       headers: { "Content-Type": contentType },
@@ -40,7 +40,7 @@ const fs: AzureFunction = async function(
       errorResult = err;
     });
 
-  if (errorResult || !result) {
+  if (errorResult || !s3Result) {
     if (!errorResult) {
       context.res.status = 500; // this shouldn't happen...
       context.res.statusText = "Internal Server Error";
@@ -53,27 +53,32 @@ const fs: AzureFunction = async function(
   }
 
   // Return content as a blob.
-  let headers = {};
-  let type = result.headers["content-type"];
-  if (!type) {
-    type = result.headers["Content-Type"];
-  }
-  if (!type) {
-    type = contentType;
-  }
-  headers["Content-Type"] = type;
-  let cache = headers["cache-control"];
-  if (!cache) {
-    cache = headers["Cache-Control"];
-  }
-  if (cache) {
-    headers["Cache-Control"] = cache;
+  const headers = { ...s3Result.headers }; // start with whatever s3 itself returned
+  // let type = s3Result.headers["content-type"];
+  // if (!type) {
+  //   type = s3Result.headers["Content-Type"];
+  // }
+  // if (!type) {
+  //   type = contentType;
+  // }
+  // headers["Content-Type"] = type;
+  // let cacheSeconds = headers["cache-control"];
+  // if (!cacheSeconds) {
+  //   cacheSeconds = headers["Cache-Control"];
+  // }
+  // see https://docs.google.com/document/d/1Vub0SeQL6BQqyGoQBN6-cfi6AIRbcBHeV87KjnzZXDU/edit
+  if (
+    req.params.bucket.toLowerCase() === "harvest" &&
+    req.params.part1.toLowerCase() === "thumbnails"
+  ) {
+    delete headers["cache-control"]; //we don't know which casing s3 uses, so remove the other one
+    headers["Cache-Control"] = "max-age:31536000";
   }
 
   context.res = {
     headers: headers,
-    body: result.data,
-    status: result.status,
+    body: s3Result.data,
+    status: s3Result.status,
   };
 };
 
