@@ -23,7 +23,6 @@ const fs: AzureFunction = async function(
   // Note that the available bucket values are "upload", "dev-upload", "harvest", and "dev-harvest".
   // These keywords are interpreted in BookData.getContentUrl().
 
-  const contentType = BookData.getContentType(req.params);
   const urlArtifact = await BookData.getContentUrl(req.params);
   if (!urlArtifact) {
     context.res.status = 400;
@@ -34,7 +33,6 @@ const fs: AzureFunction = async function(
   const s3Result = await axios
     .get(urlArtifact, {
       responseType: "arraybuffer",
-      headers: { "Content-Type": contentType },
     })
     .catch((err) => {
       errorResult = err;
@@ -54,18 +52,6 @@ const fs: AzureFunction = async function(
 
   // Return content as a blob.
   const headers = { ...s3Result.headers }; // start with whatever s3 itself returned
-  // let type = s3Result.headers["content-type"];
-  // if (!type) {
-  //   type = s3Result.headers["Content-Type"];
-  // }
-  // if (!type) {
-  //   type = contentType;
-  // }
-  // headers["Content-Type"] = type;
-  // let cacheSeconds = headers["cache-control"];
-  // if (!cacheSeconds) {
-  //   cacheSeconds = headers["Cache-Control"];
-  // }
   // see https://docs.google.com/document/d/1Vub0SeQL6BQqyGoQBN6-cfi6AIRbcBHeV87KjnzZXDU/edit
   if (
     req.params.bucket.toLowerCase() === "harvest" &&
