@@ -15,7 +15,7 @@ export enum CatalogType {
   // placeholder to remind us what to do when the time comes.
   // BLOOMPUB = "bloompub",
   // all artifacts: ePUB, PDF, and BloomPub; show entry without links even if no artifacts allowed
-  ALL = "all"
+  ALL = "all",
 }
 
 export default class Catalog {
@@ -165,17 +165,17 @@ export default class Catalog {
     desiredLang: string
   ): Promise<any> {
     return new Promise<string>((resolve, reject) => {
-      BookInfo.getLanguages().then(languages =>
+      BookInfo.getLanguages().then((languages) =>
         resolve(
           languages
             .sort((a, b) => {
               return a.name
                 .toLocaleLowerCase("en-US")
                 .localeCompare(b.name.toLocaleLowerCase("en-US"), "en-US", {
-                  sensitivity: "base"
+                  sensitivity: "base",
                 });
             })
-            .map(lang => {
+            .map((lang) => {
               let link: string =
                 /* eslint-disable indent */
                 `  <link rel="http://opds-spec.org/facet" href="${
@@ -186,11 +186,10 @@ export default class Catalog {
                   BookInfo.Source === BookInfo.DefaultSource
                     ? ""
                     : "&amp;src=" + BookInfo.Source
-                }" title="${
-                  lang.name
-                }" opds:facetGroup="Languages" opds:activeFacet="${
-                  lang.isoCode === desiredLang ? "true" : "false"
-                }"/><!-- usageCount=${lang.usageCount} -->
+                }" title="${lang.name}" opds:facetGroup="Languages"${
+                  // activeFacet should be set only if true according to the OPDS standard
+                  lang.isoCode === desiredLang ? ' opds:activeFacet="true"' : ""
+                }/><!-- usageCount=${lang.usageCount} -->
 `;
               /* eslint-enable indent */
               return link;
@@ -207,10 +206,10 @@ export default class Catalog {
     desiredLang: string
   ): Promise<any> {
     return new Promise<string>((resolve, reject) => {
-      BookInfo.getBooks(Catalog.DesiredLang).then(books =>
+      BookInfo.getBooks(Catalog.DesiredLang).then((books) =>
         resolve(
           books
-            .map(book =>
+            .map((book) =>
               BookEntry.getOpdsEntryForBook(book, catalogType, desiredLang)
             )
             .join("")
