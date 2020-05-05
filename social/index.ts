@@ -56,15 +56,17 @@ function CreateLinkHtml(
             content="${description ||
               "Bloom makes it easy to create simple books and translate them into multiple languages."}"
         />
-        <!-- It's unclear whether this should be originalUrl or linkUrl.  It's the URL for which facebook stores analytics. -->
+        <!-- This needs to be originalUrl.  linkUrl causes the link preview to redirect to bloomlibrary.org and show its og:image etc. -->
+        <!-- The link preview will probably show api.bloomlibrary.org as the shorthand for the book's web address. -->
         <meta
             property="og:url"
             content="${originalUrl}"
         />
         <title>${title}</title>
 
+        <!-- This script causes this HTML content to be totally replaced without any trace left behind when displayed. -->
         <script>
-            window.location.href="${linkUrl}";  // this causes this content to be totally replaced without any trace left behind
+            window.location.href="${linkUrl}";
         </script>
     </head>
     <body>
