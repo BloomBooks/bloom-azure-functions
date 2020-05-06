@@ -116,3 +116,38 @@ Either the content of the specified file is returned to the caller, or an error 
 ## Caching
 
 For just the `harvest/` path, if the path begins with "thumbnails", we return a Cache-Control of 1 year.
+
+# social Function
+
+The **social** function provides HTML marked up with OpenGraph metadata and javascript reload to the real
+HTML for a book or bookshelf in Bloom Library.  This is needed for links in Facebook and other social
+media to display the proper title, thumbnail image, and description for items in Bloom Library.  When the
+returned HTML is displayed in a browser, it automatically reloads the actual book or bookshelf page which
+is all that the user will ever see.  The returned HTML is seen by the caller only if the caller does not
+attempt to display it.
+
+## URL format
+
+The URL used to access this function always contains *social* followed by multiple query parameters.  The
+first query parameter is separated from the URL by a ? (question mark).  Other query parameters are separated
+from each other by an & (ampersand).  The recognized query parameters are
+
+- **link=**URL - This is the required URL to the website page containing the book details or the bookshelf.
+- **title=**text - This is the required title of the book or bookshelf.
+- **img=**URL - This is an optional URL to a (preferably) 256x256 thumbnail image of the book or bookshelf.
+- **description=**text - This is an optional summary or description of the book or bookshelf.  It can be one
+or two sentences long, and possibly longer (for short sentences).  If the description is not provided, a short
+blurb about Bloom is used: "Bloom makes it easy to create simple books and translate them into
+multiple languages."
+
+A minimal example without img or description could look like this:
+
+`http://api.bloomlibrary.org/v1/social?link=https://bloomlibrary.org/browse/detail/QyRR1qnIcp&title=Juliana+Wants+a+Pet`
+
+A full example with all the query parameters could look like this:
+
+`http://api.bloomlibrary.org/v1/social?link=https://bloomlibrary.org/browse/detail/QyRR1qnIcp&title=Juliana+Wants+a+Pet&img=https://api.bloomlibrary.org/v1/fs/harvest/QyRR1qnIcp/thumbnails/thumbnail-256.png%3Fversion=2020-04-16T04:37:54.853Z&description=Juliana+is+thinking+about+getting+a+pet.+What+pet+will+she+get%3F`
+
+Note that the query parameter values must be URL encoded.  The examples use + to encode spaces (%20 would
+also work) and %3F to encode question marks.  Every character other than 'A' through 'Z', 'a' through 'z',
+'0' through '9', '.', '-', '*', and '_' must be URL encoded.
