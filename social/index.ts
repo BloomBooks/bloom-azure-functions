@@ -67,7 +67,7 @@ function CreateLinkHtml(
     // facebook is going to fit the final image into.
     (imgUrl
       ? `
-        < meta
+        <meta
           property = "og:image"
           content = "${imgUrl}"
         />
