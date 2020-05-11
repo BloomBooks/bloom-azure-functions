@@ -11,13 +11,23 @@ const httpTrigger: AzureFunction = async function(
   const linkUrl = req.query.link || req.body.link;
   const title = req.query.title || req.body.title;
   const imgUrl = GetOptionalParameter("img", req);
+  const imgWidth = GetOptionalParameter("width", req) || "256";
+  const imgHeight = GetOptionalParameter("height", req) || "256";
   const description = GetOptionalParameter("description", req);
 
   if (linkUrl && title) {
     context.res = {
       // status: 200, /* Defaults to 200 */
       headers: { "Content-Type": "text/html" },
-      body: CreateLinkHtml(req.url, linkUrl, title, imgUrl, description),
+      body: CreateLinkHtml(
+        req.url,
+        linkUrl,
+        title,
+        imgUrl,
+        imgWidth,
+        imgHeight,
+        description
+      ),
     };
   } else {
     context.res = {
@@ -46,6 +56,8 @@ function CreateLinkHtml(
   linkUrl: string,
   title: string,
   imgUrl: string,
+  imgWidth: string,
+  imgHeight: string,
   description: string
 ): string {
   /* eslint-disable indent */
@@ -62,17 +74,19 @@ function CreateLinkHtml(
     // og:image:width and og:image:height reserve space for the image until it can be loaded.  If
     // the image is not close to being square, the link display may not try to fit it in the square
     // to the left of the display but may display the image across the top of the link display.
-    // The exact size of these values does not matter too much.  The preview code reserved a 158x158
-    // square for an image that we claimed to be 256x256. This behavior is what we want if that's what
-    // facebook is going to fit the final image into.
+    // The role of the size is unclear. But it seems to at least effect the croping or sizing.
+    //  The preview code reserved a 158x158
+    // square for an image that we claimed to be 256x256. This behavior is what we want for book thumbnails
+    //  if that's what facebook is going to fit the final image into. But don't forget this is for more than
+    // thumbnails. It's for any page on blorg, which will include different shapes of images.
     (imgUrl
       ? `
         <meta
           property = "og:image"
           content = "${imgUrl}"
         />
-        <meta property="og:image:width" content = "256" />
-        <meta property="og:image:height" content = "256" />`
+        <meta property="og:image:width" content = "${imgWidth}" />
+        <meta property="og:image:height" content = "${imgHeight}" />`
       : "") +
     `
         <meta
