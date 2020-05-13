@@ -9,6 +9,16 @@ const httpTrigger: AzureFunction = async function(
 ): Promise<void> {
   context.log("HTTP trigger function 'social' processed a request.");
   const linkUrl = req.query.link || req.body.link;
+
+  if (!IsAllowedLink(linkUrl)) {
+    context.res = {
+      status: 403,
+      body:
+        "403 Error: Creating a link to that resource is not allowed.",
+    };
+    return;
+  }
+
   const title = req.query.title || req.body.title;
   const imgUrl = GetOptionalParameter("img", req);
   const imgWidth = GetOptionalParameter("width", req) || "256";
@@ -39,6 +49,31 @@ const httpTrigger: AzureFunction = async function(
 };
 
 export default httpTrigger;
+
+// Returns true if the user is allowed to create a link to that resource, or false if the link is not allowed (e.g. external link)
+function IsAllowedLink(linkUrl: string): boolean {
+  if (!linkUrl) {
+    // Even though it's not a very useful link, we don't want to return a disallowed message for it.
+    // Return true for now. Let some other code deal with this.
+    return true;
+  }
+
+  // URL Constructor is unhappy if it doesn't start with the protocol.
+  if (!linkUrl.startsWith("http://") && !linkUrl.startsWith("https://")) {    
+    linkUrl = "http://" + linkUrl;
+  }
+  try
+  {
+    const url = new URL(linkUrl);
+    const hostname = url.hostname.toLowerCase();
+
+    // Allow bloomlibary.org, or its subdomains, but not any links to any other domain.
+    return (hostname && (hostname === "bloomlibrary.org" || hostname.endsWith(".bloomlibrary.org")));
+  } catch (error) {
+    // Probably a malformed URL
+    return false;
+  }
+}
 
 function GetOptionalParameter(
   tag: string,
