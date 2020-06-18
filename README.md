@@ -17,7 +17,7 @@ The actual URL is influenced by
 The resulting production url for functions is then `api.bloomlibrary.org/v1/__FUNCTION__`
 
 
-# Shared Environment Variables
+# Environment Variables
 
 Two environment variables need to be set for the **opds** and **fs** functions to access the relevant parse tables.
 
@@ -25,6 +25,13 @@ Two environment variables need to be set for the **opds** and **fs** functions t
 the alpha stage of initial development)
 - *OpdsParseAppIdProd* -  the AppId key to the production parse table (for *src=prod* in the input URL, the default
 after the alpha stage of initial development)
+
+Some environment variables are needed for the **stats** function to connect to the postgresql database.
+- *PGUSER*
+- *PGHOST*
+- *PGPASSWORD*
+- *PGDATABASE*
+- *PGPORT*
 
 See [Azure documentation](https://docs.microsoft.com/en-us/azure/azure-functions/functions-reference-node#environment-variables)
 for a discussion of how these environment variables can be set.
@@ -151,3 +158,28 @@ A full example with all the query parameters could look like this:
 Note that the query parameter values must be URL encoded.  The examples use + to encode spaces (%20 would
 also work) and %3F to encode question marks.  Every character other than 'A' through 'Z', 'a' through 'z',
 '0' through '9', '.', '-', '*', and '_' must be URL encoded.
+
+# stats Function
+
+The **stats** function provides statistics about how and how much books are being used.
+
+## URL format
+
+The URL used to access this function always contains *stats* followed by one or more query parameters.  The
+first query parameter is separated from the URL by a ? (question mark).  Other query parameters are separated
+from each other by an & (ampersand).  The recognized query parameters are
+
+One of these is required
+- **book=**bookId - The book for which to retrieve statistics.
+- **publisher=**publisherName - The publisher for which to retrieve statistics.
+
+Optional
+- **from=**startDate - Date in format YYYYMMDD, used to filter the results to a specific time range.
+- **to=**endDate - Date in format YYYYMMDD, used to filter the results to a specific time range.
+
+Examples:
+
+`http://api.bloomlibrary.org/v1/stats?book=12345ABC`
+`http://api.bloomlibrary.org/v1/stats?book=12345ABC&from=20200101`
+`http://api.bloomlibrary.org/v1/stats?book=12345ABC&to=20191231`
+`http://api.bloomlibrary.org/v1/stats?book=12345ABC&from=20190101&to=20191231`
