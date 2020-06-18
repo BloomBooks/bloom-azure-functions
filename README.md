@@ -48,15 +48,15 @@ The URL used to access the function always ends with *opds* possibly followed by
 first query parameter is separated from the URL by a ? (question mark).  Other query parameters are separated from
 each other by an & (ampersand).  The recognized query parameters are
 
-- **type=**XXX - (default value is *all*) Specify which type of catalog to return.  Possible values are
+- **type**=XXX - (default value is *all*) Specify which type of catalog to return.  Possible values are
     1. **top** - Return the top-level OPDS page pointing to the ePUB and "all" pages.
     2. **epub** - Return a page which lists only entries that have a visible ePUB file to download and which
 shows links only to epub artifacts.
     3. **all** - Return a page listing all visible entries (for the desired language) whether or not they have any
 visible artifacts, and showing links to all visible artifacts.  The ePUB and PDF artifacts may or may not be in
 the desired language if multiple languages are listed for the book.
-- **lang=**XXX - (default value is *en*) Specify the ISO code of the desired language.
-- **src=**XXX - (default value is *prod*) Specify the source parse table that provides the book
+- **lang**=XXX - (default value is *en*) Specify the ISO code of the desired language.
+- **src**=XXX - (default value is *prod*) Specify the source parse table that provides the book
 information.  Possible values are
     1. **prod** - production Bloom Library parse table
     2. **dev** - development Bloom Library parse table
@@ -139,10 +139,10 @@ The URL used to access this function always contains *social* followed by multip
 first query parameter is separated from the URL by a ? (question mark).  Other query parameters are separated
 from each other by an & (ampersand).  The recognized query parameters are
 
-- **link=**URL - This is the required URL to the website page containing the book details or the bookshelf.
-- **title=**text - This is the required title of the book or bookshelf.
-- **img=**URL - This is an optional URL to a (preferably) 256x256 thumbnail image of the book or bookshelf.
-- **description=**text - This is an optional summary or description of the book or bookshelf.  It can be one
+- **link**=URL - This is the required URL to the website page containing the book details or the bookshelf.
+- **title**=text - This is the required title of the book or bookshelf.
+- **img**=URL - This is an optional URL to a (preferably) 256x256 thumbnail image of the book or bookshelf.
+- **description**=text - This is an optional summary or description of the book or bookshelf.  It can be one
 or two sentences long, and possibly longer (for short sentences).  If the description is not provided, a short
 blurb about Bloom is used: "Bloom makes it easy to create simple books and translate them into
 multiple languages."
@@ -170,12 +170,12 @@ first query parameter is separated from the URL by a ? (question mark).  Other q
 from each other by an & (ampersand).  The recognized query parameters are
 
 One of these is required
-- **book=**bookId - The book for which to retrieve statistics.
-- **publisher=**publisherName - The publisher for which to retrieve statistics.
+- **book**=bookId - The parse objectId for the book for which to retrieve statistics.
+- **publisher**=publisherName - The name of the publisher for which to retrieve statistics.
 
 Optional
-- **from=**startDate - Date in format YYYYMMDD, used to filter the results to a specific time range.
-- **to=**endDate - Date in format YYYYMMDD, used to filter the results to a specific time range.
+- **from**=startDate - A date in format YYYYMMDD, used to filter the results to a specific time range.
+- **to**=endDate - A date in format YYYYMMDD, used to filter the results to a specific time range.
 
 Examples:
 
