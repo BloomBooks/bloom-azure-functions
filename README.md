@@ -179,7 +179,7 @@ Optional
 
 Examples:
 
-`http://api.bloomlibrary.org/v1/stats?book=12345ABC`
-`http://api.bloomlibrary.org/v1/stats?book=12345ABC&from=20200101`
-`http://api.bloomlibrary.org/v1/stats?book=12345ABC&to=20191231`
-`http://api.bloomlibrary.org/v1/stats?book=12345ABC&from=20190101&to=20191231`
+- `http://api.bloomlibrary.org/v1/stats?book=12345ABC`
+- `http://api.bloomlibrary.org/v1/stats?book=12345ABC&from=20200101`
+- `http://api.bloomlibrary.org/v1/stats?book=12345ABC&to=20191231`
+- `http://api.bloomlibrary.org/v1/stats?book=12345ABC&from=20190101&to=20191231`
