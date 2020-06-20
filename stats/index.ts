@@ -5,6 +5,7 @@ const stats: AzureFunction = async function(
   req: HttpRequest
 ): Promise<void> {
   const book = req.query.book; // || (req.body && req.body.book);
+  const bookInstanceId = req.query["book-instance-id"];
   const publisher = req.query.publisher;
   const from = req.query.from || "20000101";
   const to = req.query.to || "30000101";
@@ -16,11 +17,10 @@ const stats: AzureFunction = async function(
 
     let query;
     if (book)
-      query = client.query("SELECT * FROM public.get_book_stats($1, $2, $3)", [
-        book,
-        from,
-        to,
-      ]);
+      query = client.query(
+        "SELECT * FROM public.get_book_stats($1, $2, $3, $4)",
+        [book, bookInstanceId, from, to]
+      );
     else
       query = client.query(
         "SELECT * FROM public.get_publisher_stats($1, $2, $3)",
