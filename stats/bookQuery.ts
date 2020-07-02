@@ -1,5 +1,5 @@
 import axios, { AxiosRequestConfig } from "axios";
-import { Context } from "vm";
+import { Context } from "@azure/functions";
 
 export default class BookQuery {
   public static async processStats(

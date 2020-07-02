@@ -1,5 +1,6 @@
 import { AzureFunction, Context, HttpRequest } from "@azure/functions";
 import BookQuery from "./bookQuery";
+import DirectQuery from "./directQuery";
 
 const stats: AzureFunction = async function(
   context: Context,
@@ -18,10 +19,16 @@ const stats: AzureFunction = async function(
   const bookQuery =
     req.query["book-query"] || (req.body && req.body["book-query"]);
 
+  const directQuery =
+    req.query["direct-query"] || (req.body && req.body["direct-query"]);
+
   // We may end up not using this and just using bookQuery instead...
   const publisher = req.query.publisher || (req.body && req.body.publisher);
 
-  if (bookQuery) {
+  if (directQuery) {
+    await DirectQuery.processStats(context, directQuery); //, from, to);
+    return;
+  } else if (bookQuery) {
     await BookQuery.processStats(context, bookQuery); //, from, to);
     return;
   } else if (book || publisher) {
