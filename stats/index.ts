@@ -1,6 +1,6 @@
 import { AzureFunction, Context, HttpRequest } from "@azure/functions";
 import { processBookEvents } from "./bookEvents";
-import { processBookEventsUsingBookQuery } from "./bookQuery";
+import { processBookEventsUsingBookQuery } from "./bookEventsByBookQuery";
 
 function getFromDateStr(req: HttpRequest): string | undefined {
   return req.query.from || (req.body && req.body.from) || undefined;
