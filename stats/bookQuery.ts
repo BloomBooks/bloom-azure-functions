@@ -1,12 +1,17 @@
 import axios, { AxiosRequestConfig } from "axios";
 import { Context } from "vm";
+const moment = require("moment");
+
+function isValidDateStr(dateStr: string | null | undefined): boolean {
+  return new moment(dateStr, "YYYY-MM-DD", true).isValid();
+}
 
 export default class BookQuery {
   public static async processStats(
     context: Context,
-    bookQuery: { url: string; options: AxiosRequestConfig }
-    // fromDate: string,
-    // toDate: string
+    bookQuery: { url: string; options: AxiosRequestConfig },
+    fromDateStr: string | undefined,
+    toDateStr: string | undefined
   ) {
     // Send query to parse
     const response = await axios.get(bookQuery.url, bookQuery.options);
@@ -30,8 +35,17 @@ export default class BookQuery {
         this.fail(context, "Unexpected book info caused stats lookup to fail");
       }
 
+      let get_books_stats_args = "";
+      if (isValidDateStr(fromDateStr) && isValidDateStr(toDateStr)) {
+        get_books_stats_args = `'${fromDateStr}', '${toDateStr}'`;
+      } else if (fromDateStr && toDateStr) {
+        console.log(
+          `WARNING: Invalid dates passed. '${fromDateStr}', '${toDateStr}'`
+        );
+      }
+
       const statsResult = await client.query(
-        `CREATE TEMP TABLE temp_book_ids(book_id,book_instance_id) AS VALUES ${booksInfoFormattedForInsert};SELECT * from get_books_stats()` //'${fromDate}', '${toDate}')`
+        `CREATE TEMP TABLE temp_book_ids(book_id,book_instance_id) AS VALUES ${booksInfoFormattedForInsert};SELECT * from get_books_stats(${get_books_stats_args})`
       );
 
       // Return results as json

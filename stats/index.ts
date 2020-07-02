@@ -1,6 +1,14 @@
 import { AzureFunction, Context, HttpRequest } from "@azure/functions";
 import BookQuery from "./bookQuery";
 
+function getFromDateStr(req: HttpRequest): string | undefined {
+  return req.query.from || (req.body && req.body.from) || undefined;
+}
+
+function getToDateStr(req: HttpRequest): string | undefined {
+  return req.query.to || (req.body && req.body.to) || undefined;
+}
+
 const stats: AzureFunction = async function(
   context: Context,
   req: HttpRequest
@@ -9,11 +17,8 @@ const stats: AzureFunction = async function(
   const bookInstanceId =
     req.query["book-instance-id"] || (req.body && req.body["book-instance-id"]);
 
-  // We aren't actually using these yet.
-  // When we do, we should consider validating them here to guard against sql injection.
-  // And likely we should let the database handle the default so it can be more performant if possible.
-  // const from = req.query.from || (req.body && req.body.from) || "20000101";
-  // const to = req.query.to || (req.body && req.body.to) || "30000101";
+  const from = getFromDateStr(req);
+  const to = getToDateStr(req);
 
   const bookQuery =
     req.query["book-query"] || (req.body && req.body["book-query"]);
@@ -22,7 +27,7 @@ const stats: AzureFunction = async function(
   const publisher = req.query.publisher || (req.body && req.body.publisher);
 
   if (bookQuery) {
-    await BookQuery.processStats(context, bookQuery); //, from, to);
+    await BookQuery.processStats(context, bookQuery, from, to);
     return;
   } else if (book || publisher) {
     const { Client } = require("pg");
