@@ -1,5 +1,6 @@
 import { AzureFunction, Context, HttpRequest } from "@azure/functions";
-import BookQuery from "./bookQuery";
+import { processBookEvents } from "./bookEvents";
+import { processBookEventsUsingBookQuery } from "./bookQuery";
 
 function getFromDateStr(req: HttpRequest): string | undefined {
   return req.query.from || (req.body && req.body.from) || undefined;
@@ -23,11 +24,16 @@ const stats: AzureFunction = async function(
   const bookQuery =
     req.query["book-query"] || (req.body && req.body["book-query"]);
 
+  const filter = req.query.filter || (req.body && req.body.filter);
+
   // We may end up not using this and just using bookQuery instead...
   const publisher = req.query.publisher || (req.body && req.body.publisher);
 
-  if (bookQuery) {
-    await BookQuery.processStats(context, bookQuery, from, to);
+  if (filter) {
+    await processBookEvents(context, filter); //, from, to);
+    return;
+  } else if (bookQuery) {
+    await processBookEventsUsingBookQuery(context, bookQuery); //, from, to);
     return;
   } else if (book || publisher) {
     const { Client } = require("pg");
