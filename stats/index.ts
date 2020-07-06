@@ -1,65 +1,74 @@
 import { AzureFunction, Context, HttpRequest } from "@azure/functions";
-import BookQuery from "./bookQuery";
-
-function getFromDateStr(req: HttpRequest): string | undefined {
-  return req.query.from || (req.body && req.body.from) || undefined;
-}
-
-function getToDateStr(req: HttpRequest): string | undefined {
-  return req.query.to || (req.body && req.body.to) || undefined;
-}
+import { processEvents } from "./events";
 
 const stats: AzureFunction = async function(
   context: Context,
   req: HttpRequest
 ): Promise<void> {
-  const book = req.query.book || (req.body && req.body.book);
-  const bookInstanceId =
-    req.query["book-instance-id"] || (req.body && req.body["book-instance-id"]);
+  try {
+    const category = req.params.category;
+    const rowType = req.params.rowType;
 
-  const from = getFromDateStr(req);
-  const to = getToDateStr(req);
+    const filter = req.query.filter || (req.body && req.body.filter);
 
-  const bookQuery =
-    req.query["book-query"] || (req.body && req.body["book-query"]);
+    if (category && rowType && filter) {
+      await processEvents(context, category, rowType, filter);
+      return;
+    } else {
+      // This whole else should be rewritten for the new category/rowType url model.
+      // For now, leaving it for backward compatibility since the book detail stats are actively using it
+      // (albeit on the contentful branch, Jul 6 2020).
 
-  // We may end up not using this and just using bookQuery instead...
-  const publisher = req.query.publisher || (req.body && req.body.publisher);
+      // TODO: Get rid of me one day. Should be passed through filter instead.
+      const from = getFromDateStr(req);
+      const to = getToDateStr(req);
 
-  if (bookQuery) {
-    await BookQuery.processStats(context, bookQuery, from, to);
-    return;
-  } else if (book || publisher) {
-    const { Client } = require("pg");
-    const client = new Client();
-    await client.connect();
+      const book = req.query.book || (req.body && req.body.book);
+      const bookInstanceId =
+        req.query["book-instance-id"] ||
+        (req.body && req.body["book-instance-id"]);
 
-    let query;
-    if (book)
-      query = client.query(
-        "SELECT * FROM public.get_book_stats($1, $2)", //, $3, $4)",
-        [book, bookInstanceId] //, from, to]
-      );
-    else
-      query = client.query(
-        "SELECT * FROM public.get_publisher_stats($1)", //, $2, $3)",
-        [publisher] //, from, to]
-      );
-    const queryResult = await query;
-    context.res = {
-      headers: { "Content-Type": "application/json" },
-      body: { bookstats: queryResult.rows[0] },
-    };
-    context.done();
+      if (book && bookInstanceId) {
+        const { Client } = require("pg");
+        const client = new Client();
+        await client.connect();
 
-    await client.end();
-  } else {
-    context.res = {
-      status: 400,
-      body:
-        "Please pass a book, publisher, or book query in the query string or body",
-    };
+        const queryResult = await client.query(
+          "SELECT * FROM public.get_book_stats($1, $2)", //, $3, $4)",
+          [book, bookInstanceId] //, from, to]
+        );
+        context.res = {
+          headers: { "Content-Type": "application/json" },
+          body: { bookstats: queryResult.rows[0] },
+        };
+        context.done();
+
+        await client.end();
+      } else {
+        fail(
+          context,
+          "Url, request body, or params are not in a valid state. Provide filter or book."
+        );
+      }
+    }
+  } catch (e) {
+    fail(context, e.message);
   }
 };
+
+function getFromDateStr(req: HttpRequest): string | undefined {
+  return req.query.from || (req.body && req.body.from) || undefined;
+}
+
+function fail(context: Context, message: string): void {
+  context.res = {
+    status: 400,
+    body: message,
+  };
+}
+
+function getToDateStr(req: HttpRequest): string | undefined {
+  return req.query.to || (req.body && req.body.to) || undefined;
+}
 
 export default stats;
