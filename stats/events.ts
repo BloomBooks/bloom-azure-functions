@@ -27,6 +27,8 @@ export async function processEvents(
     sqlQuery = await getReadingPerDayEventsSql(filter);
   } else if (category === "reading" && rowType === "per-book") {
     sqlQuery = getReadingPerBookEventsSql(filter);
+  } else if (category === "reading" && rowType === "per-book-comprehension") {
+    sqlQuery = getReadingPerBookComprehensionEventsSql(filter);
   } else if (category === "reading" && rowType === "overview") {
     sqlQuery = getReadingOverviewSql(filter);
   } else {
@@ -77,12 +79,20 @@ async function getReadingPerDayEventsSql(filter: {
   }
 }
 
-// Returns a string representing the SQL query needed to get the reading events per day
+// Returns a string representing the SQL query needed to get the reading events per book
 function getReadingPerBookEventsSql(filter: IFilter): string {
   // Determine which books by passing parameters to postgresql directly (not book IDs from parse in a temp table).
   const [fromDate, toDate] = getDatesFromFilter(filter);
   const queryBasedOnIdsInTempTable = "false";
   return `SELECT * from get_reading_perbook_events(${queryBasedOnIdsInTempTable}, '${fromDate}', '${toDate}', '${filter.branding}', '${filter.country}')`;
+}
+
+// Returns a string representing the SQL query needed to get the reading comprehension events per book
+function getReadingPerBookComprehensionEventsSql(filter: IFilter): string {
+  // Determine which books by passing parameters to postgresql directly (not book IDs from parse in a temp table).
+  const [fromDate, toDate] = getDatesFromFilter(filter);
+  const queryBasedOnIdsInTempTable = "false";
+  return `SELECT * from get_reading_perbook_comprehension_events(${queryBasedOnIdsInTempTable}, '${fromDate}', '${toDate}', '${filter.branding}', '${filter.country}')`;
 }
 
 function getDatesFromFilter(filter: IFilter): [string, string] {
@@ -94,7 +104,7 @@ function getDatesFromFilter(filter: IFilter): [string, string] {
   return [fromDate, toDate];
 }
 
-// Returns a string representing the SQL query needed to get the reading events per day
+// Returns a string representing the SQL query needed to get the reading overview
 function getReadingOverviewSql(filter: IFilter): string {
   // Determine which books by passing parameters to postgresql directly (not book IDs from parse in a temp table).
   const [fromDate, toDate] = getDatesFromFilter(filter);
