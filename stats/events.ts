@@ -1,6 +1,7 @@
 import { Context } from "@azure/functions";
-import { getReadingPerDayEventsUsingParseDBQuerySql } from "./readingPerDayEventsByParseDBQuery";
 import { AxiosRequestConfig } from "axios";
+import { IFilter } from ".";
+import { getReadingPerDayEventsUsingParseDBQuerySql } from "./readingPerDayEventsByParseDBQuery";
 
 const moment = require("moment");
 
@@ -13,13 +14,7 @@ export async function processEvents(
   context: Context,
   category: string,
   rowType: string,
-  filter: {
-    parseDBQuery?: { url: string; options: AxiosRequestConfig };
-    branding?: string;
-    country?: string;
-    fromDate?: string;
-    toDate?: string;
-  }
+  filter: IFilter
 ): Promise<void> {
   if (filter.fromDate && !isValidDateStr(filter.fromDate)) {
     throw new Error(`Invalid from date: ${filter.fromDate}`);
@@ -30,6 +25,10 @@ export async function processEvents(
   let sqlQuery;
   if (category === "reading" && rowType === "per-day") {
     sqlQuery = await getReadingPerDayEventsSql(filter);
+  } else if (category === "reading" && rowType === "per-book") {
+    sqlQuery = getReadingPerBookEventsSql(filter);
+    // } else if (category === "reading" && rowType === "overview") {
+    //   sqlQuery = await getReadingPerBookEventsSql(filter);
   } else {
     throw new Error(`Unknown category and rowType: (${category}, ${rowType})`);
   }
@@ -72,11 +71,25 @@ async function getReadingPerDayEventsSql(filter: {
     );
   } else {
     // Determine which books by passing parameters to postgresql directly (not book IDs from parse in a temp table).
-    let fromDate = filter.fromDate;
-    if (!fromDate) fromDate = "2000-01-01";
-    let toDate = filter.toDate;
-    if (!toDate) toDate = "9999-12-31";
+    const [fromDate, toDate] = getDatesFromFilter(filter);
     const queryBasedOnIdsInTempTable = "false";
     return `SELECT * from get_reading_perday_events(${queryBasedOnIdsInTempTable}, '${fromDate}', '${toDate}', '${filter.branding}', '${filter.country}')`;
   }
+}
+
+// Returns a string representing the SQL query needed to get the reading events per day
+function getReadingPerBookEventsSql(filter: IFilter) {
+  // Determine which books by passing parameters to postgresql directly (not book IDs from parse in a temp table).
+  const [fromDate, toDate] = getDatesFromFilter(filter);
+  const queryBasedOnIdsInTempTable = "false";
+  return `SELECT * from get_reading_perbook_events(${queryBasedOnIdsInTempTable}, '${fromDate}', '${toDate}', '${filter.branding}', '${filter.country}')`;
+}
+
+function getDatesFromFilter(filter: IFilter): [string, string] {
+  let fromDate = filter.fromDate;
+  if (!fromDate) fromDate = "2000-01-01";
+  let toDate = filter.toDate;
+  if (!toDate) toDate = "9999-12-31";
+
+  return [fromDate, toDate];
 }

@@ -1,5 +1,14 @@
 import { AzureFunction, Context, HttpRequest } from "@azure/functions";
 import { processEvents } from "./events";
+import { AxiosRequestConfig } from "axios";
+
+export interface IFilter {
+  parseDBQuery?: { url: string; options: AxiosRequestConfig };
+  branding?: string;
+  country?: string;
+  fromDate?: string;
+  toDate?: string;
+}
 
 const stats: AzureFunction = async function(
   context: Context,
