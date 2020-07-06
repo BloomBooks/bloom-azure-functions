@@ -27,8 +27,8 @@ export async function processEvents(
     sqlQuery = await getReadingPerDayEventsSql(filter);
   } else if (category === "reading" && rowType === "per-book") {
     sqlQuery = getReadingPerBookEventsSql(filter);
-    // } else if (category === "reading" && rowType === "overview") {
-    //   sqlQuery = await getReadingPerBookEventsSql(filter);
+  } else if (category === "reading" && rowType === "overview") {
+    sqlQuery = getReadingOverviewSql(filter);
   } else {
     throw new Error(`Unknown category and rowType: (${category}, ${rowType})`);
   }
@@ -78,7 +78,7 @@ async function getReadingPerDayEventsSql(filter: {
 }
 
 // Returns a string representing the SQL query needed to get the reading events per day
-function getReadingPerBookEventsSql(filter: IFilter) {
+function getReadingPerBookEventsSql(filter: IFilter): string {
   // Determine which books by passing parameters to postgresql directly (not book IDs from parse in a temp table).
   const [fromDate, toDate] = getDatesFromFilter(filter);
   const queryBasedOnIdsInTempTable = "false";
@@ -92,4 +92,12 @@ function getDatesFromFilter(filter: IFilter): [string, string] {
   if (!toDate) toDate = "9999-12-31";
 
   return [fromDate, toDate];
+}
+
+// Returns a string representing the SQL query needed to get the reading events per day
+function getReadingOverviewSql(filter: IFilter): string {
+  // Determine which books by passing parameters to postgresql directly (not book IDs from parse in a temp table).
+  const [fromDate, toDate] = getDatesFromFilter(filter);
+  const queryBasedOnIdsInTempTable = "false";
+  return `SELECT * from get_reading_overview(${queryBasedOnIdsInTempTable}, '${fromDate}', '${toDate}', '${filter.branding}', '${filter.country}')`;
 }
