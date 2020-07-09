@@ -22,7 +22,7 @@ export async function processEvents(
     throw new Error(`Invalid to date: ${filter.toDate}`);
   }
 
-  let sqlQuery;
+  let sqlQuery: string | undefined;
   if (category === "reading" && rowType === "per-day") {
     sqlQuery = await getReadingPerDayEventsSql(filter);
   } else if (category === "reading" && rowType === "per-book") {
@@ -35,24 +35,36 @@ export async function processEvents(
     throw new Error(`Unknown category and rowType: (${category}, ${rowType})`);
   }
 
-  const { Client } = require("pg");
-  const client = new Client();
-  await client.connect();
-
-  const statsResult = await client.query(sqlQuery);
-
-  const jsonResult = Array.isArray(statsResult)
-    ? statsResult[statsResult.length - 1].rows
-    : statsResult.rows;
-
   // Return results as json
   context.res = {
     headers: { "Content-Type": "application/json" },
-    body: { stats: jsonResult },
   };
-  context.done();
 
-  await client.end();
+  if (sqlQuery) {
+    const { Client } = require("pg");
+    const client = new Client();
+    await client.connect();
+
+    //const t0 = new Date().getTime();
+    const statsResult = await client.query(sqlQuery);
+    //const t1 = new Date().getTime();
+    //console.log("SQL query took " + (t1 - t0) + " milliseconds to return.");
+
+    await client.end();
+
+    const jsonResult = Array.isArray(statsResult)
+      ? statsResult[statsResult.length - 1].rows
+      : statsResult.rows;
+    context.res.body = {
+      stats: jsonResult,
+    };
+  } else {
+    context.res.body = {
+      stats: [],
+    };
+  }
+
+  context.done();
 }
 
 // Asynchronously returns a string representing the SQL query needed to get the reading events per day
@@ -62,7 +74,7 @@ async function getReadingPerDayEventsSql(filter: {
   country?: string;
   fromDate?: string;
   toDate?: string;
-}): Promise<string> {
+}): Promise<string | undefined> {
   const parseDBQuery = filter.parseDBQuery;
   if (parseDBQuery) {
     // Asynchronously determine the group of books by asking parse using the given query.
