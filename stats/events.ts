@@ -1,7 +1,7 @@
 import { Context } from "@azure/functions";
 import { AxiosRequestConfig } from "axios";
 import { IFilter } from ".";
-import { getReadingPerDayEventsUsingParseDBQuerySql } from "./readingPerDayEventsByParseDBQuery";
+import { addParseBooksToTempTableQuery } from "./readingPerDayEventsByParseDBQuery";
 
 const moment = require("moment");
 
@@ -26,11 +26,11 @@ export async function processEvents(
   if (category === "reading" && rowType === "per-day") {
     sqlQuery = await getReadingPerDayEventsSql(filter);
   } else if (category === "reading" && rowType === "per-book") {
-    sqlQuery = getReadingPerBookEventsSql(filter);
+    sqlQuery = await getReadingPerBookEventsSql(filter);
   } else if (category === "reading" && rowType === "per-book-comprehension") {
-    sqlQuery = getReadingPerBookComprehensionEventsSql(filter);
+    sqlQuery = await getReadingPerBookComprehensionEventsSql(filter);
   } else if (category === "reading" && rowType === "overview") {
-    sqlQuery = getReadingOverviewSql(filter);
+    sqlQuery = await getReadingOverviewSql(filter);
   } else {
     throw new Error(`Unknown category and rowType: (${category}, ${rowType})`);
   }
@@ -67,46 +67,6 @@ export async function processEvents(
   context.done();
 }
 
-// Asynchronously returns a string representing the SQL query needed to get the reading events per day
-async function getReadingPerDayEventsSql(filter: {
-  parseDBQuery?: { url: string; options: AxiosRequestConfig };
-  branding?: string;
-  country?: string;
-  fromDate?: string;
-  toDate?: string;
-}): Promise<string | undefined> {
-  const parseDBQuery = filter.parseDBQuery;
-  if (parseDBQuery) {
-    // Asynchronously determine the group of books by asking parse using the given query.
-    return getReadingPerDayEventsUsingParseDBQuerySql(
-      parseDBQuery,
-      filter.fromDate,
-      filter.toDate
-    );
-  } else {
-    // Determine which books by passing parameters to postgresql directly (not book IDs from parse in a temp table).
-    const [fromDate, toDate] = getDatesFromFilter(filter);
-    const queryBasedOnIdsInTempTable = "false";
-    return `SELECT * from get_reading_perday_events(${queryBasedOnIdsInTempTable}, '${fromDate}', '${toDate}', '${filter.branding}', '${filter.country}')`;
-  }
-}
-
-// Returns a string representing the SQL query needed to get the reading events per book
-function getReadingPerBookEventsSql(filter: IFilter): string {
-  // Determine which books by passing parameters to postgresql directly (not book IDs from parse in a temp table).
-  const [fromDate, toDate] = getDatesFromFilter(filter);
-  const queryBasedOnIdsInTempTable = "false";
-  return `SELECT * from get_reading_perbook_events(${queryBasedOnIdsInTempTable}, '${fromDate}', '${toDate}', '${filter.branding}', '${filter.country}')`;
-}
-
-// Returns a string representing the SQL query needed to get the reading comprehension events per book
-function getReadingPerBookComprehensionEventsSql(filter: IFilter): string {
-  // Determine which books by passing parameters to postgresql directly (not book IDs from parse in a temp table).
-  const [fromDate, toDate] = getDatesFromFilter(filter);
-  const queryBasedOnIdsInTempTable = "false";
-  return `SELECT * from get_reading_perbook_comprehension_events(${queryBasedOnIdsInTempTable}, '${fromDate}', '${toDate}', '${filter.branding}', '${filter.country}')`;
-}
-
 function getDatesFromFilter(filter: IFilter): [string, string] {
   let fromDate = filter.fromDate;
   if (!fromDate) fromDate = "2000-01-01";
@@ -116,10 +76,72 @@ function getDatesFromFilter(filter: IFilter): [string, string] {
   return [fromDate, toDate];
 }
 
-// Returns a string representing the SQL query needed to get the reading overview
-function getReadingOverviewSql(filter: IFilter): string {
+async function getCombinedParseAndOrSqlFunction(
+  functionName,
+  filter: {
+    parseDBQuery?: { url: string; options: AxiosRequestConfig };
+    branding?: string;
+    country?: string;
+    fromDate?: string;
+    toDate?: string;
+  }
+): Promise<string | undefined> {
+  let sqlQuery = "";
+  const parseDBQuery = filter.parseDBQuery;
+  let queryBasedOnIdsInTempTable: boolean = !!parseDBQuery;
+  if (parseDBQuery) {
+    // First, asynchronously determine the group of books by asking parse using the given query.
+    sqlQuery = await addParseBooksToTempTableQuery(
+      parseDBQuery,
+      filter.fromDate,
+      filter.toDate
+    );
+
+    if (!sqlQuery) {
+      // Parse has no records
+      return undefined;
+    }
+  }
+
   // Determine which books by passing parameters to postgresql directly (not book IDs from parse in a temp table).
   const [fromDate, toDate] = getDatesFromFilter(filter);
-  const queryBasedOnIdsInTempTable = "false";
-  return `SELECT * from get_reading_overview(${queryBasedOnIdsInTempTable}, '${fromDate}', '${toDate}', '${filter.branding}', '${filter.country}')`;
+  sqlQuery += `SELECT * from ${functionName}(${queryBasedOnIdsInTempTable.toString()}, '${fromDate}', '${toDate}', '${
+    filter.branding
+  }', '${filter.country}')`;
+  return sqlQuery;
+}
+
+// Asynchronously returns a string representing the SQL query needed to get the reading events per day
+async function getReadingPerDayEventsSql(filter: {
+  parseDBQuery?: { url: string; options: AxiosRequestConfig };
+  branding?: string;
+  country?: string;
+  fromDate?: string;
+  toDate?: string;
+}): Promise<string | undefined> {
+  return getCombinedParseAndOrSqlFunction("get_reading_perday_events", filter);
+}
+
+// Returns a string representing the SQL query needed to get the reading events per book
+async function getReadingPerBookEventsSql(
+  filter: IFilter
+): Promise<string | undefined> {
+  return getCombinedParseAndOrSqlFunction("get_reading_perbook_events", filter);
+}
+
+// Returns a string representing the SQL query needed to get the reading comprehension events per book
+async function getReadingPerBookComprehensionEventsSql(
+  filter: IFilter
+): Promise<string | undefined> {
+  return getCombinedParseAndOrSqlFunction(
+    "get_reading_perbook_comprehension_events",
+    filter
+  );
+}
+
+// Returns a string representing the SQL query needed to get the reading overview
+async function getReadingOverviewSql(
+  filter: IFilter
+): Promise<string | undefined> {
+  return getCombinedParseAndOrSqlFunction("get_reading_overview", filter);
 }

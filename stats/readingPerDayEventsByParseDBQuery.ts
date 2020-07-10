@@ -1,6 +1,6 @@
 import axios, { AxiosRequestConfig } from "axios";
 
-export async function getReadingPerDayEventsUsingParseDBQuerySql(
+export async function addParseBooksToTempTableQuery(
   bookQuery: { url: string; options: AxiosRequestConfig },
   fromDateValidatedStr: string | undefined,
   toDateValidatedStr: string | undefined
@@ -30,6 +30,9 @@ export async function getReadingPerDayEventsUsingParseDBQuerySql(
     // Crude check for sql injection...
     if (booksInfoFormattedForInsert.includes(";")) {
       // ENHANCE: Check that none of the objectIds nor bookInstanceIds have ' in them.
+      console.log(
+        "booksInfoFormattedForInsert = " + booksInfoFormattedForInsert
+      );
       throw new Error("Unexpected book info caused stats lookup to fail");
     }
 
@@ -39,7 +42,7 @@ export async function getReadingPerDayEventsUsingParseDBQuerySql(
       sqlFunctionParameters += `, '${fromDateValidatedStr}', '${toDateValidatedStr}'`;
     }
 
-    return `CREATE TEMP TABLE temp_book_ids(book_id,book_instance_id) AS VALUES ${booksInfoFormattedForInsert};SELECT * from get_reading_perday_events(${sqlFunctionParameters})`;
+    return `CREATE TEMP TABLE temp_book_ids(book_id,book_instance_id) AS VALUES ${booksInfoFormattedForInsert}; `;
   } else {
     throw new Error("Invalid book query");
   }
