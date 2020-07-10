@@ -21,18 +21,24 @@ export async function processEvents(
     throw new Error(`Invalid to date: ${filter.toDate}`);
   }
 
-  let sqlQuery: string | undefined;
+  let sqlFunctionName: string;
   if (category === "reading" && rowType === "per-day") {
-    sqlQuery = await getReadingPerDayEventsSql(filter);
+    sqlFunctionName = "common.get_reading_perday_events";
   } else if (category === "reading" && rowType === "per-book") {
-    sqlQuery = await getReadingPerBookEventsSql(filter);
-  } else if (category === "reading" && rowType === "per-book-comprehension") {
-    sqlQuery = await getReadingPerBookComprehensionEventsSql(filter);
+    sqlFunctionName = "common.get_reading_perbook_events";
   } else if (category === "reading" && rowType === "overview") {
-    sqlQuery = await getReadingOverviewSql(filter);
+    sqlFunctionName = "common.get_reading_overview";
+  } else if (category === "reading" && rowType === "per-book-comprehension") {
+    // obsolete but waiting for code deployment to next.blorg
+    sqlFunctionName = "get_reading_perbook_comprehension_events";
   } else {
     throw new Error(`Unknown category and rowType: (${category}, ${rowType})`);
   }
+
+  const sqlQuery: string | undefined = await getCombinedParseAndOrSqlFunction(
+    sqlFunctionName,
+    filter
+  );
 
   // Return results as json
   context.res = {
@@ -150,41 +156,4 @@ async function getCombinedParseAndOrSqlFunction(
     filter.branding
   }', '${filter.country}')`;
   return sqlQuery;
-}
-
-// Asynchronously returns a string representing the SQL query needed to get the reading events per day
-async function getReadingPerDayEventsSql(
-  filter: IFilter
-): Promise<string | undefined> {
-  return getCombinedParseAndOrSqlFunction(
-    "common.get_reading_perday_events",
-    filter
-  );
-}
-
-// Returns a string representing the SQL query needed to get the reading events per book
-async function getReadingPerBookEventsSql(
-  filter: IFilter
-): Promise<string | undefined> {
-  return getCombinedParseAndOrSqlFunction(
-    "common.get_reading_perbook_events",
-    filter
-  );
-}
-
-// Returns a string representing the SQL query needed to get the reading comprehension events per book
-async function getReadingPerBookComprehensionEventsSql(
-  filter: IFilter
-): Promise<string | undefined> {
-  return getCombinedParseAndOrSqlFunction(
-    "get_reading_perbook_comprehension_events",
-    filter
-  );
-}
-
-// Returns a string representing the SQL query needed to get the reading overview
-async function getReadingOverviewSql(
-  filter: IFilter
-): Promise<string | undefined> {
-  return getCombinedParseAndOrSqlFunction("get_reading_overview", filter);
 }
