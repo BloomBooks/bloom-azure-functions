@@ -4,7 +4,7 @@ export async function getReadingPerDayEventsUsingParseDBQuerySql(
   bookQuery: { url: string; options: AxiosRequestConfig },
   fromDateValidatedStr: string | undefined,
   toDateValidatedStr: string | undefined
-) {
+): Promise<string | undefined> {
   // Send query to parse
   const response = await axios.get(bookQuery.url, bookQuery.options);
 
@@ -13,6 +13,12 @@ export async function getReadingPerDayEventsUsingParseDBQuerySql(
   // Query against that table in postgres
   if (response.status === 200 && response.data && response.data.results) {
     const booksInfo = response.data.results;
+
+    // Return right away if booksInfo.length is 0. No point generating a SQL query
+    if (!booksInfo || booksInfo.length === 0) {
+      console.log("No results returned from Parse");
+      return undefined;
+    }
 
     const booksInfoFormattedForInsert: string = booksInfo
       .map(
@@ -23,6 +29,7 @@ export async function getReadingPerDayEventsUsingParseDBQuerySql(
 
     // Crude check for sql injection...
     if (booksInfoFormattedForInsert.includes(";")) {
+      // ENHANCE: Check that none of the objectIds nor bookInstanceIds have ' in them.
       throw new Error("Unexpected book info caused stats lookup to fail");
     }
 
