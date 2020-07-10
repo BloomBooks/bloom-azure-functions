@@ -125,17 +125,11 @@ async function addParseBooksToTempTableQuery(
 
 async function getCombinedParseAndOrSqlFunction(
   functionName,
-  filter: {
-    parseDBQuery?: { url: string; options: AxiosRequestConfig };
-    branding?: string;
-    country?: string;
-    fromDate?: string;
-    toDate?: string;
-  }
+  filter: IFilter
 ): Promise<string | undefined> {
   let sqlQuery = "";
   const parseDBQuery = filter.parseDBQuery;
-  let queryBasedOnIdsInTempTable: boolean = !!parseDBQuery;
+  const queryBasedOnIdsInTempTable: boolean = !!parseDBQuery;
   if (parseDBQuery) {
     // First, asynchronously determine the group of books by asking parse using the given query.
     sqlQuery = await addParseBooksToTempTableQuery(
@@ -159,14 +153,13 @@ async function getCombinedParseAndOrSqlFunction(
 }
 
 // Asynchronously returns a string representing the SQL query needed to get the reading events per day
-async function getReadingPerDayEventsSql(filter: {
-  parseDBQuery?: { url: string; options: AxiosRequestConfig };
-  branding?: string;
-  country?: string;
-  fromDate?: string;
-  toDate?: string;
-}): Promise<string | undefined> {
-  return getCombinedParseAndOrSqlFunction("get_reading_perday_events", filter);
+async function getReadingPerDayEventsSql(
+  filter: IFilter
+): Promise<string | undefined> {
+  return getCombinedParseAndOrSqlFunction(
+    "common.get_reading_perday_events",
+    filter
+  );
 }
 
 // Returns a string representing the SQL query needed to get the reading events per book
