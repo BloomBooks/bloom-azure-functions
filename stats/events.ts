@@ -166,7 +166,10 @@ async function getReadingPerDayEventsSql(
 async function getReadingPerBookEventsSql(
   filter: IFilter
 ): Promise<string | undefined> {
-  return getCombinedParseAndOrSqlFunction("get_reading_perbook_events", filter);
+  return getCombinedParseAndOrSqlFunction(
+    "common.get_reading_perbook_events",
+    filter
+  );
 }
 
 // Returns a string representing the SQL query needed to get the reading comprehension events per book
