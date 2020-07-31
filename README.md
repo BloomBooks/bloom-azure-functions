@@ -2,7 +2,7 @@
 
 These files work with the `ms-azuretools.vscode-azurefunctions` extension in vscode.
 
-To debug locally, `F5` (`F1`, `Debug: Start Debugging`). For some reason this asks you to log into Azure. If all goes well, the terminal will output a url 
+To debug locally, `F5` (`F1`, `Debug: Start Debugging`). For some reason this asks you to log into Azure. If all goes well, the terminal will output a url
 
 Once the code is committed to master, deployment to production is automated. Currently we have only one deployment: production. So all the testing you need to do, you need to do locally.
 
@@ -10,7 +10,7 @@ Once the code is committed to master, deployment to production is automated. Cur
 
 To add a new function, use the azure extension vscode; it has a lightning-bolt icon for "Create Function". Click that and then choose "HTTP trigger". It will offer a name like "HTTPTrigger1", replace that with the name of your function. That will create a folder; it is this folder name which controls the actual name of the trigger in the URL.
 
-The actual URL is influenced by 
+The actual URL is influenced by
 * a cloudflare page rule which redirects from `api.bloomlibrary.org` to this set of azure functions.
 * the `hosts.json` file, which we have modified to insert `/v1/` before the name of your function.
 
@@ -26,12 +26,17 @@ the alpha stage of initial development)
 - *OpdsParseAppIdProd* -  the AppId key to the production parse table (for *src=prod* in the input URL, the default
 after the alpha stage of initial development)
 
-Some environment variables are needed for the **stats** function to connect to the postgresql database.
+Some environment variables are needed for the **stats** function to connect to the postgresql database using the stats user.
 - *PGUSER*
 - *PGHOST*
 - *PGPASSWORD*
 - *PGDATABASE*
 - *PGPORT*
+
+Some environment variables are needed for the **dailyTimer** function to connect to the postgresql database using the silpgadmin.
+These are used to temporarily overwrite the environment variables above which are used by node-postgres (npm pg) directly.
+- *PGUSER_admin*
+- *PGPASSWORD_admin*
 
 See [Azure documentation](https://docs.microsoft.com/en-us/azure/azure-functions/functions-reference-node#environment-variables)
 for a discussion of how these environment variables can be set.
@@ -183,3 +188,10 @@ Examples:
 - `http://api.bloomlibrary.org/v1/stats?book=12345ABC&from=20200101`
 - `http://api.bloomlibrary.org/v1/stats?book=12345ABC&to=20191231`
 - `http://api.bloomlibrary.org/v1/stats?book=12345ABC&from=20190101&to=20191231`
+
+
+# dailyTimer Function
+
+The **dailyTimer** function is a timer function set to run once per day.
+
+Currently, it is used to refresh the materialized views in the postgresql analytics database.
