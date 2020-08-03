@@ -43,7 +43,7 @@ const stats: AzureFunction = async function(
         await client.connect();
 
         const queryResult = await client.query(
-          "SELECT * FROM public.get_book_stats($1, $2)", //, $3, $4)",
+          "SELECT * FROM common.get_book_stats($1, $2)", //, $3, $4)",
           [book, bookInstanceId] //, from, to]
         );
         context.res = {
