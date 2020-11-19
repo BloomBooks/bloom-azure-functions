@@ -1,19 +1,18 @@
+
 What this code does (or may do eventually)
 
 # 1 Get Contentful Export
 
 Pulls down the latest Bloom Library strings in Contentful.com that we want to be translated using Crowdin.com.
 
-
-# 2 Produce a json file in the format that Contentful calls "Chrome JSON"
-
+# 2 For each file (currently there are 3), produce a json file in the format that Contentful calls "Chrome JSON"
 
 # 3 Push that file to Crowdin
 
-Future: Do that via crowdin API
+# Required environment variable secrets
 
-For now: Manually upload it to Crowdin
-
+* bloomCrowdinApiToken (SILCrowdinBot has a "Contentful Transfer Function token" for this)
+* bloomContentfulReadOnlyToken (this is the same token used by the live bloomlibrary.org SPA, so not actually a secret)
 
 # Note: Not yet a Azure Function
 
