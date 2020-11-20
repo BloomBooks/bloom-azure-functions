@@ -1,6 +1,4 @@
 
-What this code does (or may do eventually)
-
 # 1 Get Contentful Export
 
 Pulls down the latest Bloom Library strings in Contentful.com that we want to be translated using Crowdin.com.
@@ -14,13 +12,18 @@ Pulls down the latest Bloom Library strings in Contentful.com that we want to be
 * bloomCrowdinApiToken (SILCrowdinBot has a "Contentful Transfer Function token" for this)
 * bloomContentfulReadOnlyToken (this is the same token used by the live bloomlibrary.org SPA, so not actually a secret)
 
-# Note: Not yet a Azure Function
+This runs once a day.
 
-This is not yet an actual azure function. It lives in this repo because it will ideally become a function that is auto-run once a day or whatever.
+# Running manually on Azure (as of Nov 2020)
 
-For now:
+Under Home > bloom-functions > contentfulToCrowin, go to "Code + Test".
+Set the file to "index.ts".
+Click "Test/Run"
+Leave the inputs empty, click The "Run" button in the lower right.
+
+# Running locally
 
 1) Have typescript installed globally, e.g. `npm add -g typescript`
-2) On the command line from the root of this folder, `ts-node index.ts`
-3) It will place a file named "bloom-library-contentful.json" in this directory (it is git-ignored).
+2) Uncomment the function you want to test
+3) On the command line from the root of this folder, `ts-node index.ts`
 
