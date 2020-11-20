@@ -1,8 +1,8 @@
 {
   "bindings": [
     {
-      "name": "",
-      "type": "contentfulToCrowdin",
+      "name": "contentfulToCrowdin",
+      "type": "timerTrigger",
       "direction": "in",
       "schedule": "0 30 22 * * *"
     }
