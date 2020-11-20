@@ -12,6 +12,7 @@ const contentfulReadOnlyToken = process.env.bloomContentfulReadOnlyToken;
 const kCrowdinProjectId = 261564;
 
 // uncomment this listCrowdinFiles(); and do ts-node index.ts to get a file list
+//listCrowdinFiles();
 //readTransformUpload();
 
 const contentfulToCrowdin: AzureFunction = async (
@@ -54,9 +55,9 @@ async function readTransformUpload() {
 
   // //console.log(JSON.stringify(l10nJson, null, 4));
   await Promise.all([
-    updateCrowdinFile(highPriorityJson, 98),
-    updateCrowdinFile(lowPriorityJson, 100),
-    updateCrowdinFile(churchJson, 102),
+    updateCrowdinFile(highPriorityJson, 106),
+    updateCrowdinFile(lowPriorityJson, 108),
+    updateCrowdinFile(churchJson, 104),
   ]);
 }
 
