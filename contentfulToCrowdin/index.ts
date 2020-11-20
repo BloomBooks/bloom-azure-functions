@@ -134,7 +134,9 @@ function transformContentfulToL10File(
         message: e.fields.label,
         // This uilang=en-US parameter isn't implemented in blorg yet, but it could be in the future and could be useful for testing
         // thing. Meanwhile it does not harm.
-        description: `label for the BloomLibrary ${kind} collection. See "https://alpha.bloomlibrary.org/${e.fields.urlKey}?uilang=en-US" ${extraNotice}`,
+        description: `This is a label for a ${kind} collection. See "https://alpha.bloomlibrary.org/${
+          e.fields.urlKey
+        }?uilang=en-US" ${extraNotice || ""}`,
       };
     });
 
