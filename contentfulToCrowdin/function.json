@@ -1,0 +1,11 @@
+{
+  "bindings": [
+    {
+      "name": "",
+      "type": "contentfulToCrowdin",
+      "direction": "in",
+      "schedule": "0 30 22 * * *"
+    }
+  ],
+  "scriptFile": "../dist/contentfulToCrowdin/index.js"
+}

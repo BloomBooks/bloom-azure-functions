@@ -12,7 +12,7 @@ const contentfulReadOnlyToken = process.env.bloomContentfulReadOnlyToken;
 const kCrowdinProjectId = 261564;
 
 // uncomment this listCrowdinFiles(); and do ts-node index.ts to get a file list
-readTransformUpload();
+//readTransformUpload();
 
 const contentfulToCrowdin: AzureFunction = async (
   context: Context,
@@ -60,7 +60,6 @@ async function readTransformUpload() {
 
 async function getContentfulEntries() {
   console.log("Querying Contentful...");
-  console.log(contentfulReadOnlyToken);
   const client = contentful.createClient({
     space: "72i7e2mqidxz",
     accessToken: contentfulReadOnlyToken,
