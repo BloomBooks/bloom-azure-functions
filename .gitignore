@@ -92,3 +92,6 @@ bin
 obj
 appsettings.json
 local.settings.json
+contentfulToCrowdin/contentful-export.json
+
+contentfulToCrowdin/bloom-library-contentful.json
