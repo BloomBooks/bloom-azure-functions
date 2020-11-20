@@ -15,17 +15,19 @@ const kCrowdinProjectId = 261564;
 //readTransformUpload();
 
 const contentfulToCrowdin: AzureFunction = async (
-  context: Context,
-  req: HttpRequest
+  context: Context
 ): Promise<void> => {
   try {
+    context.log("contentfulToCrowdin starting", new Date().toISOString());
     readTransformUpload();
+    context.log("contentfulToCrowdin finished", new Date().toISOString());
+    context.done();
   } catch (err) {
     console.error(err);
-    context.res.status = 500;
-    context.res.statusText = "Error: " + JSON.stringify(err);
+    context.done("Error: " + JSON.stringify(err));
   }
 };
+
 async function readTransformUpload() {
   const contentfulEntries = await getContentfulEntries();
   const highPriorityJson = transformContentfulToL10File(
