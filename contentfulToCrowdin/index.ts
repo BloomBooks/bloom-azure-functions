@@ -13,7 +13,7 @@ const kCrowdinProjectId = 261564;
 
 // uncomment this listCrowdinFiles(); and do ts-node index.ts to get a file list
 //listCrowdinFiles();
-//readTransformUpload();
+readTransformUpload();
 
 const contentfulToCrowdin: AzureFunction = async (
   context: Context
@@ -31,21 +31,21 @@ const contentfulToCrowdin: AzureFunction = async (
 
 async function readTransformUpload() {
   const contentfulEntries = await getContentfulEntries();
-  const highPriorityJson = transformContentfulToL10File(
+  const highPriorityJson = transformContentfulEntriesToL10nJson(
     contentfulEntries,
     includeInHighPriorityFile
   );
-  // console.log("--------- HIGH Priority ----------");
-  // console.log(highPriorityJson);
+  console.log("--------- HIGH Priority ----------");
+  //console.log(highPriorityJson);
 
-  const lowPriorityJson = transformContentfulToL10File(
+  const lowPriorityJson = transformContentfulEntriesToL10nJson(
     contentfulEntries,
     includeInLowPriorityFile
   );
   console.log("---------- LOW Priority ---------");
-  // console.log(lowPriorityJson);
+  //console.log(lowPriorityJson);
 
-  const churchJson = transformContentfulToL10File(
+  const churchJson = transformContentfulEntriesToL10nJson(
     contentfulEntries,
     includeInChurchFile,
     "NOTE: This is a Biblical or Christian term which should be translated with particular care and in accordance with how these terms are used in the church in this language."
@@ -67,8 +67,13 @@ async function getContentfulEntries() {
     space: "72i7e2mqidxz",
     accessToken: contentfulReadOnlyToken,
   });
-  const response = await client.getEntries({ content_type: "collection" });
-  return response.items;
+  const collectionResponse = await client.getEntries({
+    content_type: "collection",
+  });
+  const bannerResponse = await client.getEntries({
+    content_type: "pageBanner",
+  });
+  return [...collectionResponse.items, ...bannerResponse.items];
 }
 
 function doNotLocalizeFilter(e: any) {
@@ -116,19 +121,52 @@ function includeInChurchFile(e: any) {
   return e.fields.localization === "Church";
 }
 
-function transformContentfulToL10File(
+function transformContentfulEntriesToL10nJson(
   entries: any[],
   filter: (entry: any) => boolean,
   extraNotice?: string
 ) {
-  console.log(`transforming ${entries.length} entries...`);
   const output = {};
-  // some kinds of collection labels aren't worth presenting to translators. E.g. "SIL LEAD"
+  // -      first do the page banners
   entries
+    .filter((i) => i.sys.contentType.sys.id === "pageBanner")
+    //.slice(0, 5)
+    .filter(filter)
+    .forEach((e) => {
+      const previewLink = `https://alpha.bloomlibrary.org/_previewBanner/${e.sys.id}?uilang=en-US`;
+      output["banner." + e.fields.title] = {
+        message: e.fields.title,
+        description: `This is a title part of a page banner. See ${previewLink}. ${extraNotice ||
+          ""}`,
+      };
+      if (e.fields.description) {
+        // bold, headings, and links would seem to be relatively unambiguous ways to detect that there is markdown
+        const markdownDetected =
+          e.fields.description.indexOf("**") > -1 ||
+          e.fields.description.indexOf("#") > -1 ||
+          e.fields.description.indexOf("[") > -1;
+        const markdownMessage = markdownDetected
+          ? // this link at bit.ly is under john hatton sil account
+            " MAKE SURE YOU PRESERVE THE MARKDOWN FORMATTING (see https://bit.ly/blorgmd). "
+          : "";
+        output["banner." + e.fields.title + " - description"] = {
+          message: e.fields.description,
+          description: `This is the description part of a page banner titled "${
+            e.fields.title
+          }".  ${markdownMessage}To see this in Bloom Library, go to ${previewLink}. ${extraNotice ||
+            ""}`,
+        };
+      }
+    });
+
+  // -      next, do the collections
+  entries
+    .filter((i) => i.sys.contentType.sys.id === "collection")
     //.slice(0, 5)
     .filter(filter)
     .forEach((e) => {
       const kind = e.fields.kind ? e.fields.kind : "";
+      //console.log(JSON.stringify(e, null, 4));
       //console.log(`${e.fields.label}: ${kind}`);
       output[e.sys.contentType.sys.id + "." + e.fields.urlKey] = {
         message: e.fields.label,
