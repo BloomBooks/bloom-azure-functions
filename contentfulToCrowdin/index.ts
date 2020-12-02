@@ -149,7 +149,7 @@ function transformContentfulEntriesToL10nJson(
           ? // this link at bit.ly is under john hatton sil account
             " MAKE SURE YOU PRESERVE THE MARKDOWN FORMATTING (see https://bit.ly/blorgmd). "
           : "";
-        output["banner." + e.fields.title + " - description"] = {
+        output["banner.description." + e.fields.title] = {
           message: e.fields.description,
           description: `This is the description part of a page banner titled "${
             e.fields.title
