@@ -15,6 +15,8 @@ export async function processEvents(
   rowType: string,
   filter: IFilter
 ): Promise<void> {
+  const t0 = new Date().getTime();
+
   if (filter.fromDate && !isValidDateStr(filter.fromDate)) {
     throw new Error(`Invalid from date: ${filter.fromDate}`);
   } else if (filter.toDate && !isValidDateStr(filter.toDate)) {
@@ -48,10 +50,13 @@ export async function processEvents(
     const client = new Client();
     await client.connect();
 
-    const t0 = new Date().getTime();
+    const tSql0 = new Date().getTime();
     const statsResult = await client.query(sqlQuery);
-    const t1 = new Date().getTime();
-    context.log("SQL query took " + (t1 - t0) + " milliseconds to return.");
+    const tSql1 = new Date().getTime();
+    context.log(
+      `stats - SQL query (${sqlFunctionName}) took ${tSql1 -
+        tSql0} milliseconds to return.`
+    );
 
     await client.end();
 
@@ -67,6 +72,10 @@ export async function processEvents(
     };
   }
 
+  const t1 = new Date().getTime();
+  context.log(
+    `stats - processEvents took ${t1 - t0} milliseconds to complete.`
+  );
   context.done();
 }
 
@@ -90,7 +99,7 @@ async function generateAddParseBooksToTempTableStatement(
   const response = await axios.get(bookQuery.url, bookQuery.options);
   const t1 = new Date().getTime();
   context.log(
-    "Parse server query took " + (t1 - t0) + " milliseconds to return."
+    `stats - parse server query took ${t1 - t0} milliseconds to return.`
   );
 
   // Make a temp table of the book IDs and book instance IDs in postgres
@@ -101,7 +110,7 @@ async function generateAddParseBooksToTempTableStatement(
 
     // Return right away if booksInfo.length is 0. No point generating a SQL query
     if (!booksInfo || booksInfo.length === 0) {
-      context.log("No results returned from Parse");
+      context.log("stats - no results returned from parse server");
       return undefined;
     }
 
@@ -116,7 +125,7 @@ async function generateAddParseBooksToTempTableStatement(
     if (booksInfoFormattedForInsert.includes(";")) {
       // ENHANCE: Check that none of the objectIds nor bookInstanceIds have ' in them.
       context.log(
-        "booksInfoFormattedForInsert = " + booksInfoFormattedForInsert
+        "stats - booksInfoFormattedForInsert = " + booksInfoFormattedForInsert
       );
       throw new Error("Unexpected book info caused stats lookup to fail");
     }
