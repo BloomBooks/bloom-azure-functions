@@ -34,7 +34,8 @@ export async function processEvents(
 
   const sqlQuery: string | undefined = await getCombinedParseAndOrSqlFunction(
     sqlFunctionName,
-    filter
+    filter,
+    context
   );
 
   // Return results as json
@@ -47,10 +48,10 @@ export async function processEvents(
     const client = new Client();
     await client.connect();
 
-    //const t0 = new Date().getTime();
+    const t0 = new Date().getTime();
     const statsResult = await client.query(sqlQuery);
-    //const t1 = new Date().getTime();
-    //console.log("SQL query took " + (t1 - t0) + " milliseconds to return.");
+    const t1 = new Date().getTime();
+    context.log("SQL query took " + (t1 - t0) + " milliseconds to return.");
 
     await client.end();
 
@@ -78,13 +79,19 @@ function getDatesFromFilter(filter: IFilter): [string, string] {
   return [fromDate, toDate];
 }
 
-async function addParseBooksToTempTableQuery(
+async function generateAddParseBooksToTempTableStatement(
   bookQuery: { url: string; options: AxiosRequestConfig },
   fromDateValidatedStr: string | undefined,
-  toDateValidatedStr: string | undefined
+  toDateValidatedStr: string | undefined,
+  context: Context
 ): Promise<string | undefined> {
   // Send query to parse
+  const t0 = new Date().getTime();
   const response = await axios.get(bookQuery.url, bookQuery.options);
+  const t1 = new Date().getTime();
+  context.log(
+    "Parse server query took " + (t1 - t0) + " milliseconds to return."
+  );
 
   // Make a temp table of the book IDs and book instance IDs in postgres
   // and
@@ -94,7 +101,7 @@ async function addParseBooksToTempTableQuery(
 
     // Return right away if booksInfo.length is 0. No point generating a SQL query
     if (!booksInfo || booksInfo.length === 0) {
-      console.log("No results returned from Parse");
+      context.log("No results returned from Parse");
       return undefined;
     }
 
@@ -108,7 +115,7 @@ async function addParseBooksToTempTableQuery(
     // Crude check for sql injection...
     if (booksInfoFormattedForInsert.includes(";")) {
       // ENHANCE: Check that none of the objectIds nor bookInstanceIds have ' in them.
-      console.log(
+      context.log(
         "booksInfoFormattedForInsert = " + booksInfoFormattedForInsert
       );
       throw new Error("Unexpected book info caused stats lookup to fail");
@@ -128,17 +135,19 @@ async function addParseBooksToTempTableQuery(
 
 async function getCombinedParseAndOrSqlFunction(
   functionName,
-  filter: IFilter
+  filter: IFilter,
+  context: Context
 ): Promise<string | undefined> {
   let sqlQuery = "";
   const parseDBQuery = filter.parseDBQuery;
   const queryBasedOnIdsInTempTable: boolean = !!parseDBQuery;
   if (parseDBQuery) {
     // First, asynchronously determine the group of books by asking parse using the given query.
-    sqlQuery = await addParseBooksToTempTableQuery(
+    sqlQuery = await generateAddParseBooksToTempTableStatement(
       parseDBQuery,
       filter.fromDate,
-      filter.toDate
+      filter.toDate,
+      context
     );
 
     if (!sqlQuery) {
