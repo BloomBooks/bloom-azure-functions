@@ -24,6 +24,12 @@ const stats: AzureFunction = async function(
 
     if (category && rowType && filter) {
       await processEvents(context, category, rowType, filter);
+
+      const t1 = new Date().getTime();
+      context.log(
+        "stats function took " + (t1 - t0) + " milliseconds to complete."
+      );
+
       return;
     } else {
       // This whole else should be rewritten for the new category/rowType url model.
