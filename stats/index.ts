@@ -3,7 +3,11 @@ import { processEvents } from "./events";
 import { AxiosRequestConfig } from "axios";
 
 export interface IFilter {
-  parseDBQuery?: { url: string; options: AxiosRequestConfig };
+  parseDBQuery?: {
+    url: string;
+    options: AxiosRequestConfig;
+    method: string | undefined;
+  };
   branding?: string;
   country?: string;
   fromDate?: string;
