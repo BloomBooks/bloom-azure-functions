@@ -1,5 +1,5 @@
 import { Context } from "@azure/functions";
-import axios, { AxiosRequestConfig } from "axios";
+import axios, { AxiosRequestConfig, AxiosResponse } from "axios";
 import { IFilter } from ".";
 
 const moment = require("moment");
@@ -89,14 +89,31 @@ function getDatesFromFilter(filter: IFilter): [string, string] {
 }
 
 async function generateAddParseBooksToTempTableStatement(
-  bookQuery: { url: string; options: AxiosRequestConfig },
+  bookQuery: {
+    url: string;
+    options: AxiosRequestConfig;
+    method: string | undefined;
+  },
   fromDateValidatedStr: string | undefined,
   toDateValidatedStr: string | undefined,
   context: Context
 ): Promise<string | undefined> {
   // Send query to parse
   const t0 = new Date().getTime();
-  const response = await axios.get(bookQuery.url, bookQuery.options);
+  // Filtering for collections built up of subcollections produces very complex
+  // filters that get too large to express as parameters in a URL.  For such
+  // queries, we have to use a POST with the filter and other parameters as data,
+  // and with an embedded GET operation indicated.
+  let response: AxiosResponse;
+  if (bookQuery.method === "POST" && bookQuery.options.data._method === "GET") {
+    // feeding in bookQuery.options for config doesn't work - returns status 500
+    const config: AxiosRequestConfig = {
+      headers: bookQuery.options.headers,
+    };
+    response = await axios.post(bookQuery.url, bookQuery.options.data, config);
+  } else {
+    response = await axios.get(bookQuery.url, bookQuery.options);
+  }
   const t1 = new Date().getTime();
   context.log(
     `stats - parse server query took ${t1 - t0} milliseconds to return.`
