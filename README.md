@@ -146,19 +146,23 @@ from each other by an & (ampersand).  The recognized query parameters are
 
 - **link**=URL - This is the required URL to the website page containing the book details or the bookshelf.
 - **title**=text - This is the required title of the book or bookshelf.
-- **img**=URL - This is an optional URL to a (preferably) 256x256 thumbnail image of the book or bookshelf.
-- **description**=text - This is an optional summary or description of the book or bookshelf.  It can be one
-or two sentences long, and possibly longer (for short sentences).  If the description is not provided, a short
-blurb about Bloom is used: "Bloom makes it easy to create simple books and translate them into
-multiple languages."
+- **description**=text - This is an optional summary or description of the book or bookshelf. It can be one
+  or two sentences long, and possibly longer (for short sentences). If the description is not provided, a short
+  blurb about Bloom is used: "Bloom makes it easy to create simple books and translate them into
+  multiple languages."
+- **img**=URL - This is an optional URL to a (preferably) 300x300 thumbnail image of the book or bookshelf. Harvester creates this as `thumbnail-300x300.png`. Our other thumbnail files don't constrain both height and width and can end up with one side less than 200px which Facebook won't display.
+- **width**=number - Image width, in pixels. Defaults to 256.
+- **height**=number - Image height, in pixels. Defaults to 256.
+
+The width and height are optional but help Facebook present the image immediately instead of waiting for them to asynchronously process the image.
 
 A minimal example without img or description could look like this:
 
-`http://api.bloomlibrary.org/v1/social?link=https://bloomlibrary.org/browse/detail/QyRR1qnIcp&title=Juliana+Wants+a+Pet`
+`http://social.bloomlibrary.org/v1/social?link=https://bloomlibrary.org/book/QyRR1qnIcp&title=Juliana+Wants+a+Pet`
 
 A full example with all the query parameters could look like this:
 
-`http://api.bloomlibrary.org/v1/social?link=https://bloomlibrary.org/browse/detail/QyRR1qnIcp&title=Juliana+Wants+a+Pet&img=https://api.bloomlibrary.org/v1/fs/harvest/QyRR1qnIcp/thumbnails/thumbnail-256.png%3Fversion=2020-04-16T04:37:54.853Z&description=Juliana+is+thinking+about+getting+a+pet.+What+pet+will+she+get%3F`
+`http://social.bloomlibrary.org/v1/social?link=https://bloomlibrary.org/book/QyRR1qnIcp&title=Juliana+Wants+a+Pet&img=https://api.bloomlibrary.org/v1/fs/harvest/QyRR1qnIcp/thumbnails/thumbnail-300x300.png%3Fversion=2020-04-16T04:37:54.853Z&width=300&height=300&description=Juliana+is+thinking+about+getting+a+pet.+What+pet+will+she+get%3F`
 
 Note that the query parameter values must be URL encoded.  The examples use + to encode spaces (%20 would
 also work) and %3F to encode question marks.  Every character other than 'A' through 'Z', 'a' through 'z',
