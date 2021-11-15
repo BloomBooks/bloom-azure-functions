@@ -24,7 +24,9 @@ export async function processEvents(
   }
 
   let sqlFunctionName: string;
-  if (category === "reading" && rowType === "per-day") {
+  if (category === "reading" && rowType === "book") {
+    sqlFunctionName = "common.get_book_stats";
+  } else if (category === "reading" && rowType === "per-day") {
     sqlFunctionName = "common.get_reading_perday_events";
   } else if (category === "reading" && rowType === "per-book") {
     sqlFunctionName = "common.get_reading_perbook_events";
@@ -34,11 +36,18 @@ export async function processEvents(
     throw new Error(`Unknown category and rowType: (${category}, ${rowType})`);
   }
 
-  const sqlQuery: string | undefined = await getCombinedParseAndOrSqlFunction(
-    sqlFunctionName,
-    filter,
-    context
-  );
+  let sqlQuery: string | undefined;
+  let sqlParameters: Array<string> | undefined;
+  if (sqlFunctionName === "common.get_book_stats") {
+    sqlQuery = "SELECT * FROM common.get_book_stats($1, $2)";
+    sqlParameters = [filter.bookId, filter.bookInstanceId];
+  } else {
+    sqlQuery = await getCombinedParseAndOrSqlFunction(
+      sqlFunctionName,
+      filter,
+      context
+    );
+  }
 
   // Return results as json
   context.res = {
@@ -51,7 +60,8 @@ export async function processEvents(
     await client.connect();
 
     const tSql0 = new Date().getTime();
-    const statsResult = await client.query(sqlQuery);
+    const statsResult = await client.query(sqlQuery, sqlParameters);
+
     const tSql1 = new Date().getTime();
     context.log(
       `stats - SQL query (${sqlFunctionName}) took ${tSql1 -
