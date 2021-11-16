@@ -1,5 +1,7 @@
 import { CatalogType } from "./catalog";
-import BookInfo, { BookInfoSource } from "../common/bookinfo";
+import BloomParseServer, {
+  BloomParseServerModes,
+} from "../common/BloomParseServer";
 
 // This static class wraps methods for getting OPDS entry XML text for books in Bloom Library.
 // The "book: any" argument found in many of these methods contains the complete parse books table
@@ -244,16 +246,16 @@ export default class BookEntry {
   private static getLinkFields(book: any, catalogType: CatalogType) {
     let artifactLinks: string = "";
     // uploaded base URL = https://api.bloomlibrary.org/v1/fs/upload/<book.objectId>/
-    const uploadBaseUrl = BookInfo.getUploadBaseUrl(book);
+    const uploadBaseUrl = BloomParseServer.getUploadBaseUrl(book);
     if (!uploadBaseUrl) {
       //console.log("DEBUG: bad book = " + book ? JSON.stringify(book) : book);
       return artifactLinks;
     }
     // harvested base URL = https://api.bloomlibrary.org/v1/fs/harvest/<book.objectId>/
-    const harvestBaseUrl = BookInfo.getHarvesterBaseUrl(book);
-    const name = BookInfo.getBookFileName(book);
-    const imageHref = BookInfo.getThumbnailUrl(book);
-    const imageType = BookInfo.getImageContentType(imageHref);
+    const harvestBaseUrl = BloomParseServer.getHarvesterBaseUrl(book);
+    const name = BloomParseServer.getBookFileName(book);
+    const imageHref = BloomParseServer.getThumbnailUrl(book);
+    const imageType = BloomParseServer.getImageContentType(imageHref);
 
     if (catalogType === CatalogType.EPUB) {
       // already checked book.show.epub and book.harvestState === "Done"
@@ -306,7 +308,9 @@ export default class BookEntry {
 `;
         /* eslint-enable indent */
         const readLink = `https://${
-          BookInfo.Source === BookInfoSource.DEVELOPMENT ? "dev." : ""
+          BloomParseServer.Source === BloomParseServerModes.DEVELOPMENT
+            ? "dev."
+            : ""
         }bloomlibrary.org/readBook/${book.objectId}`;
         artifactLinks =
           artifactLinks +

@@ -1,4 +1,6 @@
-import BookInfo, { BookInfoSource } from "../common/bookinfo";
+import BloomParseServer, {
+  BloomParseServerModes,
+} from "../common/BloomParseServer";
 
 export default class BookData {
   // Get the real URL for the content based on the input URL parameters.
@@ -14,30 +16,33 @@ export default class BookData {
     switch (params.bucket) {
       case "upload":
         bucket = "BloomLibraryBooks";
-        source = BookInfoSource.PRODUCTION;
+        source = BloomParseServerModes.PRODUCTION;
         break;
       case "dev-upload":
         bucket = "BloomLibraryBooks-Sandbox";
-        source = BookInfoSource.DEVELOPMENT;
+        source = BloomParseServerModes.DEVELOPMENT;
         break;
       case "harvest":
         bucket = "bloomharvest";
-        source = BookInfoSource.PRODUCTION;
+        source = BloomParseServerModes.PRODUCTION;
         break;
       case "dev-harvest":
         bucket = "bloomharvest-sandbox";
-        source = BookInfoSource.DEVELOPMENT;
+        source = BloomParseServerModes.DEVELOPMENT;
         break;
       default:
         return null;
     }
-    BookInfo.setBookInfoSource(source, BookInfoSource.PRODUCTION);
-    let infoArray: any[] = await BookInfo.getBookInfo(params.bookid);
+    BloomParseServer.setBookInfoSource(
+      source,
+      BloomParseServerModes.PRODUCTION
+    );
+    let infoArray: any[] = await BloomParseServer.getBookInfo(params.bookid);
     if (!infoArray || infoArray.length == 0 || !infoArray[0].baseUrl) {
       return null;
     }
     const bookInfo = infoArray[0];
-    let url = BookInfo.getS3LinkBase(bookInfo, bucket);
+    let url = BloomParseServer.getS3LinkBase(bookInfo, bucket);
     if (params.part1 && params.part1.length > 0) {
       url = url + "/" + params.part1;
     }

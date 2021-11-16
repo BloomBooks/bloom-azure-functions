@@ -1,5 +1,7 @@
 import BookEntry from "./bookentry";
-import BookInfo, { BookInfoSource } from "../common/bookinfo";
+import BloomParseServer, {
+  BloomParseServerModes,
+} from "../common/BloomParseServer";
 
 // NB: The OPDS catalogs from Global Digital Library and StoryWeaver both give both epub and pdf links,
 // with sometimes only one or the other.  They also both provide links to two image files, one marked as
@@ -46,7 +48,10 @@ export default class Catalog {
     // we have to trust whatever language code the user throws at us.
     Catalog.DesiredLang = params["lang"]; // this will be null at the root, normally.
 
-    BookInfo.setBookInfoSource(params["src"], BookInfoSource.PRODUCTION);
+    BloomParseServer.setBookInfoSource(
+      params["src"],
+      BloomParseServerModes.PRODUCTION
+    );
 
     let title: string;
     switch (catalogType) {
@@ -149,9 +154,9 @@ export default class Catalog {
     return `${
       this.DesiredLang === "en" ? "" : "&amp;lang=" + this.DesiredLang
     }${
-      BookInfo.Source === BookInfo.DefaultSource
+      BloomParseServer.Source === BloomParseServer.DefaultSource
         ? ""
-        : "&amp;src=" + BookInfo.Source
+        : "&amp;src=" + BloomParseServer.Source
     }`;
   }
 
@@ -161,7 +166,7 @@ export default class Catalog {
     desiredLang: string
   ): Promise<any> {
     return new Promise<string>((resolve, reject) => {
-      BookInfo.getLanguages().then((languages) =>
+      BloomParseServer.getLanguages().then((languages) =>
         resolve(
           languages
             .sort((a, b) => {
@@ -178,9 +183,9 @@ export default class Catalog {
   <link rel="http://opds-spec.org/facet" href="${this.RootUrl}?type=${
                   catalogType === CatalogType.EPUB ? "epub" : "all"
                 }&amp;lang=${lang.isoCode}${
-                  BookInfo.Source === BookInfo.DefaultSource
+                  BloomParseServer.Source === BloomParseServer.DefaultSource
                     ? ""
-                    : "&amp;src=" + BookInfo.Source
+                    : "&amp;src=" + BloomParseServer.Source
                 }" title="${lang.name}" opds:facetGroup="Languages"${
                   // activeFacet should be set only if true according to the OPDS standard
                   lang.isoCode === desiredLang ? ' opds:activeFacet="true"' : ""
@@ -200,7 +205,7 @@ export default class Catalog {
     desiredLang: string
   ): Promise<any> {
     return new Promise<string>((resolve, reject) => {
-      BookInfo.getBooks(Catalog.DesiredLang).then((books) =>
+      BloomParseServer.getBooks(Catalog.DesiredLang).then((books) =>
         resolve(
           books
             .map((book) =>
