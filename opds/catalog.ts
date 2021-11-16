@@ -44,10 +44,7 @@ export default class Catalog {
         break;
     }
     // we have to trust whatever language code the user throws at us.
-    Catalog.DesiredLang = params["lang"];
-    if (!Catalog.DesiredLang) {
-      Catalog.DesiredLang = "en"; //default to English
-    }
+    Catalog.DesiredLang = params["lang"]; // this will be null at the root, normally.
 
     BookInfo.setBookInfoSource(params["src"], BookInfoSource.PRODUCTION);
 
@@ -98,10 +95,9 @@ export default class Catalog {
         catalogType,
         Catalog.DesiredLang
       );
-      const entries = await Catalog.getEntries(
-        catalogType,
-        Catalog.DesiredLang
-      );
+      const entries = Catalog.DesiredLang
+        ? await Catalog.getEntries(catalogType, Catalog.DesiredLang)
+        : null; // will be null at the root, when they haven't selected a language yet
       return (
         header +
         links +
@@ -178,9 +174,8 @@ export default class Catalog {
             .map((lang) => {
               let link: string =
                 /* eslint-disable indent */
-                `  <link rel="http://opds-spec.org/facet" href="${
-                  this.RootUrl
-                }?type=${
+                `<!-- ${lang.usageCount} ${lang.name} books-->
+  <link rel="http://opds-spec.org/facet" href="${this.RootUrl}?type=${
                   catalogType === CatalogType.EPUB ? "epub" : "all"
                 }&amp;lang=${lang.isoCode}${
                   BookInfo.Source === BookInfo.DefaultSource
@@ -189,8 +184,7 @@ export default class Catalog {
                 }" title="${lang.name}" opds:facetGroup="Languages"${
                   // activeFacet should be set only if true according to the OPDS standard
                   lang.isoCode === desiredLang ? ' opds:activeFacet="true"' : ""
-                }/><!-- usageCount=${lang.usageCount} -->
-`;
+                }/>`;
               /* eslint-enable indent */
               return link;
             })
