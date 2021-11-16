@@ -12,6 +12,8 @@ export interface IFilter {
   country?: string;
   fromDate?: string;
   toDate?: string;
+  bookId?: string;
+  bookInstanceId?: string;
 }
 
 const stats: AzureFunction = async function(
@@ -28,9 +30,8 @@ const stats: AzureFunction = async function(
       await processEvents(context, category, rowType, filter);
       return;
     } else {
-      // This whole else should be rewritten for the new category/rowType url model.
-      // For now, leaving it for backward compatibility since the book detail stats are actively using it
-      // (albeit on the contentful branch, Jul 6 2020).
+      // This whole else is obsolete, having been replaced by the category/rowType url model (handled by processEvents above).
+      // Temporarily, we have to leave it in until the changes in blorg2 get all the way through to production.
 
       const t0 = new Date().getTime();
 
