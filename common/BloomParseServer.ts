@@ -2,52 +2,52 @@ import axios from "axios";
 
 // For testing and development, we prefer to use the parse table associated with the development Bloom Library.
 // For production, we need to use the parse table associated with the production Bloom Library.
-export enum BookInfoSource {
+export enum BloomParseServerModes {
   DEVELOPMENT = "dev",
   PRODUCTION = "prod",
 }
 
-export default class BookInfo {
-  public static DefaultSource: string = BookInfoSource.PRODUCTION;
+export default class BloomParseServer {
+  public static DefaultSource: string = BloomParseServerModes.PRODUCTION;
   public static Source: string;
 
   public static setBookInfoSource(source: string, defaultSource: string) {
     // normalize the source regardless of what the user throws at us.
     switch (source ? source.toLowerCase() : null) {
-      case BookInfoSource.DEVELOPMENT:
-        BookInfo.Source = BookInfoSource.DEVELOPMENT;
+      case BloomParseServerModes.DEVELOPMENT:
+        BloomParseServer.Source = BloomParseServerModes.DEVELOPMENT;
         break;
-      case BookInfoSource.PRODUCTION:
-        BookInfo.Source = BookInfoSource.PRODUCTION;
+      case BloomParseServerModes.PRODUCTION:
+        BloomParseServer.Source = BloomParseServerModes.PRODUCTION;
         break;
       default:
         if (
-          defaultSource == BookInfoSource.DEVELOPMENT ||
-          defaultSource == BookInfoSource.PRODUCTION
+          defaultSource == BloomParseServerModes.DEVELOPMENT ||
+          defaultSource == BloomParseServerModes.PRODUCTION
         ) {
-          BookInfo.Source = defaultSource;
-          BookInfo.DefaultSource = defaultSource;
+          BloomParseServer.Source = defaultSource;
+          BloomParseServer.DefaultSource = defaultSource;
         } else {
-          BookInfo.Source = BookInfo.DefaultSource;
+          BloomParseServer.Source = BloomParseServer.DefaultSource;
         }
         break;
     }
   }
 
   public static getParseUrl(tableName: string): string {
-    switch (BookInfo.Source) {
-      case BookInfoSource.DEVELOPMENT:
+    switch (BloomParseServer.Source) {
+      case BloomParseServerModes.DEVELOPMENT:
         return "https://dev-parse.bloomlibrary.org/classes/" + tableName;
-      case BookInfoSource.PRODUCTION:
+      case BloomParseServerModes.PRODUCTION:
       default:
         return "https://parse.bloomlibrary.org/classes/" + tableName;
     }
   }
   public static getParseAppId(): string {
-    switch (BookInfo.Source) {
-      case BookInfoSource.DEVELOPMENT:
+    switch (BloomParseServer.Source) {
+      case BloomParseServerModes.DEVELOPMENT:
         return process.env["OpdsParseAppIdDev"];
-      case BookInfoSource.PRODUCTION:
+      case BloomParseServerModes.PRODUCTION:
       default:
         return process.env["OpdsParseAppIdProd"];
     }
@@ -90,7 +90,7 @@ export default class BookInfo {
 
   public static getBookFileName(book: any): string {
     const baseUrl = book.baseUrl.replace(/%2f/g, "/"); // I don't know why anyone thinks / needs to be url-encoded.
-    const name = BookInfo.extractBookFilename(baseUrl);
+    const name = BloomParseServer.extractBookFilename(baseUrl);
     return name;
   }
 
@@ -213,9 +213,9 @@ export default class BookInfo {
   public static getLanguages(): Promise<any[]> {
     return new Promise<any[]>((resolve, reject) =>
       axios
-        .get(BookInfo.getParseUrl("language"), {
+        .get(BloomParseServer.getParseUrl("language"), {
           headers: {
-            "X-Parse-Application-Id": BookInfo.getParseAppId(),
+            "X-Parse-Application-Id": BloomParseServer.getParseAppId(),
           },
           params: {
             limit: 10000,
@@ -236,9 +236,9 @@ export default class BookInfo {
   public static getBooks(desiredLang: string): Promise<any[]> {
     return new Promise<any[]>((resolve, reject) =>
       axios
-        .get(BookInfo.getParseUrl("books"), {
+        .get(BloomParseServer.getParseUrl("books"), {
           headers: {
-            "X-Parse-Application-Id": BookInfo.getParseAppId(),
+            "X-Parse-Application-Id": BloomParseServer.getParseAppId(),
           },
           params: {
             // ENHANCE: if we want partial pages like GDL, use limit and skip (with function params to achieve this)
@@ -263,9 +263,9 @@ export default class BookInfo {
   public static getBookInfo(objectId: string): Promise<any> {
     return new Promise<any[]>((resolve, reject) =>
       axios
-        .get(BookInfo.getParseUrl("books"), {
+        .get(BloomParseServer.getParseUrl("books"), {
           headers: {
-            "X-Parse-Application-Id": BookInfo.getParseAppId(),
+            "X-Parse-Application-Id": BloomParseServer.getParseAppId(),
           },
           params: {
             include: "uploader,langPointers",
