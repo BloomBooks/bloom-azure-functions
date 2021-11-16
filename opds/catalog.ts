@@ -65,9 +65,14 @@ export default class Catalog {
         title = "Bloom Library Books";
         break;
     }
+    const namespaceDeclarations = params["skip_namespaces"]
+      ? ""
+      : 'xmlns="http://www.w3.org/2005/Atom" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:opds="http://opds-spec.org/2010/catalog"';
     /* eslint-disable indent */
     const header = `<?xml version="1.0" encoding="UTF-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:opds="http://opds-spec.org/2010/catalog">
+<feed 
+  ${namespaceDeclarations}
+  >
   <id>https://bloomlibrary.org</id>
   <title>${title}</title>
   <updated>${new Date().toISOString()}</updated>
