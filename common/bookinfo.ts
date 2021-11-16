@@ -46,10 +46,10 @@ export default class BookInfo {
   public static getParseAppId(): string {
     switch (BookInfo.Source) {
       case BookInfoSource.DEVELOPMENT:
-        return process.env["OpdsParseAppIdDev"];
+        return "yrXftBF6mbAuVu3fO6LnhCJiHxZPIdE7gl1DUVGR";
       case BookInfoSource.PRODUCTION:
       default:
-        return process.env["OpdsParseAppIdProd"];
+        return "R6qNTeumQXjJCMutAJYAwPtip1qBulkFyLefkCE5";
     }
   }
 

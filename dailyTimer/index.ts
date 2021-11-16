@@ -1,4 +1,7 @@
 import { AzureFunction, Context } from "@azure/functions";
+import { isLocalEnvironment } from "../common/utils";
+
+const runEvenIfLocal: boolean = false;
 
 const timerTrigger: AzureFunction = async function(
   context: Context,
@@ -22,6 +25,11 @@ const timerTrigger: AzureFunction = async function(
 };
 
 async function refreshMaterializedViews() {
+  // By default, we don't want to run this if we are running the functions locally.
+  // Typically, if we are running locally, we want to test some other function, not this one.
+  // And if we let this run, it will perform a long, blocking action on the production database.
+  if (!runEvenIfLocal && isLocalEnvironment()) return;
+
   // These environment variables are used by pg (node-postgres).
   // We leave them normally set to the values for the readonly (stats) user which is safer
   // (and used by the stats function).

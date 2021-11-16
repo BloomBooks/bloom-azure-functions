@@ -2,7 +2,14 @@
 
 These files work with the `ms-azuretools.vscode-azurefunctions` extension in vscode.
 
-To debug locally, `F5` (`F1`, `Debug: Start Debugging`). For some reason this asks you to log into Azure. If all goes well, the terminal will output a url
+To debug locally, `F5` (`F1`, `Debug: Start Debugging`). If all goes well, the terminal will output various urls for the functions.
+
+Now you can use your favorite rest client to run each function. Or you can connect your local BloomLibrary2 to point to this (see ApiConnection.ts).
+
+By default, the timer functions are set to not do anything when running locally. Each one has a runEvenIfLocal const which can be set to true if desired.
+Note that without a local storage emulator, you will see errors for the timer functions (which can be ignored). If you want to set up local storage, see https://docs.microsoft.com/en-us/azure/storage/common/storage-use-azurite?tabs=visual-studio. Apparently, there is a VSCode extension useful for this as well.
+
+## Deployment
 
 Once the code is committed to master, deployment to production is automated. Currently we have only one deployment: production. So all the testing you need to do, you need to do locally.
 
@@ -18,13 +25,6 @@ The resulting production url for functions is then `api.bloomlibrary.org/v1/__FU
 
 
 # Environment Variables
-
-Two environment variables need to be set for the **opds** and **fs** functions to access the relevant parse tables.
-
-- *OpdsParseAppIdDev* - the AppId key to the development parse table (for *src=dev* in the input URL, the default for
-the alpha stage of initial development)
-- *OpdsParseAppIdProd* -  the AppId key to the production parse table (for *src=prod* in the input URL, the default
-after the alpha stage of initial development)
 
 Some environment variables are needed for the **stats** function to connect to the postgresql database using the stats user.
 - *PGUSER*
