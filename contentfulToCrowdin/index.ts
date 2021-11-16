@@ -1,4 +1,4 @@
-/* Suggestion: If you are working on this function, 
+/* Suggestion: If you are working on this function,
 1) install `npm add -g ts-node` and then `ts-node index.ts`. or
 if you want to get an auto run on each save (like watch),
 2) install `npm add -g ts-node-dev` and then `ts-node-dev --respawn index.ts`. */
@@ -6,6 +6,9 @@ if you want to get an auto run on each save (like watch),
 import { AzureFunction, Context, HttpRequest } from "@azure/functions";
 import * as contentful from "contentful";
 import crowdin from "@crowdin/crowdin-api-client";
+import { isLocalEnvironment } from "../common/utils";
+
+const runEvenIfLocal = false;
 
 const crowdinApiToken = process.env.bloomCrowdinApiToken;
 const contentfulReadOnlyToken = process.env.bloomContentfulReadOnlyToken;
@@ -30,6 +33,12 @@ const contentfulToCrowdin: AzureFunction = async (
 };
 
 async function readTransformUpload() {
+  // By default, we don't want to run this if we are running the functions locally.
+  // Typically, if we are running locally, we want to test some other function, not this one.
+  // Some reasons not to: so you don't have to get the environment variables set up and
+  //  so as not to be making production-level modifications unnecessarily.
+  if (!runEvenIfLocal && isLocalEnvironment()) return;
+
   const contentfulEntries = await getContentfulEntries();
   const highPriorityJson = transformContentfulEntriesToL10nJson(
     contentfulEntries,
