@@ -9,6 +9,12 @@ Now you can use your favorite REST client to run each function. Or you can conne
 By default, the timer functions are set to not do anything when running locally. Each one has a `runEvenIfLocal` const which can be set to true if desired.
 Note that without a local storage emulator, you will see errors for the timer functions (which can be ignored). If you want to set up local storage, see https://docs.microsoft.com/en-us/azure/storage/common/storage-use-azurite?tabs=visual-studio. Apparently, there is a VSCode extension useful for this as well.
 
+## Package manager
+
+**Use npm**, not yarn.
+
+The auto-deploy from github feature on Azure uses npm.
+
 ## Deployment
 
 Once the code is committed to master, deployment to production is automated. Currently we have only one deployment: production. So all the testing you need to do, you need to do locally.
