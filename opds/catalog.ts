@@ -3,20 +3,20 @@ import BloomParseServer, {
   BloomParseServerModes,
 } from "../common/BloomParseServer";
 
-// NB: The OPDS catalogs from Global Digital Library and StoryWeaver both give both epub and pdf links,
+// NB: The OPDS catalogs from Global Digital Library and StoryWeaver both give both ePUB and pdf links,
 // with sometimes only one or the other.  They also both provide links to two image files, one marked as
 // a thumbnail.
 export enum CatalogType {
-  // nothing but links to the toplevel catalogs
+  // nothing but links to the top-level catalogs
   TOP = "top",
   // ePUB artifacts only: no entry if no ePUB show allowed
   EPUB = "epub",
-  // // BloomPub artifacts only: no entry if no BloomPub show allowed
+  // // bloomPUB artifacts only: no entry if no bloomPUB show allowed
   // This isn't worth implementing until BR is enhanced to directly download books from the internet.  At that
-  // point it should be fairly trivial to implement, following the pattern of EPUB.  This is just here as a
+  // point it should be fairly trivial to implement, following the pattern of ePUB.  This is just here as a
   // placeholder to remind us what to do when the time comes.
   // BLOOMPUB = "bloompub",
-  // all artifacts: ePUB, PDF, and BloomPub; show entry without links even if no artifacts allowed
+  // all artifacts: ePUB, PDF, and bloomPUB; show entry without links even if no artifacts allowed
   ALL = "all",
 }
 
@@ -59,7 +59,7 @@ export default class Catalog {
         title = "Bloom Library ePUB Books";
         break;
       case CatalogType.ALL:
-        title = "Bloom Library ePUB, PDF, and BloomPub Books";
+        title = "Bloom Library ePUB, PDF, and bloomPUB Books";
         break;
       default:
         title = "Bloom Library Books";
@@ -70,7 +70,7 @@ export default class Catalog {
       : 'xmlns="http://www.w3.org/2005/Atom" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:opds="http://opds-spec.org/2010/catalog"';
     /* eslint-disable indent */
     const header = `<?xml version="1.0" encoding="UTF-8"?>
-<feed 
+<feed
   ${namespaceDeclarations}
   >
   <id>https://bloomlibrary.org</id>
@@ -124,7 +124,7 @@ export default class Catalog {
     }
   }
 
-  // Get the content of the top-level catalog.  This merely points to two other catalogs: one for epubs only,
+  // Get the content of the top-level catalog.  This merely points to two other catalogs: one for ePUBs only,
   // and the other for all artifacts (including none available).
   private static getTopLevelCatalogContent(): string {
     /* eslint-disable indent */
@@ -145,7 +145,7 @@ export default class Catalog {
   </entry>
   <entry>
     <id>bloomlibrary-all-opdsfeed</id>
-    <title>All Books (ePUB, PDF, BloomPub)</title>
+    <title>All Books (ePUB, PDF, bloomPUB)</title>
     <updated>${new Date().toISOString()}</updated>
     <link rel="subsection" href="${
       Catalog.RootUrl

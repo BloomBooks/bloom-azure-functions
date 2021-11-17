@@ -79,7 +79,7 @@ each other by an & (ampersand). The recognized query parameters are
 
   1. **top** - Return the top-level OPDS page pointing to the ePUB and "all" pages.
   2. **epub** - Return a page which lists only entries that have a visible ePUB file to download and which
-     shows links only to epub artifacts.
+     shows links only to ePUB artifacts.
   3. **all** - Return a page listing all visible entries (for the desired language) whether or not they have any
      visible artifacts, and showing links to all visible artifacts. The ePUB and PDF artifacts may or may not be in
      the desired language if multiple languages are listed for the book.
@@ -94,7 +94,7 @@ For example, consider the following URL sent to the function:
 
 `http://localhost:7071/api/opds?type=epub&lang=fr&src=dev`
 
-This would pull entries from the development parse table that have visible epub artifacts in the French language,
+This would pull entries from the development parse table that have visible ePUB artifacts in the French language,
 and produce output that uses the following base URL for links to other pages/facets:
 
 `https://localhost:7071/api/opds?type=epub&src=dev`
@@ -110,8 +110,8 @@ generated OPDS pages. (This latter check may be overly restrictive, but is certa
 depend on people using our feed to honor the letter of restrictions we've been given for some books, let alone
 the spirit.)
 
-For the _type=epub_ OPDS pages, books whose epub artifact is set invisible by the _show_ object from the _books_ table
-will be omitted. Only entries whose epub is in the desired language are shown (to the best of our ability to
+For the _type=epub_ OPDS pages, books whose ePUB artifact is set invisible by the _show_ object from the _books_ table
+will be omitted. Only entries whose ePUB is in the desired language are shown (to the best of our ability to
 determine this).
 
 All books will be shown in the _type=all"_ OPDS pages, but links to artifacts will be omitted if the _show_ object
