@@ -6,5 +6,11 @@
     "rootDir": ".",
     "sourceMap": true,
     "strict": false
-  }
+  },
+  // In theory, this should be
+  // ["**/?(*.)(spec|test).ts?(x)", ...]
+  // or
+  // ["**/?(*.)@(spec|test).ts?(x)", ...]
+  // but they don't work.
+  "exclude": ["**/*.test.ts", "**/*.test.js", "**/*TestUtils.ts"]
 }
