@@ -1,4 +1,4 @@
-import { CatalogType } from "./catalog";
+import { CatalogType, getNeglectXmlNamespaces } from "./catalog";
 import BloomParseServer, {
   BloomParseServerModes,
 } from "../common/BloomParseServer";
@@ -89,6 +89,19 @@ export default class BookEntry {
       `    <published>${book.createdAt}</published>
     <updated>${book.updatedAt}</updated>
 `;
+
+    if (book.tags) {
+      // note: haven't figured out how to get ts-jest to allow optional chaining
+      book.tags.forEach((tag) => {
+        if (tag.startsWith("topic:")) {
+          entry += BookEntry.addDublinCore(
+            "subject",
+            tag.replace("topic:", "").toLowerCase()
+          );
+        }
+      });
+    }
+
     /* eslint-enable indent */
     if (book.publisher) {
       entry =
@@ -218,6 +231,11 @@ export default class BookEntry {
       text = text.replace(/'/g, "&apos;"); // needed in attribute values
     }
     return text;
+  }
+  private static addDublinCore(tag: string, value: string): string {
+    const t = getNeglectXmlNamespaces() ? tag : "dcterms:" + tag;
+    return `    <${t}>${BookEntry.htmlEncode(value)}</${t}>
+`;
   }
 
   // Should we publish this artifact to the world?
