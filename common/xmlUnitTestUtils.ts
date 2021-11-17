@@ -144,6 +144,25 @@ expect.extend({
 });
 
 expect.extend({
+  toHaveAtMost(xpath, expectedValue) {
+    const matchCount = select(xpath).length;
+    if (matchCount > expectedValue) {
+      return {
+        message: () =>
+          `expected ${xpath} to have at most ${expectedValue} matches, but got ${matchCount}`,
+        pass: false,
+      };
+    }
+
+    return {
+      message: () =>
+        `expected ${xpath} to have at most ${expectedValue} matches`,
+      pass: true,
+    };
+  },
+});
+
+expect.extend({
   toDeclareVocabulary(xpath, url) {
     const hits = select(xpath);
     if (!hits || hits.length === 0) {
