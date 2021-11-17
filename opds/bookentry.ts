@@ -180,7 +180,7 @@ export default class BookEntry {
         return false;
       }
     }
-    // Assume any matching language will do for the collection of ePUB, PDF, and BloomPub.
+    // Assume any matching language will do for the collection of ePUB, PDF, and bloomPUB.
     if (book.langPointers && book.langPointers.length) {
       for (let i = 0; i < book.langPointers.length; ++i) {
         const lang = book.langPointers[i];
@@ -304,14 +304,14 @@ export default class BookEntry {
         artifactLinks =
           artifactLinks +
           /* eslint-disable indent */
-          `    <link rel="http://opds-spec.org/acquisition/open-access" href="${bloomdLink}" type="application/bloomd+zip" title="BloomPub" />
+          `    <link rel="http://opds-spec.org/acquisition/open-access" href="${bloomdLink}" type="application/bloomd+zip" title="bloomPUB" />
 `;
         /* eslint-enable indent */
         const readLink = `https://${
           BloomParseServer.Source === BloomParseServerModes.DEVELOPMENT
             ? "dev."
             : ""
-        }bloomlibrary.org/readBook/${book.objectId}`;
+        }bloomlibrary.org/player/${book.objectId}`;
         artifactLinks =
           artifactLinks +
           /* eslint-disable indent */
