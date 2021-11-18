@@ -1,12 +1,18 @@
 const XPATH = require("xpath");
 const dom = require("xmldom").DOMParser;
 
+// This adds some handy xml-specific primitives for jest-expect.
+// It was borrowed and expanded from lameta.
+
 let resultXml: string;
 let resultDom: Document;
 
 export function setResultXml(xml: string) {
   resultXml = xml;
   resultDom = new dom().parseFromString(resultXml);
+}
+export function logTailResultXml(lastChars: number) {
+  console.log(resultXml.slice(-lastChars));
 }
 
 export function assertAttribute(
@@ -26,14 +32,15 @@ export function assertAttribute(
   const pass = select(xpathWithAttr).length > 0;
   if (pass) {
     return {
-      message: () =>
-        `expected ${xpathWithAttr} ${attribute} to be ${expected}. `,
+      message: () => `expected ${xpath} ${attribute} to be '${expected}'. `,
       pass: true,
     };
   } else {
     return {
       message: () =>
-        `expected ${xpathWithAttr} ${attribute} to be ${expected}. `,
+        `expected ${xpath} ${attribute} to be '${expected}'. Hits: ${hits
+          .map((node) => node.toString())
+          .join(" ")}`,
       pass: false,
     };
   }
@@ -52,11 +59,7 @@ export function select(xpath: string) {
     );
   }
   try {
-    const nodes = XPATH.selectWithResolver(
-      xpath,
-      resultDom
-      //, resolver
-    );
+    const nodes = XPATH.selectWithResolver(xpath, resultDom);
     return nodes;
   } catch (ex) {
     console.log("error in xpath: " + xpath);

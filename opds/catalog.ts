@@ -86,7 +86,6 @@ export default class Catalog {
   <title>${title}</title>
   <updated>${new Date().toISOString()}</updated>
 `;
-    /* eslint-enable indent */
 
     if (catalogType == CatalogType.TOP) {
       return (
@@ -95,7 +94,6 @@ export default class Catalog {
         /* eslint-disable indent */
         `</feed>
 `
-        /* eslint-enable indent */
       );
     }
 
@@ -109,7 +107,7 @@ export default class Catalog {
   <link rel="start" href="${selfUrl}" type="application/atom+xml;profile=opds-catalog;kind=navigation"/>
   <link rel="up" href="${Catalog.RootUrl}" type="application/atom+xml;profile=opds-catalog;kind=navigation"/>
 `;
-      /* eslint-enable indent */
+
       const langLinks = await Catalog.getLanguageLinks(
         catalogType,
         Catalog.DesiredLang
@@ -125,7 +123,6 @@ export default class Catalog {
         /* eslint-disable indent */
         `</feed>
 `
-        /* eslint-enable indent */
       );
     } catch (err) {
       // todo return a proper error response with the right code and such
@@ -161,7 +158,6 @@ export default class Catalog {
     }?type=all${paramString}" type="application/atom+xml;profile=opds-catalog;kind=acquisition"/>
   </entry>
 `;
-    /* eslint-enable indent */
   }
 
   private static GetParamsForUrl(): string {
@@ -204,7 +200,7 @@ export default class Catalog {
                   // activeFacet should be set only if true according to the OPDS standard
                   lang.isoCode === desiredLang ? ' opds:activeFacet="true"' : ""
                 }/>`;
-              /* eslint-enable indent */
+
               return link;
             })
             .join("")
