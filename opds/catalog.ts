@@ -20,6 +20,15 @@ export enum CatalogType {
   ALL = "all",
 }
 
+// I've never achieved the magic of xpaths with namespaces, so, to my shame, this just turns them off.
+var neglectXmlNamespaces: boolean;
+export function setNeglectXmlNamespaces() {
+  neglectXmlNamespaces = true;
+}
+export function getNeglectXmlNamespaces() {
+  return neglectXmlNamespaces;
+}
+
 export default class Catalog {
   public static RootUrl: string; // based on original HttpRequest url
   public static DesiredLang: string; // value of &lang=XXX param (or "en" by default)
@@ -65,7 +74,7 @@ export default class Catalog {
         title = "Bloom Library Books";
         break;
     }
-    const namespaceDeclarations = params["skip_namespaces"]
+    const namespaceDeclarations = neglectXmlNamespaces
       ? ""
       : 'xmlns="http://www.w3.org/2005/Atom" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:opds="http://opds-spec.org/2010/catalog"';
     /* eslint-disable indent */
@@ -208,7 +217,7 @@ export default class Catalog {
   private static async getEntries(
     catalogType: CatalogType,
     desiredLang: string
-  ): Promise<any> {
+  ): Promise<string> {
     return new Promise<string>((resolve, reject) => {
       BloomParseServer.getBooks(Catalog.DesiredLang).then((books) =>
         resolve(
