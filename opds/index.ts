@@ -1,4 +1,6 @@
 import { AzureFunction, Context, HttpRequest } from "@azure/functions";
+import { BloomParseServerMode } from "../common/BloomParseServer";
+import { getApiAccount } from "./apiAccount";
 import Catalog from "./catalog";
 
 // See https://specs.opds.io/opds-1.2.html for the OPDS catalog standard.
@@ -20,10 +22,21 @@ const opds: AzureFunction = async function(
   } else {
     baseUrl = req.url;
   }
-  context.res = {
-    headers: { "Content-Type": "application/xml" },
-    body: await Catalog.getCatalog(baseUrl, req.query)
-  };
+  const accountResult = await getApiAccount(
+    req.query["key"],
+    req.query["src"] as BloomParseServerMode
+  );
+  if (accountResult.resultCode) {
+    context.res = {
+      status: accountResult.resultCode,
+      body: accountResult.errorMessage,
+    };
+  } else {
+    context.res = {
+      headers: { "Content-Type": "application/xml" },
+      body: await Catalog.getCatalog(baseUrl, req.query, accountResult.account),
+    };
+  }
 };
 
 export default opds;

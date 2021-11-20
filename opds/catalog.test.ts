@@ -6,7 +6,7 @@ import {
   xexpect as expect,
 } from "../common/xmlUnitTestUtils";
 
-describe("OPDS Root", () => {
+describe("OPDS Catalog Root", () => {
   beforeAll(async () => {
     setNeglectXmlNamespaces();
     const xml = await Catalog.getCatalog("unused", {});

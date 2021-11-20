@@ -86,7 +86,7 @@ describe("BookEntry", () => {
       uploader: {
         objectId: "0YpcRpEw66",
         id: "",
-        username: "joeucag@yahoo.com",
+        username: "joe@example.com",
         emailVerified: true,
         createdAt: "2018-11-01T14:32:41.139Z",
         updatedAt: "2018-11-18T04:43:50.011Z",
@@ -177,6 +177,8 @@ function testArtifactLink(
 
   // if the user turns it off, don't offer it
   book.show[artifactName].user = false;
+  book.show[artifactName].harvester = true;
+  book.show[artifactName].librarian = true;
   computeEntry();
   expect(xpath).toHaveCount(0);
 

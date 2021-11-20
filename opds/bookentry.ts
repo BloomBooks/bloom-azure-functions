@@ -1,6 +1,6 @@
 import { CatalogType, getNeglectXmlNamespaces } from "./catalog";
 import BloomParseServer, {
-  BloomParseServerModes,
+  BloomParseServerMode,
 } from "../common/BloomParseServer";
 import * as entities from "entities";
 
@@ -184,7 +184,7 @@ export default class BookEntry {
   // Get the link fields for the given book and catalog type.
   private static getLinkFields(book: any, catalogType: CatalogType) {
     const blorgRoot =
-      BloomParseServer.Source === BloomParseServerModes.DEVELOPMENT
+      BloomParseServer.Source === BloomParseServerMode.DEVELOPMENT
         ? "https://dev.bloomlibrary.org"
         : "https://bloomlibrary.org";
 
