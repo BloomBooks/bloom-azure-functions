@@ -95,3 +95,7 @@ local.settings.json
 contentfulToCrowdin/contentful-export.json
 
 contentfulToCrowdin/bloom-library-contentful.json
+
+__azurite*.*
+
+__blobstorage__/

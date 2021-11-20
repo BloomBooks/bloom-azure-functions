@@ -2,54 +2,60 @@ import axios from "axios";
 
 // For testing and development, we prefer to use the parse table associated with the development Bloom Library.
 // For production, we need to use the parse table associated with the production Bloom Library.
-export enum BloomParseServerModes {
+export enum BloomParseServerMode {
   DEVELOPMENT = "dev",
   PRODUCTION = "prod",
 }
 
 export default class BloomParseServer {
-  public static DefaultSource: string = BloomParseServerModes.PRODUCTION;
+  public static DefaultSource: string = BloomParseServerMode.PRODUCTION;
   public static Source: string;
 
-  public static setBookInfoSource(source: string, defaultSource: string) {
-    // normalize the source regardless of what the user throws at us.
+  public static setServer(source: string) {
     switch (source ? source.toLowerCase() : null) {
-      case BloomParseServerModes.DEVELOPMENT:
-        BloomParseServer.Source = BloomParseServerModes.DEVELOPMENT;
+      case BloomParseServerMode.DEVELOPMENT:
+        BloomParseServer.Source = BloomParseServerMode.DEVELOPMENT;
         break;
-      case BloomParseServerModes.PRODUCTION:
-        BloomParseServer.Source = BloomParseServerModes.PRODUCTION;
+      case BloomParseServerMode.PRODUCTION:
+        BloomParseServer.Source = BloomParseServerMode.PRODUCTION;
         break;
       default:
-        if (
-          defaultSource == BloomParseServerModes.DEVELOPMENT ||
-          defaultSource == BloomParseServerModes.PRODUCTION
-        ) {
-          BloomParseServer.Source = defaultSource;
-          BloomParseServer.DefaultSource = defaultSource;
-        } else {
-          BloomParseServer.Source = BloomParseServer.DefaultSource;
-        }
+        BloomParseServer.Source = BloomParseServer.DefaultSource;
         break;
     }
   }
 
-  public static getParseUrl(tableName: string): string {
+  public static getParseTableUrl(tableName: string): string {
     switch (BloomParseServer.Source) {
-      case BloomParseServerModes.DEVELOPMENT:
+      case BloomParseServerMode.DEVELOPMENT:
         return "https://dev-parse.bloomlibrary.org/classes/" + tableName;
-      case BloomParseServerModes.PRODUCTION:
+      case BloomParseServerMode.PRODUCTION:
       default:
         return "https://parse.bloomlibrary.org/classes/" + tableName;
     }
   }
+  public static getParseLoginUrl(): string {
+    switch (BloomParseServer.Source) {
+      case BloomParseServerMode.DEVELOPMENT:
+        return "https://dev-parse.bloomlibrary.org/login";
+      case BloomParseServerMode.PRODUCTION:
+      default:
+        return "https://parse.bloomlibrary.org/login";
+    }
+  }
   public static getParseAppId(): string {
     switch (BloomParseServer.Source) {
-      case BloomParseServerModes.DEVELOPMENT:
-        return process.env["OpdsParseAppIdDev"];
-      case BloomParseServerModes.PRODUCTION:
+      case BloomParseServerMode.DEVELOPMENT:
+        return (
+          process.env["OpdsParseAppIdDev"] ||
+          "OpdsParseAppIdDev is missing from env!"
+        );
+      case BloomParseServerMode.PRODUCTION:
       default:
-        return process.env["OpdsParseAppIdProd"];
+        return (
+          process.env["OpdsParseAppIdProd"] ||
+          "OpdsParseAppIdProd is missing from env!"
+        );
     }
   }
 
@@ -213,7 +219,7 @@ export default class BloomParseServer {
   public static getLanguages(): Promise<any[]> {
     return new Promise<any[]>((resolve, reject) =>
       axios
-        .get(BloomParseServer.getParseUrl("language"), {
+        .get(BloomParseServer.getParseTableUrl("language"), {
           headers: {
             "X-Parse-Application-Id": BloomParseServer.getParseAppId(),
           },
@@ -236,7 +242,7 @@ export default class BloomParseServer {
   public static getBooks(desiredLang: string): Promise<any[]> {
     return new Promise<any[]>((resolve, reject) =>
       axios
-        .get(BloomParseServer.getParseUrl("books"), {
+        .get(BloomParseServer.getParseTableUrl("books"), {
           headers: {
             "X-Parse-Application-Id": BloomParseServer.getParseAppId(),
           },
@@ -263,7 +269,7 @@ export default class BloomParseServer {
   public static getBookInfo(objectId: string): Promise<any> {
     return new Promise<any[]>((resolve, reject) =>
       axios
-        .get(BloomParseServer.getParseUrl("books"), {
+        .get(BloomParseServer.getParseTableUrl("books"), {
           headers: {
             "X-Parse-Application-Id": BloomParseServer.getParseAppId(),
           },
@@ -281,4 +287,82 @@ export default class BloomParseServer {
         })
     );
   }
+
+  // login is needed because access to the apiAccount table is restricted.
+  public static async login(): Promise<string> {
+    try {
+      const results = await axios.get(BloomParseServer.getParseLoginUrl(), {
+        headers: {
+          "X-Parse-Application-Id": BloomParseServer.getParseAppId(),
+        },
+        params: {
+          username: "catalog-service",
+          password: process.env["bloomParseServerCatalogServicePassword"], // should be the same for dev and production
+        },
+      });
+      return results.data.sessionToken;
+    } catch (error) {
+      return null;
+    }
+  }
+
+  public static async getApiAccount(
+    objectId: string
+  ): Promise<ApiAccount | null> {
+    try {
+      const sessionToken = await BloomParseServer.login(); /* ? */
+      if (!sessionToken) {
+        throw new Error(
+          "The Catalog Service could not log in to Parse Server."
+        );
+      }
+
+      const results = await axios.get(
+        BloomParseServer.getParseTableUrl("apiAccount"),
+        {
+          headers: {
+            "X-Parse-Application-Id": BloomParseServer.getParseAppId(),
+            "X-Parse-Session-Token": sessionToken,
+          },
+          params: {
+            include: "user",
+            // catalog-service role: cCGdsa3paf
+            // catalog-service user: uNBPlYLenP
+            where: `{"objectId":{"$eq":"${objectId}"}}`,
+          },
+        }
+      ); /* ? */
+
+      // console.log(
+      //   "results.data.results:" + JSON.stringify(results.data.results)
+      // );
+      if (
+        results &&
+        results.data &&
+        results.data.results &&
+        results.data.results.length === 1
+      ) {
+        return results.data.results[0] as ApiAccount;
+      }
+    } catch (err) {
+      const s = err.response; /* ? */
+      console.log("error in getAccount: " + JSON.stringify(err.response));
+    }
+
+    return null;
+  }
 }
+
+export type ApiAccount = {
+  objectId: string;
+  user: {
+    objectId: string;
+    username: string;
+    // I was going to base the key on the email, but I can't access
+    // email without masterkey in our version of parse https://stackoverflow.com/a/55786537/723299
+    // I think this is fine, but if we did want to use masterkey, we could wait to upgrade ParseServer or
+    // use a ParseServer cloud function for the login (is would be able to use the masterkey safely).
+  };
+  embargoDays?: number;
+  referrerTag: string;
+};

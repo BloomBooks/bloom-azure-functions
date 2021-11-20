@@ -1,5 +1,5 @@
 import BloomParseServer, {
-  BloomParseServerModes,
+  BloomParseServerMode,
 } from "../common/BloomParseServer";
 
 export default class BookData {
@@ -16,27 +16,24 @@ export default class BookData {
     switch (params.bucket) {
       case "upload":
         bucket = "BloomLibraryBooks";
-        source = BloomParseServerModes.PRODUCTION;
+        source = BloomParseServerMode.PRODUCTION;
         break;
       case "dev-upload":
         bucket = "BloomLibraryBooks-Sandbox";
-        source = BloomParseServerModes.DEVELOPMENT;
+        source = BloomParseServerMode.DEVELOPMENT;
         break;
       case "harvest":
         bucket = "bloomharvest";
-        source = BloomParseServerModes.PRODUCTION;
+        source = BloomParseServerMode.PRODUCTION;
         break;
       case "dev-harvest":
         bucket = "bloomharvest-sandbox";
-        source = BloomParseServerModes.DEVELOPMENT;
+        source = BloomParseServerMode.DEVELOPMENT;
         break;
       default:
         return null;
     }
-    BloomParseServer.setBookInfoSource(
-      source,
-      BloomParseServerModes.PRODUCTION
-    );
+    BloomParseServer.setServer(source);
     let infoArray: any[] = await BloomParseServer.getBookInfo(params.bookid);
     if (!infoArray || infoArray.length == 0 || !infoArray[0].baseUrl) {
       return null;

@@ -1,6 +1,7 @@
 import BookEntry from "./bookentry";
 import BloomParseServer, {
-  BloomParseServerModes,
+  ApiAccount,
+  BloomParseServerMode,
 } from "../common/BloomParseServer";
 
 // NB: The OPDS catalogs from Global Digital Library and StoryWeaver both give both ePUB and pdf links,
@@ -37,7 +38,8 @@ export default class Catalog {
     baseUrl: string,
     params: {
       [key: string]: string;
-    }
+    },
+    apiAccount?: ApiAccount
   ): Promise<string> {
     Catalog.RootUrl = baseUrl;
     // normalize the catalog type regardless of what the user throws at us.
@@ -57,10 +59,7 @@ export default class Catalog {
     // we have to trust whatever language code the user throws at us.
     Catalog.DesiredLang = params["lang"]; // this will be null at the root, normally.
 
-    BloomParseServer.setBookInfoSource(
-      params["src"],
-      BloomParseServerModes.PRODUCTION
-    );
+    BloomParseServer.setServer(params["src"]);
 
     let title: string;
     switch (catalogType) {
@@ -82,6 +81,14 @@ export default class Catalog {
 <feed
   ${namespaceDeclarations}
   >
+  <!-- ${apiAccount ? apiAccount.user.username : "anonymous"}  -->
+  <!-- ${apiAccount ? apiAccount.referrerTag : "noReferrerTag"}  -->
+  <!-- ${
+    // If they have a non-default embargo period, list that
+    apiAccount && apiAccount.embargoDays !== undefined
+      ? apiAccount.embargoDays + " wait"
+      : ""
+  }  -->
   <id>https://bloomlibrary.org</id>
   <title>${title}</title>
   <updated>${new Date().toISOString()}</updated>
@@ -105,6 +112,7 @@ export default class Catalog {
       /* eslint-disable indent */
       const links = `  <link rel="self" href="${selfUrl}" type="application/atom+xml;profile=opds-catalog;kind=navigation"/>
   <link rel="start" href="${selfUrl}" type="application/atom+xml;profile=opds-catalog;kind=navigation"/>
+  <link rel="up" href="${Catalog.RootUrl}" type="application/atom+xml;profile=opds-catalog;kind=navigation"/>
   <link rel="up" href="${Catalog.RootUrl}" type="application/atom+xml;profile=opds-catalog;kind=navigation"/>
 `;
 
