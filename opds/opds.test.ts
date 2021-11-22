@@ -65,7 +65,7 @@ describe("OPDS Tibetan language page", () => {
       "href",
       "https://bloomlibrary.org/player/NXVaHwbNTH"
     );
-    expect(xpath + "/link[@title='BloomPub']").toHaveAttributeValue(
+    expect(xpath + "/link[@title='bloomPUB']").toHaveAttributeValue(
       "href",
       "https://api.bloomlibrary.org/v1/fs/harvest/NXVaHwbNTH/I+Am+Tashi.bloomd"
     );

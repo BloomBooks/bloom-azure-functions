@@ -131,7 +131,7 @@ describe("BookEntry", () => {
   it("should give bloomPUB link if allowed", () => {
     testArtifactLink(
       "bloomReader",
-      "BloomPub",
+      "bloomPUB",
       `https://api.bloomlibrary.org/v1/fs/harvest/${kTestBookId}/${titleInTheBaseUrl}.bloomd`
     );
   });
@@ -143,7 +143,7 @@ describe("BookEntry", () => {
     );
   });
 
-  it("should omit read online link if someone disabled that", () => {
+  it("should give read online link if allowed", () => {
     testArtifactLink(
       "readOnline",
       "Read On Bloom Library",

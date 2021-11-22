@@ -15,7 +15,7 @@ export enum CatalogType {
   // This isn't worth implementing until BR is enhanced to directly download books from the internet.  At that
   // point it should be fairly trivial to implement, following the pattern of ePUB.  This is just here as a
   // placeholder to remind us what to do when the time comes.
-  // BLOOMPUB = "bloompub",
+  // bloomPUB = "bloomPUB",
   // all artifacts: ePUB, PDF, and bloomPUB; show entry without links even if no artifacts allowed
   ALL = "all",
 }

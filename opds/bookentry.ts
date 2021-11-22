@@ -224,7 +224,7 @@ export default class BookEntry {
         BookEntry.shouldWeIncludeLink(
           book,
           "pdf",
-          true /* As of Nov 18 2021, the harvester currently has no opinion on pdfs, so we will ofer it if all the judges are `undefined`.
+          true /* As of Nov 18 2021, the harvester currently has no opinion on pdfs, so we will offer it if all the judges are `undefined`.
           In the future it might help to have one, since we are
           now allowing some books to omit the PDF upload and we don't have a way of knowing.  */
         )
@@ -240,7 +240,7 @@ export default class BookEntry {
         BookEntry.shouldWeIncludeLink(book, "bloomReader", false)
       ) {
         links += BookEntry.makeLink(
-          "BloomPub",
+          "bloomPUB",
           `${harvestBaseUrl}/${name}.bloomd`,
           "application/bloomd+zip"
         );
@@ -258,7 +258,7 @@ export default class BookEntry {
 
       links += BookEntry.makeLink(
         "Bloom Library Page",
-        `https://bloomlibrary.org/book/${book.objectId}`,
+        `${blorgRoot}/book/${book.objectId}`,
         "text/html"
       );
     }
