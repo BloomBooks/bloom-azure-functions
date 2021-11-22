@@ -2,6 +2,7 @@ import { CatalogType, getNeglectXmlNamespaces } from "./catalog";
 import BloomParseServer, {
   BloomParseServerModes,
 } from "../common/BloomParseServer";
+import * as entities from "entities";
 
 // This static class wraps methods for getting OPDS entry XML text for books in Bloom Library.
 // The "book: any" argument found in many of these methods contains the complete parse books table
@@ -19,11 +20,15 @@ export default class BookEntry {
     catalogType: CatalogType,
     desiredLang: string
   ): string {
+    if (book.draft) {
+      return "";
+    }
+    // these will be excluded by the query, so just being double safe
+    if (book.inCirculation == false) {
+      return "";
+    }
+
     let entry: string = "";
-    //     /* eslint-disable indent */
-    //     entry = `<!-- ${JSON.stringify(book)} -->
-    // `;
-    //     /* eslint-enable indent */
     // filter on internet restrictions
     if (book.internetLimits) {
       // Some country's laws don't allow export/translation of their cultural stories,
@@ -44,7 +49,7 @@ export default class BookEntry {
         // If the ePUB hasn't been harvested, don't bother showing the book.
         return entry;
       }
-      if (book.show && !BookEntry.shouldPublishArtifact(book.show.epub)) {
+      if (!BookEntry.shouldWeIncludeLink(book, "epub", false)) {
         // If the ePUB artifact shouldn't be shown, don't generate a book entry for an ePUB catalog.
         return entry;
       }
@@ -57,80 +62,34 @@ export default class BookEntry {
 
     // REVIEW: are there any other filters we should apply here?  for example, should "incoming" books be listed?
 
-    entry =
-      entry +
-      /* eslint-disable indent */
-      `  <entry>
-    <id>${book.bookInstanceId}</id>
-    <title>${BookEntry.htmlEncode(book.title)}</title>
-`;
-    /* eslint-enable indent */
-    if (book.summary && book.summary.length > 0) {
-      entry =
-        entry +
-        /* eslint-disable indent */
-        `    <summary>${BookEntry.htmlEncode(book.summary)}</summary>
-`;
-    }
-    /* eslint-enable indent */
+    entry += `<entry>`;
+    entry += makeElementOrEmpty("id", book.bookInstanceId);
+    entry += makeElementOrEmpty("title", book.title);
+    entry += makeElementOrEmpty("summary", book.summary);
+
     if (book.authors && book.authors.length > 0) {
       book.authors.map((author) => {
-        entry =
-          entry +
-          /* eslint-disable indent */
-          `    <author><name>${BookEntry.htmlEncode(author)}</name></author>
-`;
-        /* eslint-enable indent */
+        entry += `<author><name>${entities.encodeXML(author)}</name></author>`;
       });
     }
-    entry =
-      entry +
-      /* eslint-disable indent */
-      `    <published>${book.createdAt}</published>
-    <updated>${book.updatedAt}</updated>
-`;
+    entry += makeElementOrEmpty("published", book.published);
+    entry += makeElementOrEmpty("updated", book.updatedAt);
 
     if (book.tags) {
       // note: haven't figured out how to get ts-jest to allow optional chaining
       book.tags.forEach((tag) => {
         if (tag.startsWith("topic:")) {
-          entry += BookEntry.addDublinCore(
+          entry += makeDCElementOrEmpty(
             "subject",
             tag.replace("topic:", "").toLowerCase()
           );
         }
       });
     }
+    entry += makeDCElementOrEmpty("publisher", book.publisher);
+    entry += makeDCElementOrEmpty("rights", book.copyright);
+    entry += makeDCElementOrEmpty("license", book.license);
 
-    /* eslint-enable indent */
-    if (book.publisher) {
-      entry =
-        entry +
-        /* eslint-disable indent */
-        `    <dcterms:publisher>${BookEntry.htmlEncode(
-          book.publisher
-        )}</dcterms:publisher>
-`;
-      /* eslint-enable indent */
-    }
-    if (book.copyright) {
-      entry =
-        entry +
-        /* eslint-disable indent */
-        `    <rights>${BookEntry.htmlEncode(book.copyright)}</rights>
-`;
-      /* eslint-enable indent */
-    }
-    if (book.license) {
-      entry =
-        entry +
-        /* eslint-disable indent */
-        `    <dcterms:license>${BookEntry.htmlEncode(
-          book.license
-        )}</dcterms:license>
-`;
-      /* eslint-enable indent */
-    }
     entry = entry + BookEntry.getLanguageFields(book, catalogType, desiredLang);
     const links = BookEntry.getLinkFields(book, catalogType);
     if (!links || links.length == 0) {
@@ -138,14 +97,8 @@ export default class BookEntry {
       // (It's also probably not valid according to the OPDS standard.)
       return "";
     }
-    entry = entry + links;
-    return (
-      entry +
-      /* eslint-disable indent */
-      `  </entry>
-`
-      /* eslint-enable indent */
-    );
+    entry += links;
+    return entry + `</entry>`;
   }
 
   private static inDesiredLanguage(
@@ -212,141 +165,118 @@ export default class BookEntry {
     return false;
   }
 
-  // It's hard to believe that javascript doesn't have a standard method for this!
-  // This is a rather minimal implementation.
-  private static htmlEncode(text: string): string {
-    if (text.includes("&")) {
-      text = text.replace(/&/g, "&amp;"); // always needed
-    }
-    if (text.includes("<")) {
-      text = text.replace(/</g, "&lt;"); // needed in text nodes
-    }
-    if (text.includes(">")) {
-      text = text.replace(/>/g, "&gt;"); // needed in text nodes
-    }
-    if (text.includes('"')) {
-      text = text.replace(/"/g, "&quot;"); // needed in attribute values
-    }
-    if (text.includes("'")) {
-      text = text.replace(/'/g, "&apos;"); // needed in attribute values
-    }
-    return text;
-  }
-  private static addDublinCore(tag: string, value: string): string {
-    const t = getNeglectXmlNamespaces() ? tag : "dcterms:" + tag;
-    return `    <${t}>${BookEntry.htmlEncode(value)}</${t}>
-`;
-  }
+  private static shouldWeIncludeLink(
+    book: any,
+    artifactName: "pdf" | "bloomReader" | "epub" | "readOnline",
+    defaultIfWeHaveNoOpinions: boolean
+  ): boolean {
+    if (book.show === undefined || book.show[artifactName] === undefined)
+      return defaultIfWeHaveNoOpinions;
 
-  // Should we publish this artifact to the world?
-  // REVIEW: should we assume artifacts don't exist if show is undefined?
-  private static shouldPublishArtifact(show: any): boolean {
-    if (show === undefined) {
-      return true; // assume it's okay if we can't find a check.
-    } else {
-      if (show.user === undefined) {
-        if (show.librarian === undefined) {
-          if (show.harvester === undefined) {
-            return true;
-          } else {
-            return show.harvester;
-          }
-        } else {
-          return show.librarian;
-        }
-      } else {
-        return show.user;
-      }
-    }
+    const firstWithOpinion = ["user", "librarian", "harvester"].find(
+      (judge) => book.show[artifactName][judge] !== undefined
+    );
+    return firstWithOpinion === undefined
+      ? defaultIfWeHaveNoOpinions
+      : book.show[artifactName][firstWithOpinion];
   }
 
   // Get the link fields for the given book and catalog type.
   private static getLinkFields(book: any, catalogType: CatalogType) {
-    let artifactLinks: string = "";
+    const blorgRoot =
+      BloomParseServer.Source === BloomParseServerModes.DEVELOPMENT
+        ? "https://dev.bloomlibrary.org"
+        : "https://bloomlibrary.org";
+
+    let links: string = "";
     // uploaded base URL = https://api.bloomlibrary.org/v1/fs/upload/<book.objectId>/
     const uploadBaseUrl = BloomParseServer.getUploadBaseUrl(book);
     if (!uploadBaseUrl) {
       //console.log("DEBUG: bad book = " + book ? JSON.stringify(book) : book);
-      return artifactLinks;
+      return links;
     }
     // harvested base URL = https://api.bloomlibrary.org/v1/fs/harvest/<book.objectId>/
     const harvestBaseUrl = BloomParseServer.getHarvesterBaseUrl(book);
     const name = BloomParseServer.getBookFileName(book);
     const imageHref = BloomParseServer.getThumbnailUrl(book);
     const imageType = BloomParseServer.getImageContentType(imageHref);
-
-    if (catalogType === CatalogType.EPUB) {
-      // already checked book.show.epub and book.harvestState === "Done"
-      const epubLink = `${harvestBaseUrl}/epub/${name}.epub"`;
-      artifactLinks =
-        artifactLinks +
-        /* eslint-disable indent */
-        `    <link rel="http://opds-spec.org/acquisition/open-access" href="${epubLink}" type="application/epub+zip" />
-`;
-      /* eslint-enable indent */
-      if (imageHref) {
-        artifactLinks =
-          artifactLinks +
-          /* eslint-disable indent */
-          `    <link rel="http://opds-spec.org/image" href="${imageHref}" type="${imageType}" />
-`;
-        /* eslint-enable indent */
-      }
-    } else if (catalogType === CatalogType.ALL) {
-      if (
-        harvestBaseUrl &&
-        (!book.show || BookEntry.shouldPublishArtifact(book.show.epub))
-      ) {
-        const epubLink = `${harvestBaseUrl}/epub/${name}.epub`;
-        artifactLinks =
-          artifactLinks +
-          /* eslint-disable indent */
-          `    <link rel="http://opds-spec.org/acquisition/open-access" href="${epubLink}" type="application/epub+zip" />
-  `;
-        /* eslint-enable indent */
-      }
-      if (!book.show || BookEntry.shouldPublishArtifact(book.show.pdf)) {
-        const pdfLink = `${uploadBaseUrl}/${name}.pdf`;
-        artifactLinks =
-          artifactLinks +
-          /* eslint-disable indent */
-          `    <link rel="http://opds-spec.org/acquisition/open-access" href="${pdfLink}" type="application/pdf" />
-`;
-        /* eslint-enable indent */
-      }
-      if (
-        harvestBaseUrl &&
-        (!book.show || BookEntry.shouldPublishArtifact(book.show.bloomReader))
-      ) {
-        const bloomdLink = `${harvestBaseUrl}/${name}.bloomd`;
-        artifactLinks =
-          artifactLinks +
-          /* eslint-disable indent */
-          `    <link rel="http://opds-spec.org/acquisition/open-access" href="${bloomdLink}" type="application/bloomd+zip" title="bloomPUB" />
-`;
-        /* eslint-enable indent */
-        const readLink = `https://${
-          BloomParseServer.Source === BloomParseServerModes.DEVELOPMENT
-            ? "dev."
-            : ""
-        }bloomlibrary.org/player/${book.objectId}`;
-        artifactLinks =
-          artifactLinks +
-          /* eslint-disable indent */
-          `    <link rel="http://opds-spec.org/acquisition/open-access" href="${readLink}" type="application/bloomd+html" title="Read Online" />
-`;
-        /* eslint-enable indent */
-      }
-      if (imageHref) {
-        artifactLinks =
-          artifactLinks +
-          /* eslint-disable indent */
-          `    <link rel="http://opds-spec.org/image" href="${imageHref}" type="${imageType}" />
-`;
-        /* eslint-enable indent */
-      }
+    if (imageHref) {
+      links += BookEntry.makeLink(
+        "Image",
+        imageHref,
+        imageType,
+        "http://opds-spec.org/image"
+      );
     }
-    return artifactLinks; // may be an empty string if there are no artifacts we can link to
+
+    // We basically have two modes ("CatalogType"):
+    // 1) we're feeding an epub reader, so we only list the entry if we have an epub to give
+    // 2) we're just listing everything we have to give
+
+    // In either mode, we give the epub if we can
+    if (harvestBaseUrl && BookEntry.shouldWeIncludeLink(book, "epub", false)) {
+      const epubLink = `${harvestBaseUrl}/epub/${name}.epub`;
+      links += `<link rel="http://opds-spec.org/acquisition/open-access" title="ePUB" href="${epubLink}" type="application/epub+zip" />  `;
+    }
+
+    if (catalogType === CatalogType.ALL) {
+      if (
+        BookEntry.shouldWeIncludeLink(
+          book,
+          "pdf",
+          true /* As of Nov 18 2021, the harvester currently has no opinion on pdfs, so we will offer it if all the judges are `undefined`.
+          In the future it might help to have one, since we are
+          now allowing some books to omit the PDF upload and we don't have a way of knowing.  */
+        )
+      ) {
+        links += BookEntry.makeLink(
+          "PDF",
+          `${uploadBaseUrl}/${name}.pdf`,
+          "application/pdf"
+        );
+      }
+      if (
+        harvestBaseUrl &&
+        BookEntry.shouldWeIncludeLink(book, "bloomReader", false)
+      ) {
+        links += BookEntry.makeLink(
+          "bloomPUB",
+          `${harvestBaseUrl}/${name}.bloomd`,
+          "application/bloomd+zip"
+        );
+      }
+      if (
+        harvestBaseUrl &&
+        BookEntry.shouldWeIncludeLink(book, "readOnline", false)
+      ) {
+        links += BookEntry.makeLink(
+          "Read On Bloom Library",
+          `${blorgRoot}/player/${book.objectId}`,
+          "text/html"
+        );
+      }
+
+      links += BookEntry.makeLink(
+        "Bloom Library Page",
+        `${blorgRoot}/book/${book.objectId}`,
+        "text/html"
+      );
+    }
+    return links; // may be an empty string if there are no artifacts we can link to
+  }
+
+  private static makeLink(
+    title: string,
+    url: string,
+    mimeType: string,
+    specialRel?: string
+  ): string {
+    // can't use ?? yet because ts-jest chokes
+    const rel = specialRel
+      ? specialRel
+      : "http://opds-spec.org/acquisition/open-access";
+    return `<link rel="${rel}" href="${url}" type="${mimeType}" title="${title}" />
+`;
   }
 
   private static getLanguageFields(
@@ -355,34 +285,19 @@ export default class BookEntry {
     desiredLang: string
   ): string {
     if (catalogType === CatalogType.EPUB) {
-      /* eslint-disable indent */
-      return `    <dcterms:language>${desiredLang}</dcterms:language>
-`;
-      /* eslint-enable indent */
+      return makeDCElementOrEmpty("language", desiredLang);
     } else {
-      let languages: string = "";
       if (book.langPointers && book.langPointers.length > 0) {
         // The Dublin Core standard prefers the ISO 639 code for the language, although
         // StoryWeaver uses language name in their OPDS catalog.
-        book.langPointers.map((lang) => {
-          languages =
-            languages +
-            /* eslint-disable indent */
-            `    <dcterms:language>${lang.isoCode}</dcterms:language>
-`;
-          /* eslint-enable indent */
-        });
+        return book.langPointers
+          .map((lang) => makeDCElementOrEmpty("language", lang.isoCode))
+          .join(" ");
       } else if (book.languages && book.languages.length > 0) {
-        book.languages.map((lang) => {
-          languages =
-            languages +
-            /* eslint-disable indent */
-            `    <dcterms:language>${lang}</dcterms:language>
-`;
-          /* eslint-enable indent */
-        });
+        return book.languages
+          .map((lang) => makeDCElementOrEmpty("language", lang))
+          .join(" ");
       }
-      return languages;
     }
   }
 }
@@ -402,3 +317,12 @@ export default class BookEntry {
 //     <link rel="http://opds-spec.org/acquisition" href="https://storyweaver.org.in/api/v0/story/pdf/SW-111186" type="application/pdf+zip" />
 //     <link rel="http://opds-spec.org/acquisition" href="https://storyweaver.org.in/api/v0/story/epub/SW-111186" type="application/epub+zip" />
 //   </entry>
+
+function makeElementOrEmpty(tag: string, value: string): string {
+  return value ? `<${tag}>${entities.encodeXML(value)}</${tag}>` : "";
+}
+
+function makeDCElementOrEmpty(tag: string, value: string): string {
+  const t = getNeglectXmlNamespaces() ? tag : "dcterms:" + tag;
+  return value ? `<${t}>${entities.encodeXML(value)}</${t}>` : "";
+}

@@ -1,5 +1,10 @@
 import Catalog, { setNeglectXmlNamespaces } from "./catalog";
-import { setResultXml, xexpect as expect } from "../common/xmlUnitTestUtils";
+import {
+  select,
+  setResultXml,
+  logTailResultXml,
+  xexpect as expect,
+} from "../common/xmlUnitTestUtils";
 
 describe("OPDS Root", () => {
   beforeAll(async () => {
@@ -39,6 +44,31 @@ describe("OPDS Tibetan language page", () => {
     expect(xpath).toHaveCount(1);
     expect(xpath + "/subject[1]").toMatch("community living");
     expect(xpath + "/subject[2]").toMatch("culture");
+  });
+
+  it("has various links", async () => {
+    // there was some mystery around the title... I couldn't just match the whole thing
+    const xpath = "feed/entry[title[contains(text(),'Tashi')]]";
+    expect(xpath).toHaveCount(1);
+
+    //logTailResultXml(500);
+
+    expect(xpath + "/link[@title='Bloom Library Page']").toHaveCount(1);
+
+    expect(xpath + "/link[@title='Bloom Library Page']").toHaveAttributeValue(
+      "href",
+      "https://bloomlibrary.org/book/NXVaHwbNTH"
+    );
+    expect(
+      xpath + "/link[@title='Read On Bloom Library']"
+    ).toHaveAttributeValue(
+      "href",
+      "https://bloomlibrary.org/player/NXVaHwbNTH"
+    );
+    expect(xpath + "/link[@title='bloomPUB']").toHaveAttributeValue(
+      "href",
+      "https://api.bloomlibrary.org/v1/fs/harvest/NXVaHwbNTH/I+Am+Tashi.bloomd"
+    );
   });
 });
 
