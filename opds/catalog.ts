@@ -34,6 +34,8 @@ export default class Catalog {
   public static RootUrl: string; // based on original HttpRequest url
   public static DesiredLang: string; // value of &lang=XXX param (or "en" by default)
 
+  public static DefaultEmbargoDays = 90; // unit tests will set this to 0 because else everything is just to fragile as things age
+
   public static async getCatalog(
     baseUrl: string,
     params: {
@@ -73,35 +75,38 @@ export default class Catalog {
         title = "Bloom Library Books";
         break;
     }
+    const embargoDays = apiAccount
+      ? apiAccount.embargoDays
+      : Catalog.DefaultEmbargoDays;
+
     const namespaceDeclarations = neglectXmlNamespaces
       ? ""
       : 'xmlns="http://www.w3.org/2005/Atom" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:opds="http://opds-spec.org/2010/catalog"';
-    /* eslint-disable indent */
+
+    var commentsAboutAccount = "";
+    if (!apiAccount) {
+      commentsAboutAccount =
+        "<!-- We are discontinuing anonymous API access soon. YOU SHOULD GET A KEY FROM US ASAP --!>";
+    } else {
+      commentsAboutAccount = ` <!-- username: ${
+        apiAccount.user.username
+      }  --> <!-- ReferrerTag: ${
+        apiAccount.referrerTag ? apiAccount.referrerTag : "--missing--"
+      }  -->  <!-- Delay for new books: ${embargoDays} days -->`;
+    }
+
     const header = `<?xml version="1.0" encoding="UTF-8"?>
 <feed
   ${namespaceDeclarations}
   >
-  <!-- ${apiAccount ? apiAccount.user.username : "anonymous"}  -->
-  <!-- ${apiAccount ? apiAccount.referrerTag : "noReferrerTag"}  -->
-  <!-- ${
-    // If they have a non-default embargo period, list that
-    apiAccount && apiAccount.embargoDays !== undefined
-      ? apiAccount.embargoDays + " wait"
-      : ""
-  }  -->
+  ${commentsAboutAccount}
   <id>https://bloomlibrary.org</id>
   <title>${title}</title>
   <updated>${new Date().toISOString()}</updated>
 `;
 
     if (catalogType == CatalogType.TOP) {
-      return (
-        header +
-        Catalog.getTopLevelCatalogContent() +
-        /* eslint-disable indent */
-        `</feed>
-`
-      );
+      return header + Catalog.getTopLevelCatalogContent() + `</feed>`;
     }
 
     try {
@@ -120,7 +125,11 @@ export default class Catalog {
         Catalog.DesiredLang
       );
       const entries = Catalog.DesiredLang
-        ? await Catalog.getEntries(catalogType, Catalog.DesiredLang)
+        ? await Catalog.getEntries(
+            catalogType,
+            Catalog.DesiredLang,
+            embargoDays
+          )
         : null; // will be null at the root, when they haven't selected a language yet
       return (
         header +
@@ -219,18 +228,17 @@ export default class Catalog {
   // Get all the entries for the given type of catalog and desired language.
   private static async getEntries(
     catalogType: CatalogType,
-    desiredLang: string
+    desiredLang: string,
+    embargoDays: number
   ): Promise<string> {
-    return new Promise<string>((resolve, reject) => {
-      BloomParseServer.getBooks(Catalog.DesiredLang).then((books) =>
-        resolve(
-          books
-            .map((book) =>
-              BookEntry.getOpdsEntryForBook(book, catalogType, desiredLang)
-            )
-            .join("")
-        )
-      );
-    });
+    const books = await BloomParseServer.getBooks(
+      Catalog.DesiredLang,
+      embargoDays
+    );
+    return books
+      .map((book) =>
+        BookEntry.getOpdsEntryForBook(book, catalogType, desiredLang)
+      )
+      .join("");
   }
 }

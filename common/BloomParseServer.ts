@@ -239,30 +239,35 @@ export default class BloomParseServer {
 
   // Get all the books in circulation with the desired language listed
   // Further filtering may be needed, but those two filters should reduce the transfer considerably.
-  public static getBooks(desiredLang: string): Promise<any[]> {
-    return new Promise<any[]>((resolve, reject) =>
-      axios
-        .get(BloomParseServer.getParseTableUrl("books"), {
-          headers: {
-            "X-Parse-Application-Id": BloomParseServer.getParseAppId(),
-          },
-          params: {
-            // ENHANCE: if we want partial pages like GDL, use limit and skip (with function params to achieve this)
-            limit: 100000,
-            //skip: 100,
-            order: "title",
-            include: "uploader,langPointers",
-            where: `{"langPointers":{"$inQuery":{"where":{"isoCode":"${desiredLang}"},"className":"language"}}, "inCirculation":{"$ne":false}}`,
-          },
-        })
-        .then((result) => {
-          resolve(result.data.results);
-        })
-        .catch((err) => {
-          console.log("ERROR: caught axios.get error: " + err);
-          reject(err);
-        })
+  public static async getBooks(
+    desiredLang: string,
+    embargoDays: number
+  ): Promise<any[]> {
+    const newestDate = new Date(Date.now() - embargoDays * 24 * 60 * 60 * 1000);
+    const newestDateString = newestDate.toISOString().split("T")[0];
+
+    const results = await axios.get(
+      BloomParseServer.getParseTableUrl("books"),
+      {
+        headers: {
+          "X-Parse-Application-Id": BloomParseServer.getParseAppId(),
+        },
+        params: {
+          // ENHANCE: if we want partial pages like GDL, use limit and skip (with function params to achieve this)
+          limit: 100000,
+          //skip: 100,
+          order: "title",
+          include: "uploader,langPointers",
+          where: `{
+            "inCirculation":{"$in":[true,null]}, 
+            "draft":{"$in":[false,null]},
+            "langPointers":{"$inQuery":{"where":{"isoCode":"${desiredLang}"},"className":"language"}}, 
+            "createdAt":{"$lte":{"__type": "Date", "iso":"${newestDateString}"}}
+        }`,
+        },
+      }
     );
+    return results.data.results;
   }
 
   // Get the complete information for the single book identified by the objectId value.

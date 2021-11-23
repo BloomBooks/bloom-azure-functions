@@ -4,8 +4,9 @@ import BloomParseServer, {
   BloomParseServerMode,
 } from "../common/BloomParseServer";
 
-describe("OPDS API Key Handling", () => {
+describe("OPDS API Key Handling using DEV database", () => {
   beforeAll(() => {
+    jest.setTimeout(10 * 1000);
     BloomParseServer.DefaultSource = BloomParseServerMode.DEVELOPMENT;
 
     if (!process.env["bloomParseServerCatalogServicePassword"]) {

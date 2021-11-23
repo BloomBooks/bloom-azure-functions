@@ -159,6 +159,16 @@ describe("BookEntry", () => {
       `https://bloomlibrary.org/book/${kTestBookId}`
     );
   });
+
+  it("subject entry is present iff book has a topic", async () => {
+    book.tags = ["topic:Dogs", "computedLevel:3"];
+    computeEntry();
+    expect("entry/subject").toHaveCount(1);
+    expect("entry/subject").toHaveText("dogs");
+    book.tags = ["computedLevel:3"];
+    computeEntry();
+    expect("entry/subject").toHaveCount(0);
+  });
 });
 
 function testArtifactLink(
