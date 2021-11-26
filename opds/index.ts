@@ -1,5 +1,5 @@
 import { AzureFunction, Context, HttpRequest } from "@azure/functions";
-import { BloomParseServerMode } from "../common/BloomParseServer";
+import { ApiAccount, BloomParseServerMode } from "../common/BloomParseServer";
 import { getApiAccount } from "./apiAccount";
 import Catalog from "./catalog";
 
@@ -8,7 +8,7 @@ import Catalog from "./catalog";
 // See https://www.dublincore.org/specifications/dublin-core/dcmi-terms/ for the Dublin Core
 //     (dcterms) tags
 
-const opds: AzureFunction = async function(
+const opds: AzureFunction = async function (
   context: Context,
   req: HttpRequest
 ): Promise<void> {
@@ -22,19 +22,33 @@ const opds: AzureFunction = async function(
   } else {
     baseUrl = req.url;
   }
-  const accountResult = await getApiAccount(
-    req.query["key"],
-    req.query["src"] as BloomParseServerMode
-  );
-  if (accountResult.resultCode) {
-    context.res = {
-      status: accountResult.resultCode,
-      body: accountResult.errorMessage,
-    };
-  } else {
+
+  var account: ApiAccount;
+  if (req.query["key"]) {
+    const accountResult = await getApiAccount(
+      req.query["key"],
+      req.query["src"] as BloomParseServerMode
+    );
+    if (accountResult.resultCode) {
+      context.res = {
+        status: accountResult.resultCode,
+        body: accountResult.errorMessage,
+      };
+      return;
+    } else {
+      account = accountResult.account;
+    }
+  }
+  try {
+    const body = await Catalog.getCatalog(baseUrl, req.query, account);
     context.res = {
       headers: { "Content-Type": "application/xml" },
-      body: await Catalog.getCatalog(baseUrl, req.query, accountResult.account),
+      body: body,
+    };
+  } catch (err) {
+    context.res = {
+      status: 500,
+      body: err.toString(),
     };
   }
 };

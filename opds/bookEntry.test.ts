@@ -113,12 +113,16 @@ describe("BookEntry", () => {
 
   it("should be sensitive to DRAFT setting", () => {
     book.draft = true;
-    expect(BookEntry.getOpdsEntryForBook(book, CatalogType.ALL, null)).toBe("");
+    expect(BookEntry.getOpdsEntryForBook(book, CatalogType.ALL, null)).toBe(
+      "<!-- omitting a book because it is in DRAFT -->"
+    );
   });
 
   it("should be sensitive to inCirculation setting", () => {
     book.inCirculation = false;
-    expect(BookEntry.getOpdsEntryForBook(book, CatalogType.ALL, null)).toBe("");
+    expect(BookEntry.getOpdsEntryForBook(book, CatalogType.ALL, null)).toBe(
+      "<!-- omitting a book because it is out of circulation -->"
+    );
   });
   it("should give PDF link if allowed", () => {
     testArtifactLink(

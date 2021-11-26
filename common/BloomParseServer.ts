@@ -243,9 +243,13 @@ export default class BloomParseServer {
     desiredLang: string,
     embargoDays: number
   ): Promise<any[]> {
-    const newestDate = new Date(Date.now() - embargoDays * 24 * 60 * 60 * 1000);
-    const newestDateString = newestDate.toISOString().split("T")[0];
-
+    let newestDate, newestDateString;
+    try {
+      newestDate = new Date(Date.now() - embargoDays * 24 * 60 * 60 * 1000);
+      newestDateString = newestDate.toISOString().split("T")[0];
+    } catch (err) {
+      throw "Problem with embargo date handling: " + err.toString();
+    }
     const results = await axios.get(
       BloomParseServer.getParseTableUrl("books"),
       {

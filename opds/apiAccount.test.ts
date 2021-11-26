@@ -27,6 +27,7 @@ describe("OPDS API Key Handling using DEV database", () => {
     );
   });
   it("can login", async () => {
+    jest.setTimeout(1000 * 5);
     const answer = await BloomParseServer.login(); /* ? */
     console.log(answer);
     expect(answer).toBeTruthy();
@@ -44,7 +45,7 @@ describe("OPDS API Key Handling using DEV database", () => {
     console.log(answer);
     expect(answer.errorMessage).toBeFalsy();
     expect(answer.resultCode).toBe(0);
-    expect(answer.account.embargoDays).toBe(undefined);
+    expect(answer.account.embargoDays).toBe(undefined); // undefined means default. This is different from 0, which means no embargo.
     expect(answer.account.user.username).toBe("unit-test@example.com");
     expect(answer.account.referrerTag).toBe("unit-test-account");
   });
