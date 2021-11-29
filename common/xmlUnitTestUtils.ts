@@ -318,9 +318,8 @@ expect.extend({
     } else {
       return {
         message: () =>
-          `expected ${xpath}, which is "${value(
-            xpath
-          )}", to contain "${text}".`,
+          `expected ${xpath}, which is "${value(xpath)}", to contain "${text}".
+          ${xmlFormatter(resultXml)}`,
         pass: false,
       };
     }

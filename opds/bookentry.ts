@@ -18,7 +18,8 @@ export default class BookEntry {
   public static getOpdsEntryForBook(
     book: any,
     catalogType: CatalogType,
-    desiredLang: string
+    desiredLang: string,
+    referrerTag: string
   ): string {
     if (book.draft) {
       return "<!-- omitting a book because it is in DRAFT -->";
@@ -92,7 +93,7 @@ export default class BookEntry {
     entry += makeDCElementOrEmpty("license", book.license);
 
     entry = entry + BookEntry.getLanguageFields(book, catalogType, desiredLang);
-    const links = BookEntry.getLinkFields(book, catalogType);
+    const links = BookEntry.getLinkElements(book, catalogType, referrerTag);
     if (!links || links.length == 0) {
       // An entry without any links is rather useless, and can mess up clients
       // (It's also probably not valid according to the OPDS standard.)
@@ -184,7 +185,11 @@ export default class BookEntry {
   }
 
   // Get the link fields for the given book and catalog type.
-  private static getLinkFields(book: any, catalogType: CatalogType) {
+  private static getLinkElements(
+    book: any,
+    catalogType: CatalogType,
+    referrerTag: string
+  ) {
     const blorgRoot =
       BloomParseServer.Source === BloomParseServerMode.DEVELOPMENT
         ? "https://dev.bloomlibrary.org"
@@ -207,6 +212,7 @@ export default class BookEntry {
         "Image",
         imageHref,
         imageType,
+        referrerTag,
         "http://opds-spec.org/image"
       );
     }
@@ -218,7 +224,12 @@ export default class BookEntry {
     // In either mode, we give the epub if we can
     if (harvestBaseUrl && BookEntry.shouldWeIncludeLink(book, "epub", false)) {
       const epubLink = `${harvestBaseUrl}/epub/${name}.epub`;
-      links += `<link rel="http://opds-spec.org/acquisition/open-access" title="ePUB" href="${epubLink}" type="application/epub+zip" />  `;
+      links += this.makeLink(
+        "ePUB",
+        epubLink,
+        "application/epub+zip",
+        referrerTag
+      );
     }
 
     if (catalogType === CatalogType.ALL) {
@@ -234,7 +245,8 @@ export default class BookEntry {
         links += BookEntry.makeLink(
           "PDF",
           `${uploadBaseUrl}/${name}.pdf`,
-          "application/pdf"
+          "application/pdf",
+          referrerTag
         );
       }
       if (
@@ -244,7 +256,8 @@ export default class BookEntry {
         links += BookEntry.makeLink(
           "bloomPUB",
           `${harvestBaseUrl}/${name}.bloomd`,
-          "application/bloomd+zip"
+          "application/bloomd+zip",
+          referrerTag
         );
       }
       if (
@@ -254,14 +267,16 @@ export default class BookEntry {
         links += BookEntry.makeLink(
           "Read On Bloom Library",
           `${blorgRoot}/player/${book.objectId}`,
-          "text/html"
+          "text/html",
+          referrerTag
         );
       }
 
       links += BookEntry.makeLink(
         "Bloom Library Page",
         `${blorgRoot}/book/${book.objectId}`,
-        "text/html"
+        "text/html",
+        referrerTag
       );
     }
     return links; // may be an empty string if there are no artifacts we can link to
@@ -271,13 +286,23 @@ export default class BookEntry {
     title: string,
     url: string,
     mimeType: string,
+    referrerTag: string,
     specialRel?: string
   ): string {
+    if (referrerTag && referrerTag.startsWith("http"))
+      throw new Error(`Referrer tag, ${referrerTag} looks like a rel or href.`);
+
+    var href = url;
+    if (referrerTag) {
+      // handle some future case where the href already has properties, or the current case where it doesn't.
+      href += href.indexOf("?") > -1 ? "&amp;" : "?";
+      href += `ref=${encodeURIComponent(referrerTag)}`;
+    }
     // can't use ?? yet because ts-jest chokes
     const rel = specialRel
       ? specialRel
       : "http://opds-spec.org/acquisition/open-access";
-    return `<link rel="${rel}" href="${url}" type="${mimeType}" title="${title}" />
+    return `<link rel="${rel}" href="${href}" type="${mimeType}" title="${title}" />
 `;
   }
 

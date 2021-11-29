@@ -23,11 +23,12 @@ const opds: AzureFunction = async function (
     baseUrl = req.url;
   }
 
+  const params = req.query;
   var account: ApiAccount;
-  if (req.query["key"]) {
+  if (params["key"]) {
     const accountResult = await getApiAccount(
-      req.query["key"],
-      req.query["src"] as BloomParseServerMode
+      params["key"],
+      params["src"] as BloomParseServerMode
     );
     if (accountResult.resultCode) {
       context.res = {
@@ -37,10 +38,13 @@ const opds: AzureFunction = async function (
       return;
     } else {
       account = accountResult.account;
+      // each OPDS api account has a tag that we propagate through all
+      // links for eventual use in analytics.
+      params.ref = account.referrerTag;
     }
   }
   try {
-    const body = await Catalog.getCatalog(baseUrl, req.query, account);
+    const body = await Catalog.getCatalog(baseUrl, params, account);
     context.res = {
       headers: { "Content-Type": "application/xml" },
       body: body,

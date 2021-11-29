@@ -60,7 +60,6 @@ describe("OPDS Catalog language links", () => {
     ).toHaveNumberGreaterThan(400);
   });
   it("uses the language name that is mostly commonly used among duplicates", async () => {
-    //await makeCatalog({}, true); // TODO remove
     expect(
       'feed/link[@rel="http://opds-spec.org/facet" and @iso="fr"]/@title'
     ).toHaveText("French");
@@ -85,6 +84,16 @@ describe("OPDS Catalog navigation hrefs", () => {
 
     await makeCatalog({});
     expect('feed/link[@rel="self" and contains(@href,"src")]').toHaveCount(0);
+  });
+
+  it("hrefs in navigation links carry the referrer tag", async () => {
+    await makeCatalog(
+      { src: BloomParseServerMode.DEVELOPMENT, ref: "example tag" },
+      true
+    );
+    expect(
+      'feed/link[@rel="http://opds-spec.org/facet"][1]/@href'
+    ).toContainText("ref=example%20tag");
   });
 
   it("hrefs in navigation links carry the type param", async () => {
