@@ -6,6 +6,7 @@ import BloomParseServer, {
 
 describe("OPDS Catalog Root", () => {
   beforeAll(async () => {
+    jest.setTimeout(1000 * 10);
     Catalog.DefaultEmbargoDays = 0; // otherwise the counts will change with time even if noone touches the books
     setNeglectXmlNamespaces();
     const xml = await Catalog.getCatalog("https://base-url-for-unit-test", {});
@@ -57,10 +58,9 @@ describe("OPDS Catalog language links", () => {
   it("adds up all the usages of the various duplicate languages (by isoCode)", async () => {
     expect(
       'feed/link[@rel="http://opds-spec.org/facet" and @iso="fr"]/@atMost'
-    ).toHaveNumberGreaterThan(400);
+    ).toBeIntGreaterThan(400);
   });
   it("uses the language name that is mostly commonly used among duplicates", async () => {
-    //await makeCatalog({}, true); // TODO remove
     expect(
       'feed/link[@rel="http://opds-spec.org/facet" and @iso="fr"]/@title'
     ).toHaveText("French");

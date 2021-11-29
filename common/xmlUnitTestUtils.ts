@@ -277,8 +277,10 @@ expect.extend({
     }
   },
 });
+
+// use with xpath like //foo/@count
 expect.extend({
-  toHaveNumberGreaterThan(xpath, expected) {
+  toBeIntGreaterThan(xpath, expected) {
     if (select(xpath).length === 0) {
       return {
         message: () => `No matches for ${xpath}.

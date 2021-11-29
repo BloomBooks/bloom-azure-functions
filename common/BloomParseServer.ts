@@ -237,7 +237,7 @@ export default class BloomParseServer {
     );
   }
 
-  // Get all the books in circulation with the desired language listed
+  // Get all the books in circulation that fit the current parameters.
   // Further filtering may be needed, but those two filters should reduce the transfer considerably.
   public static async getBooks(
     desiredLang: string,
@@ -297,8 +297,9 @@ export default class BloomParseServer {
     );
   }
 
-  // login is needed because access to the apiAccount table is restricted.
-  public static async login(): Promise<string> {
+  // This Azure function logs in to the Parse server, using a hard-coded user name ("catalog-service").
+  // That account has a ParseServer "role" which is allowed to read the `apiAccount` and `user` tables.
+  public static async loginAsCatalogService(): Promise<string> {
     try {
       const results = await axios.get(BloomParseServer.getParseLoginUrl(), {
         headers: {
@@ -315,11 +316,13 @@ export default class BloomParseServer {
     }
   }
 
+  //Get an object containing the data from the apiAccount table row with the specified ID (not yet authenticated)
   public static async getApiAccount(
     objectId: string
   ): Promise<ApiAccount | null> {
     try {
-      const sessionToken = await BloomParseServer.login(); /* ? */
+      const sessionToken =
+        await BloomParseServer.loginAsCatalogService(); /* ? */
       if (!sessionToken) {
         throw new Error(
           "The Catalog Service could not log in to Parse Server."
@@ -370,7 +373,7 @@ export type ApiAccount = {
     // I was going to base the key on the email, but I can't access
     // email without masterkey in our version of parse https://stackoverflow.com/a/55786537/723299
     // I think this is fine, but if we did want to use masterkey, we could wait to upgrade ParseServer or
-    // use a ParseServer cloud function for the login (is would be able to use the masterkey safely).
+    // use a ParseServer cloud function for the loginAsCatalogService (it would be able to use the masterkey safely).
   };
   embargoDays?: number;
   referrerTag: string;

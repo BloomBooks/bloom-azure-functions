@@ -156,6 +156,7 @@ describe("BookEntry", () => {
   });
 
   it("should always show link to Bloom Library Page", () => {
+    //expect("entry/link[@title='Bloom Library Page']").toContainText("f");
     expect("entry/link[@title='Bloom Library Page']").toHaveCount(1);
 
     expect("entry/link[@title='Bloom Library Page']").toHaveAttributeValue(

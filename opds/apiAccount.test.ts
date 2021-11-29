@@ -27,8 +27,8 @@ describe("OPDS API Key Handling using DEV database", () => {
     );
   });
   it("can login", async () => {
-    jest.setTimeout(1000 * 5);
-    const answer = await BloomParseServer.login(); /* ? */
+    jest.setTimeout(1000 * 10);
+    const answer = await BloomParseServer.loginAsCatalogService(); /* ? */
     console.log(answer);
     expect(answer).toBeTruthy();
   });

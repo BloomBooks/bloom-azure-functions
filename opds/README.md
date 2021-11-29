@@ -42,7 +42,7 @@ Any books that have the _inCirculation_ value from the _books_ table set to fals
 generated OPDS pages. Any books that have a value set for _internetLimits_ will be omitted from any of the
 generated OPDS pages. (This latter check may be overly restrictive, but is certainly safe legally. We can't
 depend on people using our feed to honor the letter of restrictions we've been given for some books, let alone
-the spirit.)
+the spirit.) Books that were created sooner than the `embargoDays` of the API Account will be omitted. No matter when books are updated, the API will return a link to the most recent edition, regardless of the embargo period.
 
 For the _type=epub_ OPDS pages, books whose ePUB artifact is set invisible by the _show_ object from the _books_ table
 will be omitted. Only entries whose ePUB is in the desired language are shown (to the best of our ability to

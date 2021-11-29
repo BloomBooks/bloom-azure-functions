@@ -25,7 +25,7 @@ export enum CatalogType {
 export default class Catalog {
   public static RootUrl: string; // based on original HttpRequest url
   public static DesiredLang: string; // value of &lang=XXX param (or "en" by default)
-  public static DefaultEmbargoDays = 90; // unit tests will set this to 0 because else everything is just to fragile as things age
+  public static DefaultEmbargoDays = 90; // unit tests will set this to 0 because else everything is just too fragile as things age
 
   public static async getCatalog(
     baseUrl: string,
@@ -48,8 +48,8 @@ export default class Catalog {
       ? null
       : await Catalog.getLanguageLinks(params);
 
-    var bookEntries = null;
-    // bookEntries be null at the root, when they haven't selected a language yet (or if the unit tests don't want us to run the server query)
+    var bookEntries = "";
+    // bookEntries will be null at the root, when they haven't selected a language yet (or if the unit tests don't want us to run the server query)
     if (!skipServerElementsForFastTesting && Catalog.DesiredLang) {
       bookEntries = await Catalog.getEntries(
         catalogType,
@@ -63,7 +63,7 @@ export default class Catalog {
                 ${header}
                 ${this.getOPDSDirectionLinks(params)}
                 ${languageLinks}
-                ${"" + bookEntries}
+                ${bookEntries}
               </feed>`;
   }
 
@@ -304,7 +304,7 @@ export default class Catalog {
   }
 }
 
-// I've never achieved the magic of xpaths with namespaces, so, to my shame, the unit test just us this to turn them off.
+// I've never achieved the magic of xpaths with namespaces, so, to my shame, the unit test just uses this to turn them off.
 var neglectXmlNamespaces: boolean;
 export function setNeglectXmlNamespaces() {
   neglectXmlNamespaces = true;
