@@ -44,6 +44,8 @@ generated OPDS pages. (This latter check may be overly restrictive, but is certa
 depend on people using our feed to honor the letter of restrictions we've been given for some books, let alone
 the spirit.)
 
+Books that have tag `system:incoming` are omitted, waiting for the librarian to confirm that the book fits our site policies.
+
 For the _type=epub_ OPDS pages, books whose ePUB artifact is set invisible by the _show_ object from the _books_ table
 will be omitted. Only entries whose ePUB is in the desired language are shown (to the best of our ability to
 determine this).

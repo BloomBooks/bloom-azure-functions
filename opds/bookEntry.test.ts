@@ -139,6 +139,15 @@ describe("BookEntry", () => {
     );
   });
 
+  // librarian needs to approve it first
+  it("don't include if it has tag:incoming", () => {
+    book.tags.push("system:Incoming");
+    expect(
+      BookEntry.getOpdsEntryForBook(book, CatalogType.ALL, null, null)
+    ).toBe(
+      "<!-- omitting a book because it is awaiting site policy review -->"
+    );
+  });
   it("should be sensitive to inCirculation setting", () => {
     book.inCirculation = false;
     expect(
