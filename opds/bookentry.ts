@@ -173,7 +173,7 @@ export default class BookEntry {
 
   private static shouldWeIncludeLink(
     book: any,
-    artifactName: "pdf" | "bloomReader" | "epub" | "readOnline",
+    artifactName: "pdf" | "bloomReader" | "epub" | "readOnline" | "bloomSource",
     defaultIfWeHaveNoOpinions: boolean
   ): boolean {
     if (book.show === undefined || book.show[artifactName] === undefined)
@@ -259,7 +259,18 @@ export default class BookEntry {
         links += BookEntry.makeLink(
           "bloomPUB",
           `${harvestBaseUrl}/${name}.bloomd`,
-          "application/bloomd+zip",
+          "application/bloomPUB+zip",
+          referrerTag
+        );
+      }
+      if (
+        harvestBaseUrl &&
+        BookEntry.shouldWeIncludeLink(book, "bloomSource", false)
+      ) {
+        links += BookEntry.makeLink(
+          "bloomSource",
+          `${harvestBaseUrl}/${name}.bloomSource`,
+          "application/bloomSource+zip",
           referrerTag
         );
       }
