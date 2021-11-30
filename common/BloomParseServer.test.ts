@@ -1,4 +1,4 @@
-import BloomParseServer from "./BloomParseServer";
+import BloomParseServer, { BloomParseServerMode } from "./BloomParseServer";
 
 describe("BloomParseServer", () => {
   beforeAll(() => {
@@ -6,7 +6,23 @@ describe("BloomParseServer", () => {
   });
   beforeEach(() => {});
   it("getLanguages() returns a reasonable number of languages", async () => {
+    BloomParseServer.Source = BloomParseServerMode.PRODUCTION;
     const langs = await BloomParseServer.getLanguages();
     expect(langs.length).toBeGreaterThan(500);
   });
+
+  /* This is extremely fragile, as it relies on certain books being there AND being a certain number of days old!
+    I haven't thought of an affordable way to just keep it working.  Therefore you pretty much have to customize it
+    to run it 
+
+  it("getBooks() returns expected number of Hausa books, using embargo days", async () => {
+    BloomParseServer.Source = BloomParseServerMode.DEVELOPMENT;
+    const allFoobarBooks = await BloomParseServer.getBooks("de", 0);
+    expect(allFoobarBooks.length).toBe(4);
+    const oldFoobarBooks = await BloomParseServer.getBooks("de", 194);
+    expect(oldFoobarBooks.length).toBe(3);
+  });
+
+
+  */
 });

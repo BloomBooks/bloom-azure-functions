@@ -86,7 +86,7 @@ describe("BookEntry", () => {
       uploader: {
         objectId: "0YpcRpEw66",
         id: "",
-        username: "joeucag@yahoo.com",
+        username: "joe@example.com",
         emailVerified: true,
         createdAt: "2018-11-01T14:32:41.139Z",
         updatedAt: "2018-11-18T04:43:50.011Z",
@@ -113,12 +113,16 @@ describe("BookEntry", () => {
 
   it("should be sensitive to DRAFT setting", () => {
     book.draft = true;
-    expect(BookEntry.getOpdsEntryForBook(book, CatalogType.ALL, null)).toBe("");
+    expect(BookEntry.getOpdsEntryForBook(book, CatalogType.ALL, null)).toBe(
+      "<!-- omitting a book because it is in DRAFT -->"
+    );
   });
 
   it("should be sensitive to inCirculation setting", () => {
     book.inCirculation = false;
-    expect(BookEntry.getOpdsEntryForBook(book, CatalogType.ALL, null)).toBe("");
+    expect(BookEntry.getOpdsEntryForBook(book, CatalogType.ALL, null)).toBe(
+      "<!-- omitting a book because it is out of circulation -->"
+    );
   });
   it("should give PDF link if allowed", () => {
     testArtifactLink(
@@ -152,12 +156,23 @@ describe("BookEntry", () => {
   });
 
   it("should always show link to Bloom Library Page", () => {
+    //expect("entry/link[@title='Bloom Library Page']").toContainText("f");
     expect("entry/link[@title='Bloom Library Page']").toHaveCount(1);
 
     expect("entry/link[@title='Bloom Library Page']").toHaveAttributeValue(
       "href",
       `https://bloomlibrary.org/book/${kTestBookId}`
     );
+  });
+
+  it("subject entry is present iff book has a topic", async () => {
+    book.tags = ["topic:Dogs", "computedLevel:3"];
+    computeEntry();
+    expect("entry/subject").toHaveCount(1);
+    expect("entry/subject").toHaveText("dogs");
+    book.tags = ["computedLevel:3"];
+    computeEntry();
+    expect("entry/subject").toHaveCount(0);
   });
 });
 
@@ -177,6 +192,8 @@ function testArtifactLink(
 
   // if the user turns it off, don't offer it
   book.show[artifactName].user = false;
+  book.show[artifactName].harvester = true;
+  book.show[artifactName].librarian = true;
   computeEntry();
   expect(xpath).toHaveCount(0);
 

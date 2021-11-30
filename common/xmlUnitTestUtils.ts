@@ -1,5 +1,6 @@
+const xmlFormatter = require("xml-formatter");
 const XPATH = require("xpath");
-const dom = require("xmldom").DOMParser;
+const { DOMParser } = require("@xmldom/xmldom");
 
 // This adds some handy xml-specific primitives for jest-expect.
 // It was borrowed and expanded from lameta.
@@ -8,9 +9,32 @@ let resultXml: string;
 let resultDom: Document;
 
 export function setResultXml(xml: string) {
-  resultXml = xml;
-  resultDom = new dom().parseFromString(resultXml);
+  resultXml = xml; /* ? */
+  const parser = new DOMParser({
+    errorHandler: {
+      warning: (msg) => {
+        console.warn("XML Parser Warning = " + msg);
+      },
+      error: (msg) => {
+        console.error("XML Parser Error = " + msg);
+        expect("xml parser error").toBe(msg);
+        // throws don't seem to stop async tests
+      },
+      fatalError: (msg) => {
+        console.error("XML Parser Fatal Error = " + msg);
+        expect("xml parser error").toBe(msg);
+        // throws don't seem to stop async tests
+      },
+    },
+  });
+
+  /* NOTE: we find this to be ridiculously tolerant of xml errors. Enhance: use a stricter parser */
+
+  resultDom = parser.parseFromString(resultXml);
+
+  //console.log(resultDom);
 }
+
 export function logTailResultXml(lastChars: number) {
   console.log(resultXml.slice(-lastChars));
 }
@@ -114,7 +138,8 @@ expect.extend({
       //      console.log(resultXml);
       return {
         message: () =>
-          `expected ${xpath} to have ${expectedValue} matches, but got ${matchCount}`,
+          `got ${matchCount} instead ${expectedValue} matches for ${xpath}.
+          ${xmlFormatter(resultXml)}`,
         pass: false,
       };
     }
@@ -133,7 +158,9 @@ expect.extend({
       //      console.log(resultXml);
       return {
         message: () =>
-          `expected ${xpath} to have at least ${expectedValue} matches, but got ${matchCount}`,
+          `expected >= ${expectedValue} matches, but got ${matchCount}
+XPath: ${xpath}
+${xmlFormatter(resultXml)}`,
         pass: false,
       };
     }
@@ -185,7 +212,7 @@ expect.extend({
       };
     } else {
       return {
-        message: () => `expected ${xpathWithAttr} Link to be '${url}'\r\n`,
+        message: () => `expected ${xpathWithAttr} Link to be '${url}'`,
         pass: false,
       };
     }
@@ -245,6 +272,74 @@ expect.extend({
       return {
         message: () =>
           `expected ${xpath}, which is "${value(xpath)}", to equal "${text}".`,
+        pass: false,
+      };
+    }
+  },
+});
+
+// use with xpath like //foo/@count
+expect.extend({
+  toBeIntGreaterThan(xpath, expected) {
+    if (select(xpath).length === 0) {
+      return {
+        message: () => `No matches for ${xpath}.
+        ${xmlFormatter(resultXml)}`,
+        pass: false,
+      };
+    }
+    if (select(xpath).length > 1) {
+      return {
+        message: () => `Multiple matches for ${xpath}.
+        ${xmlFormatter(resultXml)}`,
+        pass: false,
+      };
+    }
+    const n = parseInt(value(xpath));
+    if (expected < n) {
+      return {
+        message: () => `${n} >= ${expected}`,
+        pass: true,
+      };
+    } else {
+      return {
+        message: () => `${n} < ${expected} for ${xpath}.
+        ${xmlFormatter(resultXml)}`,
+        pass: false,
+      };
+    }
+  },
+});
+expect.extend({
+  toContainText(xpath, text) {
+    if (value(xpath).indexOf(text) > -1) {
+      return {
+        message: () => "",
+        pass: true,
+      };
+    } else {
+      return {
+        message: () =>
+          `expected ${xpath}, which is "${value(
+            xpath
+          )}", to contain "${text}".`,
+        pass: false,
+      };
+    }
+  },
+});
+
+expect.extend({
+  toBeAComment() {
+    if (resultXml && resultXml.startsWith("<!--")) {
+      return {
+        message: () => "",
+        pass: true,
+      };
+    } else {
+      return {
+        message: () => `expected only a comment
+                ${xmlFormatter(resultXml)}`,
         pass: false,
       };
     }

@@ -1,6 +1,6 @@
 import { CatalogType, getNeglectXmlNamespaces } from "./catalog";
 import BloomParseServer, {
-  BloomParseServerModes,
+  BloomParseServerMode,
 } from "../common/BloomParseServer";
 import * as entities from "entities";
 
@@ -21,14 +21,13 @@ export default class BookEntry {
     desiredLang: string
   ): string {
     if (book.draft) {
-      return "";
+      return "<!-- omitting a book because it is in DRAFT -->";
     }
     // these will be excluded by the query, so just being double safe
     if (book.inCirculation == false) {
-      return "";
+      return "<!-- omitting a book because it is out of circulation -->";
     }
 
-    let entry: string = "";
     // filter on internet restrictions
     if (book.internetLimits) {
       // Some country's laws don't allow export/translation of their cultural stories,
@@ -38,31 +37,33 @@ export default class BookEntry {
       // always be omitted from public catalogs.  If we start getting an expanded set of
       // specific restrictions, we may look at whether only individual artifacts are affected
       // instead of the entire book entry.
-      return entry;
+      return "<!-- omitting a book because of country restrictions -->";
+    }
+
+    // Enhance: we could still provide the PDF & other stuff even it cannot harvest.
+    if (book.harvestState !== "Done") {
+      // If the ePUB hasn't been harvested, don't bother showing the book.
+      return "<!-- omitting a book because of harvest state -->";
     }
 
     // filter on ePUB catalog restrictions
     // When catalogType == ALL, the book.harvestState and book.show values are checked for individual
     // artifacts in getLinkFields().
     if (catalogType === CatalogType.EPUB) {
-      if (book.harvestState !== "Done") {
-        // If the ePUB hasn't been harvested, don't bother showing the book.
-        return entry;
-      }
       if (!BookEntry.shouldWeIncludeLink(book, "epub", false)) {
         // If the ePUB artifact shouldn't be shown, don't generate a book entry for an ePUB catalog.
-        return entry;
+        return "<!-- omitting a book because of artifact settings -->";
       }
       if (!BookEntry.inDesiredLanguage(book, catalogType, desiredLang)) {
         // If the ePUB appears not to be in the desired language, don't generate a book entry for
         // an ePUB catalog.
-        return entry;
+        return "<!-- omitting a book because of language requested vs. language available -->";
       }
     }
 
     // REVIEW: are there any other filters we should apply here?  for example, should "incoming" books be listed?
 
-    entry += `<entry>`;
+    let entry = `<entry>`;
     entry += makeElementOrEmpty("id", book.bookInstanceId);
     entry += makeElementOrEmpty("title", book.title);
     entry += makeElementOrEmpty("summary", book.summary);
@@ -106,6 +107,7 @@ export default class BookEntry {
     catalogType: CatalogType,
     desiredLang: string
   ): boolean {
+    // NB: I [jh] don't understand why epub is a special case, and haven't done any testing around this.
     if (catalogType == CatalogType.EPUB) {
       if (book.allTitles) {
         // book.allTitles looks like a JSON string, but can contain invalid data that won't parse.
@@ -184,7 +186,7 @@ export default class BookEntry {
   // Get the link fields for the given book and catalog type.
   private static getLinkFields(book: any, catalogType: CatalogType) {
     const blorgRoot =
-      BloomParseServer.Source === BloomParseServerModes.DEVELOPMENT
+      BloomParseServer.Source === BloomParseServerMode.DEVELOPMENT
         ? "https://dev.bloomlibrary.org"
         : "https://bloomlibrary.org";
 
