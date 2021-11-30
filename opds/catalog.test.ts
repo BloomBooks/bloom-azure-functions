@@ -1,4 +1,4 @@
-import Catalog, { CatalogType, setNeglectXmlNamespaces } from "./catalog";
+import Catalog, { CatalogParams, setNeglectXmlNamespaces } from "./catalog";
 import { setResultXml, xexpect as expect } from "../common/xmlUnitTestUtils";
 import BloomParseServer, {
   BloomParseServerMode,
@@ -20,32 +20,41 @@ describe("OPDS Catalog Root", () => {
     expect("feed/link[@rel='up']").toHaveCount(1);
   });
 
-  it("has reasonable number of language links", () => {
+  it("has no language links", () => {
     expect("feed").toHaveCount(1);
-    expect("feed/link").toHaveAtLeast(400); // note, this will be < the number of language rows, because we have to consolidate duplicates
+    expect("feed/link[@rel='http://opds-spec.org/facet']").toHaveCount(0);
   });
+
   it("does not list any books", () => {
-    expect("feed/entry").toHaveCount(0);
+    // review: is there a more direct way to identify a book entry as opposed to a navigation entry?
+    expect("feed/entry/dcterms").toHaveCount(0);
   });
 });
-
-async function makeCatalog(
-  params: object,
-  requiresCatalogElementsThatRequireQueryingExternalServer?: boolean
-) {
-  const xml = await Catalog.getCatalog(
-    "https://example.org",
-    params,
-    undefined,
-    !requiresCatalogElementsThatRequireQueryingExternalServer
-  );
-  //console.log(xml);
-  setResultXml(xml);
-}
-describe("OPDS Catalog language links", () => {
+describe("OPDS By Language Root", () => {
   beforeAll(async () => {
+    Catalog.DefaultEmbargoDays = 0; // otherwise the counts will change with time even if noone touches the books
     setNeglectXmlNamespaces();
-    await makeCatalog({}, true);
+    const xml = await Catalog.getCatalog("https://base-url-for-unit-test", {
+      organizeby: "language",
+      lang: undefined,
+    });
+    setResultXml(xml);
+  });
+  beforeEach(() => {});
+
+  it("has navigation links required by opds spec", async () => {
+    expect('feed/link[@rel="self"]').toHaveCount(1);
+    expect("feed/link[@rel='start']").toHaveCount(1);
+    expect("feed/link[@rel='up']").toHaveCount(1);
+  });
+
+  it("has reasonable number of language links", () => {
+    expect("feed").toHaveCount(1);
+    expect("feed/link[@rel='http://opds-spec.org/facet']").toHaveAtLeast(400); // note, this will be < the number of language rows, because we have to consolidate duplicates
+  });
+  it("does not list any books", () => {
+    // review: is there a more direct way to identify a book entry as opposed to a navigation entry?
+    expect("feed/entry/dcterms").toHaveCount(0);
   });
 
   it("does not list the same language (by isoCode) twice", async () => {
@@ -67,28 +76,32 @@ describe("OPDS Catalog language links", () => {
   /* enhance: this capability not implemented AND writing the test will be expensive (currently we're testing against live and changeable database, sigh.)
   it("adds up the usage count of all duplicate languages (by isoCode)", async () => {});
   */
-});
+  // });
 
-describe("OPDS Catalog navigation hrefs", () => {
-  beforeAll(async () => {
-    setNeglectXmlNamespaces();
-  });
+  // describe("OPDS Catalog navigation hrefs", () => {
+  //   beforeAll(async () => {
+  //     setNeglectXmlNamespaces();
+  //   });
 
-  it("hrefs in navigation links carry the src param", async () => {
-    await makeCatalog({ src: BloomParseServerMode.DEVELOPMENT });
-    expect('feed/link[@rel="self"]/@href').toContainText("src=dev");
+  //   it("hrefs in navigation links carry the src param", async () => {
+  //     await makeCatalog({ src: BloomParseServerMode.DEVELOPMENT });
+  //     expect('feed/link[@rel="self"]/@href').toContainText("src=dev");
 
-    // since production is the default, we don't want to list it when it is chosen
-    await makeCatalog({ src: BloomParseServerMode.PRODUCTION });
-    expect('feed/link[@rel="self" and contains(@href,"src")]').toHaveCount(0);
+  //     // since production is the default, we don't want to list it when it is chosen
+  //     await makeCatalog({ src: BloomParseServerMode.PRODUCTION });
+  //     expect('feed/link[@rel="self" and contains(@href,"src")]').toHaveCount(0);
 
-    await makeCatalog({});
-    expect('feed/link[@rel="self" and contains(@href,"src")]').toHaveCount(0);
-  });
+  //     await makeCatalog({});
+  //     expect('feed/link[@rel="self" and contains(@href,"src")]').toHaveCount(0);
+  //   });
 
   it("hrefs in navigation links carry the referrer tag", async () => {
     await makeCatalog(
-      { src: BloomParseServerMode.DEVELOPMENT, ref: "example tag" },
+      {
+        src: BloomParseServerMode.DEVELOPMENT,
+        ref: "example tag",
+        organizeby: "language",
+      },
       true
     );
     expect(
@@ -96,25 +109,21 @@ describe("OPDS Catalog navigation hrefs", () => {
     ).toContainText("ref=example%20tag");
   });
 
-  it("hrefs in navigation links carry the type param", async () => {
-    await makeCatalog({ type: CatalogType.EPUB });
-    expect('feed/link[@rel="self"]/@href').toContainText("type=epub");
+  it("hrefs in navigation links carry the epub param", async () => {
+    await makeCatalog({ epub: true });
+    expect('feed/link[@rel="self"]/@href').toContainText("epub=true");
 
     // since "all" artifact types is the default, we don't want to list it when it is chosen
-    await makeCatalog({ type: CatalogType.ALL });
-    expect('feed/link[@rel="self" and contains(@href,"type")]').toHaveCount(0);
+    await makeCatalog({ epub: false });
+    expect('feed/link[@rel="self" and contains(@href,"epub")]').toHaveCount(0);
 
     await makeCatalog({});
-    expect('feed/link[@rel="self" and contains(@href,"type")]').toHaveCount(0);
+    expect('feed/link[@rel="self" and contains(@href,"epub")]').toHaveCount(0);
   });
 
-  it("hrefs in navigation links carry the lang param", async () => {
-    await makeCatalog({ lang: "fod" });
-    expect('feed/link[@rel="self"]/@href').toContainText("lang=fod");
-
-    // don't mention language if we want all of them
-    await makeCatalog({});
-    expect('feed/link[@rel="self" and contains(@href,"lang")]').toHaveCount(0);
+  it("hrefs in navigation links carry the organizeby param", async () => {
+    await makeCatalog({ epub: true, organizeby: "language" });
+    expect('feed/link[@rel="self"]/@href').toContainText("organizeby=language");
   });
 
   it("hrefs in navigation links carry the apiAccount key param", async () => {
@@ -129,7 +138,10 @@ describe("OPDS Catalog navigation hrefs", () => {
   });
 
   it("hrefs in language links carry the apiAccount key param", async () => {
-    await makeCatalog({ key: "pat@example.com:123abcd" }, true);
+    await makeCatalog(
+      { key: "pat@example.com:123abcd", organizeby: "language" },
+      true
+    );
     expect('feed/link[@rel="http://opds-spec.org/facet"]/@href').toContainText(
       "key=pat%40example.com%3A123abcd"
     );
@@ -151,14 +163,15 @@ describe("OPDS Catalog navigation hrefs", () => {
     // since "all" artifact types is the default, we don't want to list it when it is chosen
     await makeCatalog(
       {
-        type: CatalogType.EPUB,
+        epub: true,
         src: BloomParseServerMode.PRODUCTION,
         lang: "fr",
+        organizeby: "language",
       },
       true
     );
     expect(
-      'feed/link[@rel="http://opds-spec.org/facet" and contains(@href,"type")]'
+      'feed/link[@rel="http://opds-spec.org/facet" and contains(@href,"epub=true")]'
     ).toHaveAtLeast(300);
 
     expect(
@@ -222,3 +235,34 @@ describe("OPDS Tibetan language page", () => {
     );
   });
 });
+
+describe("OPDS on Language Page", () => {
+  beforeAll(async () => {
+    Catalog.DefaultEmbargoDays = 0; // otherwise the counts will change with time even if noone touches the books
+    setNeglectXmlNamespaces();
+    const xml = await Catalog.getCatalog("https://base-url-for-unit-test", {
+      organizeby: "language",
+      lang: "fr",
+    });
+    setResultXml(xml);
+  });
+  beforeEach(() => {});
+
+  it("hrefs in navigation links carry the lang param", async () => {
+    expect('feed/link[@rel="self"]/@href').toContainText("lang=fr");
+  });
+});
+
+async function makeCatalog(
+  params: CatalogParams,
+  requiresCatalogElementsThatRequireQueryingExternalServer?: boolean
+) {
+  const xml = await Catalog.getCatalog(
+    "https://example.org",
+    params,
+    undefined,
+    !requiresCatalogElementsThatRequireQueryingExternalServer
+  );
+  //console.log(xml);
+  setResultXml(xml);
+}

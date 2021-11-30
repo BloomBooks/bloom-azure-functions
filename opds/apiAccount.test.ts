@@ -19,6 +19,7 @@ describe("OPDS API Key Handling using DEV database", () => {
     expect((await getApiAccount("")).resultCode).toBe(401);
   });
   it("gives error if API key appears wrong", async () => {
+    jest.setTimeout(1000 * 10);
     expect((await getApiAccount("bogus")).resultCode).toBe(403);
   });
   it("gives 503 error if API cannot be checked at the moment", async () => {

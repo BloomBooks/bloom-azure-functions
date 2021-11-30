@@ -1,4 +1,4 @@
-import { CatalogType, setNeglectXmlNamespaces } from "./catalog";
+import { setNeglectXmlNamespaces } from "./catalog";
 import { setResultXml, xexpect as expect } from "../common/xmlUnitTestUtils";
 import BookEntry from "./bookentry";
 
@@ -9,7 +9,7 @@ const titleInTheBaseUrl = "titleFromTheBaseUrl";
 const kTestBookBaseUrl = `https://s3.amazonaws.com/BloomLibraryBooks/uploader/${titleInTheBaseUrl}`;
 
 function computeEntry() {
-  const xml = BookEntry.getOpdsEntryForBook(book, CatalogType.ALL, null, null);
+  const xml = BookEntry.getOpdsEntryForBook(book, false, null, null);
   //console.log(xml);
   setResultXml(xml);
 }
@@ -110,21 +110,22 @@ describe("BookEntry", () => {
       originalPublisher: "Pratham Books",
     };
   });
+  it("should be sensitive to epub Only setting", () => {
+    book.show["epub"] = false;
+    expect(BookEntry.getOpdsEntryForBook(book, true, null, null)).toBe(
+      "<!-- omitting a book because of artifact settings -->"
+    );
+  });
 
   it("should be sensitive to DRAFT setting", () => {
     book.draft = true;
-    expect(
-      BookEntry.getOpdsEntryForBook(book, CatalogType.ALL, null, null)
-    ).toBe("<!-- omitting a book because it is in DRAFT -->");
+    expect(BookEntry.getOpdsEntryForBook(book, false, null, null)).toBe(
+      "<!-- omitting a book because it is in DRAFT -->"
+    );
   });
 
   it("should include referrer tag", () => {
-    const xml = BookEntry.getOpdsEntryForBook(
-      book,
-      CatalogType.ALL,
-      null,
-      "example tag"
-    );
+    const xml = BookEntry.getOpdsEntryForBook(book, false, null, "example tag");
     setResultXml(xml);
     expect("//link[@title='ePUB']/@href").toContainText("ref=example%20tag");
     expect("//link[@title='PDF']/@href").toContainText("ref=example%20tag");
@@ -142,17 +143,15 @@ describe("BookEntry", () => {
   // librarian needs to approve it first
   it("don't include if it has tag:incoming", () => {
     book.tags.push("system:Incoming");
-    expect(
-      BookEntry.getOpdsEntryForBook(book, CatalogType.ALL, null, null)
-    ).toBe(
+    expect(BookEntry.getOpdsEntryForBook(book, false, null, null)).toBe(
       "<!-- omitting a book because it is awaiting site policy review -->"
     );
   });
   it("should be sensitive to inCirculation setting", () => {
     book.inCirculation = false;
-    expect(
-      BookEntry.getOpdsEntryForBook(book, CatalogType.ALL, null, null)
-    ).toBe("<!-- omitting a book because it is out of circulation -->");
+    expect(BookEntry.getOpdsEntryForBook(book, false, null, null)).toBe(
+      "<!-- omitting a book because it is out of circulation -->"
+    );
   });
   it("should give PDF link if allowed", () => {
     testArtifactLink(
