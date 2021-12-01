@@ -52,10 +52,8 @@ export default class BookEntry {
       return "<!-- omitting a book because of harvest state -->";
     }
 
-    // filter on ePUB catalog restrictions
-    // When catalogType == ALL, the book.harvestState and book.show values are checked for individual
-    // artifacts in getLinkFields().
     if (epubOnly) {
+      // we're only showing books that have an epub available
       if (!BookEntry.shouldWeIncludeLink(book, "epub", false)) {
         // If the ePUB artifact shouldn't be shown, don't generate a book entry for an ePUB catalog.
         return "<!-- omitting a book because of artifact settings -->";
@@ -132,19 +130,19 @@ export default class BookEntry {
             }
           }
         }
-        console.log(
+        console.warn(
           `WARNING: did not find "${title} in allTitles (${book.allTitles})`
         );
       }
       // assume the first language in langPointers is the language of the ePUB: this may well be wrong
       // but we don't have any better information to go by.
       if (book.langPointers && book.langPointers.length > 0) {
-        console.log(
+        console.warn(
           `WARNING: assuming book.langPointers[0] (${book.langPointers[0].isoCode}) is the language for the "${book.title}" ePUB!`
         );
         return desiredLang == book.langPointers[0].isoCode;
       } else if (book.languages && book.languages.length > 0) {
-        console.log(
+        console.warn(
           `WARNING: assuming book.languages[0] (${book.languages[0]}) is the language for the "${book.title}" ePUB!`
         );
         return desiredLang == book.languages[0];
@@ -187,7 +185,6 @@ export default class BookEntry {
       : book.show[artifactName][firstWithOpinion];
   }
 
-  // Get the link fields for the given book and catalog type.
   private static getLinkElements(book: any, referrerTag: string) {
     const blorgRoot =
       BloomParseServer.Source === BloomParseServerMode.DEVELOPMENT
@@ -216,7 +213,7 @@ export default class BookEntry {
       );
     }
 
-    // We basically have two modes ("CatalogType"):
+    // We basically have two modes
     // 1) we're feeding an epub reader, so we only list the entry if we have an epub to give
     // 2) we're just listing everything we have to give
 
@@ -231,7 +228,6 @@ export default class BookEntry {
       );
     }
 
-    //if (catalogType === CatalogType.ALL) {
     if (
       BookEntry.shouldWeIncludeLink(
         book,
