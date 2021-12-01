@@ -22,6 +22,14 @@ export enum CatalogType {
   // all artifacts: ePUB, PDF, and bloomPUB; show entry without links even if no artifacts allowed
   ALL = "all",
 }
+
+type CatalogParams = {
+  ref?: string; // the referrer tag that comes from apiAccount, used for analytics
+  lang?: string; // narrow to this iso code
+  key?: string; // the apiAccount key for using this API
+  type?: CatalogType; // (this will probably need improvement) the type filter sorta combined with whether we want the root?
+};
+
 export default class Catalog {
   public static RootUrl: string; // based on original HttpRequest url
   public static DesiredLang: string; // value of &lang=XXX param (or "en" by default)
@@ -29,7 +37,7 @@ export default class Catalog {
 
   public static async getCatalog(
     baseUrl: string,
-    params: object,
+    params: CatalogParams,
     apiAccount?: ApiAccount,
     skipServerElementsForFastTesting?: boolean
   ): Promise<string> {
@@ -54,7 +62,8 @@ export default class Catalog {
       bookEntries = await Catalog.getEntries(
         catalogType,
         Catalog.DesiredLang,
-        this.getEmbargoDays(apiAccount)
+        this.getEmbargoDays(apiAccount),
+        params.ref
       );
     }
 
@@ -140,7 +149,7 @@ export default class Catalog {
 
   public static getHeaderElements(
     baseUrl: string,
-    params: object,
+    params: CatalogParams,
     apiAccount?: ApiAccount
   ): string {
     Catalog.RootUrl = baseUrl;
@@ -188,7 +197,7 @@ export default class Catalog {
   // give the parameter portion of the url to use in hrefs, in a way
   // that preserves our current parameters and also is concise
   private static GetParamsForHref(
-    params: object,
+    params: CatalogParams,
     startWith: "?" | "&",
     omitParams?: string[]
   ): string {
@@ -209,6 +218,11 @@ export default class Catalog {
         name: "key",
         default: undefined,
       },
+      {
+        // this is the referrer tag that comes from an apiAccount
+        name: "ref",
+        default: undefined,
+      },
     ];
     const r = paramSpecs
       .filter((p) => !omitParams || !omitParams.includes(p.name)) // e.g., we skip the `lang` parameter when creating a list of all the other languages
@@ -216,7 +230,7 @@ export default class Catalog {
       .map((p) => `${p.name}=${encodeURIComponent(params[p.name])}`)
       .join("&amp;");
     const start = startWith === "&" ? "&amp;" : startWith;
-    return r ? start + r : "" /* ? */;
+    return r ? start + r : "";
   }
 
   // Get all the language links for the given type of catalog and desired language.
@@ -268,8 +282,7 @@ export default class Catalog {
                       iso="${lang.isoCode}"
                       href="${
                         this.RootUrl +
-                        "?lang=" +
-                        lang.isoCode +
+                        ("?lang=" + lang.isoCode) +
                         this.GetParamsForHref(params, "&", ["lang"])
                       }"
                       atMost="${lang.usageCount}"
@@ -290,7 +303,8 @@ export default class Catalog {
   private static async getEntries(
     catalogType: CatalogType,
     desiredLang: string,
-    embargoDays: number
+    embargoDays: number,
+    referrerTag: string
   ): Promise<string> {
     const books = await BloomParseServer.getBooks(
       Catalog.DesiredLang,
@@ -298,7 +312,12 @@ export default class Catalog {
     );
     return books
       .map((book) =>
-        BookEntry.getOpdsEntryForBook(book, catalogType, desiredLang)
+        BookEntry.getOpdsEntryForBook(
+          book,
+          catalogType,
+          desiredLang,
+          referrerTag
+        )
       )
       .join("");
   }

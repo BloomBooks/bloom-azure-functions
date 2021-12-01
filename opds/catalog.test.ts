@@ -87,6 +87,16 @@ describe("OPDS Catalog navigation hrefs", () => {
     expect('feed/link[@rel="self" and contains(@href,"src")]').toHaveCount(0);
   });
 
+  it("hrefs in navigation links carry the referrer tag", async () => {
+    await makeCatalog(
+      { src: BloomParseServerMode.DEVELOPMENT, ref: "example tag" },
+      true
+    );
+    expect(
+      'feed/link[@rel="http://opds-spec.org/facet"][1]/@href'
+    ).toContainText("ref=example%20tag");
+  });
+
   it("hrefs in navigation links carry the type param", async () => {
     await makeCatalog({ type: CatalogType.EPUB });
     expect('feed/link[@rel="self"]/@href').toContainText("type=epub");
