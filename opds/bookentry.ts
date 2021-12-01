@@ -1,4 +1,4 @@
-import { CatalogType, getNeglectXmlNamespaces } from "./catalog";
+import { getNeglectXmlNamespaces } from "./catalog";
 import BloomParseServer, {
   BloomParseServerMode,
 } from "../common/BloomParseServer";
@@ -17,7 +17,7 @@ export default class BookEntry {
   // publication, and whether the book is restricted from internet distribution for some reason.
   public static getOpdsEntryForBook(
     book: any,
-    catalogType: CatalogType,
+    epubOnly: boolean,
     desiredLang: string,
     referrerTag: string
   ): string {
@@ -52,15 +52,13 @@ export default class BookEntry {
       return "<!-- omitting a book because of harvest state -->";
     }
 
-    // filter on ePUB catalog restrictions
-    // When catalogType == ALL, the book.harvestState and book.show values are checked for individual
-    // artifacts in getLinkFields().
-    if (catalogType === CatalogType.EPUB) {
+    if (epubOnly) {
+      // we're only showing books that have an epub available
       if (!BookEntry.shouldWeIncludeLink(book, "epub", false)) {
         // If the ePUB artifact shouldn't be shown, don't generate a book entry for an ePUB catalog.
         return "<!-- omitting a book because of artifact settings -->";
       }
-      if (!BookEntry.inDesiredLanguage(book, catalogType, desiredLang)) {
+      if (!BookEntry.inDesiredLanguage(book, epubOnly, desiredLang)) {
         // If the ePUB appears not to be in the desired language, don't generate a book entry for
         // an ePUB catalog.
         return "<!-- omitting a book because of language requested vs. language available -->";
@@ -95,8 +93,8 @@ export default class BookEntry {
     entry += makeDCElementOrEmpty("rights", book.copyright);
     entry += makeDCElementOrEmpty("license", book.license);
 
-    entry = entry + BookEntry.getLanguageFields(book, catalogType, desiredLang);
-    const links = BookEntry.getLinkElements(book, catalogType, referrerTag);
+    entry = entry + BookEntry.getLanguageFields(book, epubOnly, desiredLang);
+    const links = BookEntry.getLinkElements(book, referrerTag);
     if (!links || links.length == 0) {
       // An entry without any links is rather useless, and can mess up clients
       // (It's also probably not valid according to the OPDS standard.)
@@ -108,11 +106,11 @@ export default class BookEntry {
 
   private static inDesiredLanguage(
     book: any,
-    catalogType: CatalogType,
+    epubOnly: boolean,
     desiredLang: string
   ): boolean {
     // NB: I [jh] don't understand why epub is a special case, and haven't done any testing around this.
-    if (catalogType == CatalogType.EPUB) {
+    if (epubOnly) {
       if (book.allTitles) {
         // book.allTitles looks like a JSON string, but can contain invalid data that won't parse.
         // So we'll use string searching to parse it looking for a matching title and its language.
@@ -132,19 +130,19 @@ export default class BookEntry {
             }
           }
         }
-        console.log(
+        console.warn(
           `WARNING: did not find "${title} in allTitles (${book.allTitles})`
         );
       }
       // assume the first language in langPointers is the language of the ePUB: this may well be wrong
       // but we don't have any better information to go by.
       if (book.langPointers && book.langPointers.length > 0) {
-        console.log(
+        console.warn(
           `WARNING: assuming book.langPointers[0] (${book.langPointers[0].isoCode}) is the language for the "${book.title}" ePUB!`
         );
         return desiredLang == book.langPointers[0].isoCode;
       } else if (book.languages && book.languages.length > 0) {
-        console.log(
+        console.warn(
           `WARNING: assuming book.languages[0] (${book.languages[0]}) is the language for the "${book.title}" ePUB!`
         );
         return desiredLang == book.languages[0];
@@ -187,12 +185,7 @@ export default class BookEntry {
       : book.show[artifactName][firstWithOpinion];
   }
 
-  // Get the link fields for the given book and catalog type.
-  private static getLinkElements(
-    book: any,
-    catalogType: CatalogType,
-    referrerTag: string
-  ) {
+  private static getLinkElements(book: any, referrerTag: string) {
     const blorgRoot =
       BloomParseServer.Source === BloomParseServerMode.DEVELOPMENT
         ? "https://dev.bloomlibrary.org"
@@ -220,7 +213,7 @@ export default class BookEntry {
       );
     }
 
-    // We basically have two modes ("CatalogType"):
+    // We basically have two modes
     // 1) we're feeding an epub reader, so we only list the entry if we have an epub to give
     // 2) we're just listing everything we have to give
 
@@ -235,53 +228,52 @@ export default class BookEntry {
       );
     }
 
-    if (catalogType === CatalogType.ALL) {
-      if (
-        BookEntry.shouldWeIncludeLink(
-          book,
-          "pdf",
-          true /* As of Nov 18 2021, the harvester currently has no opinion on pdfs, so we will offer it if all the judges are `undefined`.
+    if (
+      BookEntry.shouldWeIncludeLink(
+        book,
+        "pdf",
+        true /* As of Nov 18 2021, the harvester currently has no opinion on pdfs, so we will offer it if all the judges are `undefined`.
           In the future it might help to have one, since we are
           now allowing some books to omit the PDF upload and we don't have a way of knowing.  */
-        )
-      ) {
-        links += BookEntry.makeLink(
-          "PDF",
-          `${uploadBaseUrl}/${name}.pdf`,
-          "application/pdf",
-          referrerTag
-        );
-      }
-      if (
-        harvestBaseUrl &&
-        BookEntry.shouldWeIncludeLink(book, "bloomReader", false)
-      ) {
-        links += BookEntry.makeLink(
-          "bloomPUB",
-          `${harvestBaseUrl}/${name}.bloomd`,
-          "application/bloomd+zip",
-          referrerTag
-        );
-      }
-      if (
-        harvestBaseUrl &&
-        BookEntry.shouldWeIncludeLink(book, "readOnline", false)
-      ) {
-        links += BookEntry.makeLink(
-          "Read On Bloom Library",
-          `${blorgRoot}/player/${book.objectId}`,
-          "text/html",
-          referrerTag
-        );
-      }
-
+      )
+    ) {
       links += BookEntry.makeLink(
-        "Bloom Library Page",
-        `${blorgRoot}/book/${book.objectId}`,
+        "PDF",
+        `${uploadBaseUrl}/${name}.pdf`,
+        "application/pdf",
+        referrerTag
+      );
+    }
+    if (
+      harvestBaseUrl &&
+      BookEntry.shouldWeIncludeLink(book, "bloomReader", false)
+    ) {
+      links += BookEntry.makeLink(
+        "bloomPUB",
+        `${harvestBaseUrl}/${name}.bloomd`,
+        "application/bloomd+zip",
+        referrerTag
+      );
+    }
+    if (
+      harvestBaseUrl &&
+      BookEntry.shouldWeIncludeLink(book, "readOnline", false)
+    ) {
+      links += BookEntry.makeLink(
+        "Read On Bloom Library",
+        `${blorgRoot}/player/${book.objectId}`,
         "text/html",
         referrerTag
       );
     }
+
+    links += BookEntry.makeLink(
+      "Bloom Library Page",
+      `${blorgRoot}/book/${book.objectId}`,
+      "text/html",
+      referrerTag
+    );
+    //}
     return links; // may be an empty string if there are no artifacts we can link to
   }
 
@@ -311,10 +303,10 @@ export default class BookEntry {
 
   private static getLanguageFields(
     book: any,
-    catalogType: CatalogType,
+    epubOnly: boolean,
     desiredLang: string
   ): string {
-    if (catalogType === CatalogType.EPUB) {
+    if (epubOnly) {
       return makeDCElementOrEmpty("language", desiredLang);
     } else {
       if (book.langPointers && book.langPointers.length > 0) {

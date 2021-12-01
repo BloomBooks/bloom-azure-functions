@@ -9,25 +9,19 @@ const kOpdsNavigationTypeAttribute = `type="application/atom+xml;profile=opds-ca
 // NB: The OPDS catalogs from Global Digital Library and StoryWeaver both give both ePUB and pdf links,
 // with sometimes only one or the other.  They also both provide links to two image files, one marked as
 // a thumbnail.
-export enum CatalogType {
-  // nothing but links to the top-level catalogs
-  TOP = "top",
-  // ePUB artifacts only: no entry if no ePUB show allowed
-  EPUB = "epub",
-  // // bloomPUB artifacts only: no entry if no bloomPUB show allowed
-  // This isn't worth implementing until BR is enhanced to directly download books from the internet.  At that
-  // point it should be fairly trivial to implement, following the pattern of ePUB.  This is just here as a
-  // placeholder to remind us what to do when the time comes.
-  // BLOOMPUB = "bloomPUB",
-  // all artifacts: ePUB, PDF, and bloomPUB; show entry without links even if no artifacts allowed
-  ALL = "all",
-}
 
-type CatalogParams = {
+export type CatalogParams = {
   ref?: string; // the referrer tag that comes from apiAccount, used for analytics
   lang?: string; // narrow to this iso code
   key?: string; // the apiAccount key for using this API
-  type?: CatalogType; // (this will probably need improvement) the type filter sorta combined with whether we want the root?
+  // Organize by is currently undefined or language. We could add "collection" some day.
+  // if undefined, then we're at the root
+  organizeby?: "language";
+  // epub is singled out here because of the use case of being used by a simple epub reader.
+  // This would at a minimum mean that we only show books that have epubs. Ideally languages too.
+  // And possibly we wouldn't require an apiAccount key, if we ever implement rate-limiting by IP address.
+  epub?: boolean; // only show epubs  (and ideally, languages) with epubs
+  src?: "dev" | "prod";
 };
 
 export default class Catalog {
@@ -40,17 +34,17 @@ export default class Catalog {
     apiAccount?: ApiAccount,
     skipServerElementsForFastTesting?: boolean
   ): Promise<string> {
-    const header = this.getHeaderElements(baseUrl, params, apiAccount);
-    const catalogType = Catalog.getCatalogType(params);
-    if (catalogType == CatalogType.TOP) {
-      // jh review: what is this TOP thing?
-      return `<?xml version="1.0" encoding="UTF-8"?>
-              <feed  ${this.getNamespaceDeclarations()}  >
-                ${header}
-                ${Catalog.getTopLevelCatalogContent(params)}
-              </feed>`;
-    }
+    const header = this.makeHeaderElements(baseUrl, params, apiAccount);
 
+    // if there are no filters (language or type of artifact), return our root navigation choices
+    if (!params.lang && !params.organizeby)
+      return Catalog.makeRootXml(baseUrl, params, apiAccount);
+
+    // Note, you might expect that if we have a language parameter, then we don't need to list
+    // all the language choices. But that is what OPDS calls for, because it allows clients
+    // like an epub reader app to let you navigate to other places without having to have a memory
+    // of what it has seen previously. We could add our own parameter for smarter clients to use
+    // that removes the unnecessary computation and bandwidth involved in these links.
     const languageLinks = skipServerElementsForFastTesting
       ? null
       : await Catalog.getLanguageLinks(params);
@@ -59,17 +53,15 @@ export default class Catalog {
     // bookEntries will be null at the root, when they haven't selected a language yet (or if the unit tests don't want us to run the server query)
     if (!skipServerElementsForFastTesting && Catalog.DesiredLang) {
       bookEntries = await Catalog.getEntries(
-        catalogType,
-        params.lang,
-        this.getEmbargoDays(apiAccount),
-        params.ref
+        params,
+        this.getEmbargoDays(apiAccount)
       );
     }
 
     return `<?xml version="1.0" encoding="UTF-8"?>
               <feed  ${this.getNamespaceDeclarations()}  >
                 ${header}
-                ${this.getOPDSDirectionLinks(params)}
+                ${this.makeOPDSDirectionLinks(params)}
                 ${languageLinks}
                 ${bookEntries}
               </feed>`;
@@ -77,29 +69,43 @@ export default class Catalog {
 
   // Get the content of the top-level catalog.  This merely points to two other catalogs: one for ePUBs only,
   // and the other for all artifacts (including none available).
-  private static getTopLevelCatalogContent(params: object): string {
-    let ambientParameters: string = Catalog.GetParamsForHref(params, "&");
-    return `${this.getOPDSDirectionLinks(params)}
-  <entry>
-    <id>bloomlibrary-epub-only-opdsfeed</id>
-    <title>ePUB Books only</title>
-    <updated>${new Date().toISOString()}</updated>
-    <link rel="subsection" href="${
-      this.RootUrl
-    }?type=epub${ambientParameters}" type="application/atom+xml;profile=opds-catalog;kind=acquisition"/>
-  </entry>
-  <entry>
-    <id>bloomlibrary-all-opdsfeed</id>
-    <title>All Books (ePUB, PDF, bloomPUB)</title>
-    <updated>${new Date().toISOString()}</updated>
-    <link rel="subsection" href="${
-      Catalog.RootUrl
-    }?type=all${ambientParameters}" type="application/atom+xml;profile=opds-catalog;kind=acquisition"/>
-  </entry>
-`;
+  private static makeRootXml(
+    baseUrl: string,
+    params: CatalogParams,
+    apiAccount?: ApiAccount
+  ): string {
+    const header = this.makeHeaderElements(baseUrl, params, apiAccount);
+    return `<?xml version="1.0" encoding="UTF-8"?>
+            <feed  ${this.getNamespaceDeclarations()}  >
+              ${header}
+              ${this.makeOPDSDirectionLinks(params)}
+              ${this.makeNavigationEntry(
+                { ...params, epub: true },
+                "ePUB Books"
+              )}
+              ${this.makeNavigationEntry(
+                { ...params, organizeby: "language" },
+                "Books in all formats"
+              )}
+            </feed>`;
   }
 
-  private static getOPDSDirectionLinks(params: object): string {
+  private static makeNavigationEntry(
+    params: CatalogParams,
+    title: string
+  ): string {
+    let ambientParameters: string = Catalog.GetParamsForHref(params, "?");
+    return `<entry>
+                <id>${title.split(" ").join("-")}</id>
+                <title>${title}</title>
+                <updated>${new Date().toISOString()}</updated>
+                <link rel="subsection" href="${
+                  Catalog.RootUrl
+                }${ambientParameters}" type="application/atom+xml;profile=opds-catalog;kind=acquisition"/>
+              </entry>`;
+  }
+
+  private static makeOPDSDirectionLinks(params: CatalogParams): string {
     const selfUrl: string =
       Catalog.RootUrl + this.GetParamsForHref(params, "?"); /* ? */
 
@@ -110,26 +116,6 @@ export default class Catalog {
       // TODO is this "up" really always to the root? My guess is that's true only if you have only two levels?
       `<link rel="up" href="${Catalog.RootUrl}" ${kOpdsNavigationTypeAttribute}/>`
     );
-  }
-
-  private static getCatalogType(params: object): CatalogType {
-    // normalize the catalog type regardless of what the user throws at us.
-    let catalogType: CatalogType;
-    switch (params["type"] ? params["type"].toLowerCase() : null) {
-      // [jh] I don't really know about this "top" thing. It doesn't seem like the same kind of things as "epub".
-      //
-      case CatalogType.TOP:
-        catalogType = CatalogType.TOP;
-        break;
-      case CatalogType.EPUB:
-        catalogType = CatalogType.EPUB;
-        break;
-      case CatalogType.ALL:
-      default:
-        catalogType = CatalogType.ALL;
-        break;
-    }
-    return catalogType;
   }
 
   private static getEmbargoDays(apiAccount?: ApiAccount): number {
@@ -146,7 +132,7 @@ export default class Catalog {
       : 'xmlns="http://www.w3.org/2005/Atom" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:opds="http://opds-spec.org/2010/catalog"';
   }
 
-  public static getHeaderElements(
+  public static makeHeaderElements(
     baseUrl: string,
     params: CatalogParams,
     apiAccount?: ApiAccount
@@ -154,25 +140,9 @@ export default class Catalog {
     Catalog.RootUrl = baseUrl;
     BloomParseServer.setServer(params["src"]);
 
-    let title: string;
-
-    // TODO: review this "catalog type" thing. It seems to mix a filter (kinds of artifacts you want) with where you are in the hierarchy.
-    // That might be needed if OPDS doesn't allow parameters, and only, um, *locations*.
-    // We do want to work with ePUB readers, which can't set parameters. But those could be given a root url that already had something like
-    // `types=epub` as part of the url.
-    switch (Catalog.getCatalogType(params)) {
-      case CatalogType.EPUB:
-        title = "Bloom Library ePUB Books";
-        break;
-      case CatalogType.ALL:
-      default:
-        title = "Bloom Library Books";
-        break;
-    }
-
     return `${this.getXmlCommentsAboutAccount(apiAccount)}
         <id>https://bloomlibrary.org</id>
-        <title>${title}</title>
+        <title>Bloom Library Books</title>
         <updated>${new Date().toISOString()}</updated>
       `;
   }
@@ -206,8 +176,12 @@ export default class Catalog {
         default: BloomParseServerMode.PRODUCTION,
       },
       {
-        name: "type",
-        default: CatalogType.ALL,
+        name: "epub",
+        default: undefined,
+      },
+      {
+        name: "organizeby",
+        default: "",
       },
       {
         name: "key",
@@ -229,7 +203,9 @@ export default class Catalog {
   }
 
   // Get all the language links for the given type of catalog and desired language.
-  private static async getLanguageLinks(params: object): Promise<string> {
+  private static async getLanguageLinks(
+    params: CatalogParams
+  ): Promise<string> {
     const languages = await BloomParseServer.getLanguages();
     const sortedByName = languages.sort((a, b) => {
       // enhance: need some way to sort by lang.usageCount and then below, when we drop all but
@@ -296,19 +272,17 @@ export default class Catalog {
 
   // Get all the entries for the given type of catalog and desired language.
   private static async getEntries(
-    catalogType: CatalogType,
-    desiredLang: string,
-    embargoDays: number,
-    referrerTag: string
+    params: CatalogParams,
+    embargoDays: number
   ): Promise<string> {
-    const books = await BloomParseServer.getBooks(desiredLang, embargoDays);
+    const books = await BloomParseServer.getBooks(params.lang, embargoDays);
     return books
       .map((book) =>
         BookEntry.getOpdsEntryForBook(
           book,
-          catalogType,
-          desiredLang,
-          referrerTag
+          params.epub,
+          params.lang,
+          params.ref
         )
       )
       .join("");

@@ -312,19 +312,27 @@ expect.extend({
 });
 expect.extend({
   toContainText(xpath, text) {
-    if (value(xpath).indexOf(text) > -1) {
-      return {
-        message: () => "",
-        pass: true,
-      };
-    } else {
+    try {
+      if (value(xpath).indexOf(text) > -1) {
+        return {
+          message: () => "",
+          pass: true,
+        };
+      }
+    } catch (err) {
       return {
         message: () =>
-          `expected ${xpath}, which is "${value(xpath)}", to contain "${text}".
-          ${xmlFormatter(resultXml)}`,
+          `Evaluating ${xpath} gave: ${err}.
+        ${xmlFormatter(resultXml)}`,
         pass: false,
       };
     }
+    return {
+      message: () =>
+        `expected ${xpath}, which is "${value(xpath)}", to contain "${text}".
+        ${xmlFormatter(resultXml)}`,
+      pass: false,
+    };
   },
 });
 
