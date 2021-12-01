@@ -51,7 +51,7 @@ export default class Catalog {
 
     var bookEntries = "";
     // bookEntries will be null at the root, when they haven't selected a language yet (or if the unit tests don't want us to run the server query)
-    if (!skipServerElementsForFastTesting && Catalog.DesiredLang) {
+    if (!skipServerElementsForFastTesting && params.lang) {
       bookEntries = await Catalog.getEntries(
         params,
         this.getEmbargoDays(apiAccount)
@@ -251,11 +251,9 @@ export default class Catalog {
         // We *are* providing this data as "atMost", largely because it is good for unit tests and debugging.
         (lang) => `<link rel="http://opds-spec.org/facet" 
                       iso="${lang.isoCode}"
-                      href="${
-                        this.RootUrl +
+                      href="${this.RootUrl +
                         ("?lang=" + lang.isoCode) +
-                        this.GetParamsForHref(params, "&", ["lang"])
-                      }"
+                        this.GetParamsForHref(params, "&", ["lang"])}"
                       atMost="${lang.usageCount}"
                       title="${lang.name}" 
                       opds:facetGroup="Languages"
