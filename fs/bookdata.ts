@@ -41,13 +41,13 @@ export default class BookData {
     const bookInfo = infoArray[0];
     let url = BloomParseServer.getS3LinkBase(bookInfo, bucket);
     if (params.part1 && params.part1.length > 0) {
-      url = url + "/" + params.part1;
+      url = url + "/" + encodeURIComponent(params.part1);
     }
     if (params.part2 && params.part2.length > 0) {
-      url = url + "/" + params.part2;
+      url = url + "/" + encodeURIComponent(params.part2);
     }
     if (params.part3 && params.part3.length > 0) {
-      url = url + "/" + params.part3;
+      url = url + "/" + encodeURIComponent(params.part3);
     }
     return url;
   }
