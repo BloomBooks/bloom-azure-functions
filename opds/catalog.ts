@@ -32,8 +32,7 @@ type CatalogParams = {
 
 export default class Catalog {
   public static RootUrl: string; // based on original HttpRequest url
-  public static DesiredLang: string; // value of &lang=XXX param (or "en" by default)
-  public static DefaultEmbargoDays = 90; // unit tests will set this to 0 because else everything is just too fragile as things age
+  public static DefaultEmbargoDays = 90; // unit tests will set this to 0 because else everything is just to fragile as things age
 
   public static async getCatalog(
     baseUrl: string,
@@ -61,7 +60,7 @@ export default class Catalog {
     if (!skipServerElementsForFastTesting && Catalog.DesiredLang) {
       bookEntries = await Catalog.getEntries(
         catalogType,
-        Catalog.DesiredLang,
+        params.lang,
         this.getEmbargoDays(apiAccount),
         params.ref
       );
@@ -153,10 +152,6 @@ export default class Catalog {
     apiAccount?: ApiAccount
   ): string {
     Catalog.RootUrl = baseUrl;
-
-    // we have to trust whatever language code the user throws at us.
-    Catalog.DesiredLang = params["lang"]; // this will be null at the root, normally.
-    const x = params["src"];
     BloomParseServer.setServer(params["src"]);
 
     let title: string;
@@ -306,10 +301,7 @@ export default class Catalog {
     embargoDays: number,
     referrerTag: string
   ): Promise<string> {
-    const books = await BloomParseServer.getBooks(
-      Catalog.DesiredLang,
-      embargoDays
-    );
+    const books = await BloomParseServer.getBooks(desiredLang, embargoDays);
     return books
       .map((book) =>
         BookEntry.getOpdsEntryForBook(

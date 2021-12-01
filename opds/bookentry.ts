@@ -40,6 +40,11 @@ export default class BookEntry {
       // instead of the entire book entry.
       return "<!-- omitting a book because of country restrictions -->";
     }
+    // librarian needs to approve it first
+    if (book.tags && book.tags.indexOf("system:Incoming") > -1) {
+      // If the ePUB hasn't been harvested, don't bother showing the book.
+      return "<!-- omitting a book because it is awaiting site policy review -->";
+    }
 
     // Enhance: we could still provide the PDF & other stuff even it cannot harvest.
     if (book.harvestState !== "Done") {
@@ -61,8 +66,6 @@ export default class BookEntry {
         return "<!-- omitting a book because of language requested vs. language available -->";
       }
     }
-
-    // REVIEW: are there any other filters we should apply here?  for example, should "incoming" books be listed?
 
     let entry = `<entry>`;
     entry += makeElementOrEmpty("id", book.bookInstanceId);
