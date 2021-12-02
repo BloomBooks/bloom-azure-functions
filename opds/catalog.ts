@@ -89,11 +89,11 @@ export default class Catalog {
               ${this.makeOPDSDirectionLinks(params)}
               ${this.makeNavigationEntry(
                 { ...params, epub: true, organizeby: "language" },
-                "Book with ePUB, by language"
+                "ePUB books organized by language"
               )}
               ${this.makeNavigationEntry(
                 { ...params, organizeby: "language" },
-                "All books, by language"
+                "All books organized by language"
               )}
             </feed>`;
   }
