@@ -47,7 +47,7 @@ export async function getApiAccount(
     if (!account) {
       return {
         resultCode: 403,
-        errorMessage: `Did not find account for '${objectId}'.`,
+        errorMessage: `Did not find apiAccount for '${objectId}'.`,
       };
     }
     // Note: originally I had wanted to use the user's email, but our version of parse server requires
@@ -56,7 +56,10 @@ export async function getApiAccount(
     if (account && account.user.username !== keyParts[0]) {
       return {
         resultCode: 403,
-        errorMessage: `Found the apiAccount ${account.objectId}, but the userName of the associated user objectId:'${account.user.objectId}, userName:'${account.user.username}', did not match the key username, ${keyParts[0]}.`,
+        // JH: this just gives away the game (keep it for debugging):   errorMessage: `Found the apiAccount ${account.objectId}, but the userName of the associated user objectId:'${account.user.objectId}, userName:'${account.user.username}', did not match the key username, ${keyParts[0]}.`,
+
+        // This is a good compromise:
+        errorMessage: `Found the apiAccount, but the userName of the associated user did not match the key username.`,
       };
     }
 
@@ -75,8 +78,8 @@ export async function getApiAccount(
   } catch (error) {
     return {
       resultCode: 503,
-      errorMessage:
-        "Our apologies: we had an internal problem validating your api key. If this problem persists, please write to admin@bloomlibrary.org",
+      errorMessage: `Our apologies: we had an internal problem validating your api key. If this problem persists, please write to admin@bloomlibrary.org.
+        ${error.message}`,
     };
   }
 }

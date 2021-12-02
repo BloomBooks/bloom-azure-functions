@@ -315,34 +315,40 @@ export default class BloomParseServer {
   // This Azure function logs in to the Parse server, using a hard-coded user name ("catalog-service").
   // That account has a ParseServer "role" which is allowed to read the `apiAccount` and `user` tables.
   public static async loginAsCatalogService(): Promise<string> {
-    try {
-      const results = await axios.get(BloomParseServer.getParseLoginUrl(), {
-        headers: {
-          "X-Parse-Application-Id": BloomParseServer.getParseAppId(),
-        },
-        params: {
-          username: "catalog-service",
-          password: process.env["bloomParseServerCatalogServicePassword"], // should be the same for dev and production
-        },
-      });
-      return results.data.sessionToken;
-    } catch (error) {
-      return null;
-    }
+    const results = await axios.get(BloomParseServer.getParseLoginUrl(), {
+      headers: {
+        "X-Parse-Application-Id": BloomParseServer.getParseAppId(),
+      },
+      params: {
+        username: "catalog-service",
+        password: process.env["bloomParseServerCatalogServicePassword"], // should be the same for dev and production
+      },
+    });
+    return results.data.sessionToken;
+
+    // don't catch errors, let the go up
   }
 
   //Get an object containing the data from the apiAccount table row with the specified ID (not yet authenticated)
   public static async getApiAccount(
     objectId: string
   ): Promise<ApiAccount | null> {
+    var sessionToken;
     try {
-      const sessionToken = await BloomParseServer.loginAsCatalogService(); /* ? */
+      sessionToken = await BloomParseServer.loginAsCatalogService(); /* ? */
       if (!sessionToken) {
         throw new Error(
           "The Catalog Service could not log in to Parse Server."
         );
       }
-
+    } catch (err) {
+      throw new Error(
+        `Could not log in as catalog service: ${JSON.stringify(
+          err.response.data
+        )}`
+      );
+    }
+    try {
       const results = await axios.get(
         BloomParseServer.getParseTableUrl("apiAccount"),
         {
@@ -371,10 +377,10 @@ export default class BloomParseServer {
         return results.data.results[0] as ApiAccount;
       }
     } catch (err) {
-      const s = err.response; /* ? */
-      console.log("error in getAccount: " + JSON.stringify(err.response));
+      throw new Error(
+        `Could not get apiAccount: ${JSON.stringify(err.response.data)}`
+      );
     }
-
     return null;
   }
 }
