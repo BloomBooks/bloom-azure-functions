@@ -241,6 +241,7 @@ export default class BloomParseServer {
   // Further filtering may be needed, but those two filters should reduce the transfer considerably.
   public static async getBooks(
     desiredLang: string,
+    tag: string | undefined,
     embargoDays: number
   ): Promise<any[]> {
     let newestDate, newestDateString;
@@ -250,6 +251,25 @@ export default class BloomParseServer {
     } catch (err) {
       throw "Problem with embargo date handling: " + err.toString();
     }
+
+    let whereParts = [
+      `"inCirculation":{"$in":[true,null]}`,
+      `"draft":{"$in":[false,null]}`,
+      `"createdAt":{"$lte":{"__type": "Date", "iso":"${newestDateString}"}}`,
+    ];
+
+    if (desiredLang)
+      whereParts.push(
+        `"langPointers":{"$inQuery":{"where":{"isoCode":"${desiredLang}"},"className":"language"}}`
+      );
+
+    if (tag) {
+      // Note on querying tags, which is an array type. https://docs.parseplatform.org/rest/guide/#queries-on-array-values
+      // says that its implicit that you're only requiring the value to exist in the array, and if you really mean to match
+      // all of them, then you have to use $all.
+      whereParts.push(`"tags":"${tag}"`);
+    }
+
     const results = await axios.get(
       BloomParseServer.getParseTableUrl("books"),
       {
@@ -262,12 +282,7 @@ export default class BloomParseServer {
           //skip: 100,
           order: "title",
           include: "uploader,langPointers",
-          where: `{
-            "inCirculation":{"$in":[true,null]}, 
-            "draft":{"$in":[false,null]},
-            "langPointers":{"$inQuery":{"where":{"isoCode":"${desiredLang}"},"className":"language"}}, 
-            "createdAt":{"$lte":{"__type": "Date", "iso":"${newestDateString}"}}
-        }`,
+          where: `{${whereParts.join(",")}}`,
         },
       }
     );
@@ -321,8 +336,7 @@ export default class BloomParseServer {
     objectId: string
   ): Promise<ApiAccount | null> {
     try {
-      const sessionToken =
-        await BloomParseServer.loginAsCatalogService(); /* ? */
+      const sessionToken = await BloomParseServer.loginAsCatalogService(); /* ? */
       if (!sessionToken) {
         throw new Error(
           "The Catalog Service could not log in to Parse Server."

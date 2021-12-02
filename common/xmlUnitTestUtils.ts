@@ -263,6 +263,15 @@ expect.extend({
 });
 expect.extend({
   toHaveText(xpath, text) {
+    if (select(xpath).length > 1) {
+      return {
+        message: () =>
+          `You were getting text from an element but the xpath matched ${
+            select(xpath).length
+          } elements.`,
+        pass: false,
+      };
+    }
     if (value(xpath) === text) {
       return {
         message: () => "",

@@ -13,6 +13,14 @@ const kOpdsNavigationTypeAttribute = `type="application/atom+xml;profile=opds-ca
 export type CatalogParams = {
   ref?: string; // the referrer tag that comes from apiAccount, used for analytics
   lang?: string; // narrow to this iso code
+
+  // Note: we're not supporting filters, or the ability to query Contentful for a collection id yet.
+  // Collection ID, in particular, would be super nice to have. But to go that direction, we should
+  // probably factor out the book-finding code in Blorg2 into its own library so that we don't have
+  // duplicate code. We are under a time constraint for this feature, so instead we are only going
+  // to allow you to find books that have a single tag. This is pretty useful though, as most collections
+  // are based on tags like tag: "list:SEL".
+  tag?: string; // we find books that contain this tag
   key?: string; // the apiAccount key for using this API
   // Organize by is currently undefined or language. We could add "collection" some day.
   // if undefined, then we're at the root
@@ -37,7 +45,7 @@ export default class Catalog {
     const header = this.makeHeaderElements(baseUrl, params, apiAccount);
 
     // if there are no filters (language or type of artifact), return our root navigation choices
-    if (!params.lang && !params.organizeby)
+    if (!params.lang && !params.organizeby && !params.tag)
       return Catalog.makeRootXml(baseUrl, params, apiAccount);
 
     // Note, you might expect that if we have a language parameter, then we don't need to list
@@ -51,7 +59,7 @@ export default class Catalog {
 
     var bookEntries = "";
     // bookEntries will be null at the root, when they haven't selected a language yet (or if the unit tests don't want us to run the server query)
-    if (!skipServerElementsForFastTesting && params.lang) {
+    if (!skipServerElementsForFastTesting && (params.lang || params.tag)) {
       bookEntries = await Catalog.getEntries(
         params,
         this.getEmbargoDays(apiAccount)
@@ -273,7 +281,11 @@ export default class Catalog {
     params: CatalogParams,
     embargoDays: number
   ): Promise<string> {
-    const books = await BloomParseServer.getBooks(params.lang, embargoDays);
+    const books = await BloomParseServer.getBooks(
+      params.lang,
+      params.tag,
+      embargoDays
+    );
     return books
       .map((book) =>
         BookEntry.getOpdsEntryForBook(

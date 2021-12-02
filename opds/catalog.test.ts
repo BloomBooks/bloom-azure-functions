@@ -31,6 +31,31 @@ describe("OPDS Catalog Root", () => {
     expect("feed/entry/dcterms").toHaveCount(0);
   });
 });
+
+describe("Get books matching tag", () => {
+  beforeAll(async () => {
+    Catalog.DefaultEmbargoDays = 0; // otherwise the counts will change with time even if noone touches the books
+    setNeglectXmlNamespaces();
+    const xml = await Catalog.getCatalog("https://base-url-for-unit-test", {
+      organizeby: undefined,
+      lang: undefined,
+      tag: "list:SEL", // https://bloomlibrary.org/SEL-books
+    });
+    setResultXml(xml);
+  });
+  beforeEach(() => {});
+
+  it("has a reasonable number books", async () => {
+    // In december 2021, there are 59 books. We just want to make sure we aren't getting *all* the books.
+    expect("feed/entry").toHaveAtMost(300); // feel free to increase this in the future if this starts failing.
+    // And that we're getting at least as many as we use to have
+    expect("feed/entry").toHaveAtLeast(59);
+  });
+  it("has one of the books we expect", async () => {
+    expect("feed/entry/title[text()='\"Oh, Moses!!\"']").toHaveCount(1);
+  });
+});
+
 describe("OPDS By Language Root", () => {
   beforeAll(async () => {
     Catalog.DefaultEmbargoDays = 0; // otherwise the counts will change with time even if noone touches the books

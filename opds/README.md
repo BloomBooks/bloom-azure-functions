@@ -1,8 +1,19 @@
 # opds Function
 
-The **opds** function generates OPDS catalog pages for the BLoom Library. Each catalog page
-provides entries for all the published books with available artifacts for a single language
-plus links to the catalog pages for all the other languages with available books.
+The **opds** function generates [OPDS](https://specs.opds.io/opds-1.2.html) catalog pages for the Bloom Library.
+The root page lists:
+
+- links to pages for navigating the catalog.
+  Currently this lists only one way, which is to browse by language.
+
+Following a link from the root page, you get a page with:
+
+- links to each language in the library
+
+Following a language link, you come to a page that lists:
+
+- links to each language in the library (This repetition is required by the OPDS spec. It is useful for simple e-readers which can then provide a navigation sidebar)
+- entries for all the published books with available artifacts for that current language
 
 ## URL Parameters
 
@@ -10,31 +21,19 @@ The URL used to access the function always ends with _opds_ possibly followed by
 first query parameter is separated from the URL by a ? (question mark). Other query parameters are separated from
 each other by an & (ampersand). The recognized query parameters are
 
-- **type**=XXX - (default value is _all_) Specify which type of catalog to return. Possible values are
+`lang=xyz` Returns a page of book entries that contain the language from the given ISO code.
 
-  1. **top** - Return the top-level OPDS page pointing to the ePUB and "all" pages.
-  2. **epub** - Return a page which lists only entries that have a visible ePUB file to download and which
-     shows links only to ePUB artifacts.
-  3. **all** - Return a page listing all visible entries (for the desired language) whether or not they have any
-     visible artifacts, and showing links to all visible artifacts. The ePUB and PDF artifacts may or may not be in
-     the desired language if multiple languages are listed for the book.
+`tag=abc` Returns a page of book entries that contain the given tag.
 
-- **lang**=XXX - (default value is _en_) Specify the ISO code of the desired language.
-- **src**=XXX - (default value is _prod_) Specify the source parse table that provides the book
-  information. Possible values are
+`src=prod|dev` (default value is _prod_) Specify the source ParseServer to use for book information.
 
-  1. **prod** - production Bloom Library parse table
-  2. **dev** - development Bloom Library parse table
+`epub=true` Only list books that have epubs.
 
-`http://localhost:7071/api/opds?type=epub&lang=fr&src=dev`
+`key=pat@example.com:1a2bc3de` The _apiAccount_ to use.
 
-This would pull entries from the development parse table that have visible ePUB artifacts in the French language,
-and produce output that uses the following base URL for links to other pages/facets:
-
-`https://localhost:7071/api/opds?type=epub&src=dev`
-
-with the _lang_ parameter set to the appropriate language code for the language facet of a link. (Parameters
-which have the default value are omitted from the base URL.)
+Example:
+The following would pull entries from the development parse table that have visible ePUB artifacts in the French language.
+`http://localhost:7071/api/opds?epub=true&lang=fr&src=dev&key=pat@example.com:1a2bc3de`
 
 ## Visibility of Entries
 
@@ -46,14 +45,12 @@ the spirit.) Books that were created sooner than the `embargoDays` of the API Ac
 
 Books that have tag `system:incoming` are omitted, waiting for the librarian to confirm that the book fits our site policies.
 
-For the _type=epub_ OPDS pages, books whose ePUB artifact is set invisible by the _show_ object from the _books_ table
+If `epub=true`, books whose ePUB artifact is set invisible by the _show_ object from the _books_ table
 will be omitted. Only entries whose ePUB is in the desired language are shown (to the best of our ability to
 determine this).
 
-All books will be shown in the _type=all"_ OPDS pages, but links to artifacts will be omitted if the _show_ object
-makes them invisible. (In the _type=all_ OPDS pages, books may have an entry without any artifact links, although we
-expect this to be rare since PDF files are always uploaded to Bloom Library along with the book.) Books may have
-several languages listed in their entry, and one of those languages must be the desired language.
+Links to artifacts will be omitted if the _show_ object makes them invisible. Books may have several languages listed
+in their entry, and one of those languages must be the desired language.
 
 ### Api Accounts
 
