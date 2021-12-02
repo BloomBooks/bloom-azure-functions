@@ -259,9 +259,11 @@ export default class Catalog {
         // We *are* providing this data as "atMost", largely because it is good for unit tests and debugging.
         (lang) => `<link rel="http://opds-spec.org/facet" 
                       iso="${lang.isoCode}"
-                      href="${this.RootUrl +
+                      href="${
+                        this.RootUrl +
                         ("?lang=" + lang.isoCode) +
-                        this.GetParamsForHref(params, "&", ["lang"])}"
+                        this.GetParamsForHref(params, "&", ["lang"])
+                      }"
                       atMost="${lang.usageCount}"
                       title="${lang.name}" 
                       opds:facetGroup="Languages"
