@@ -41,14 +41,30 @@ export default class BookData {
     const bookInfo = infoArray[0];
     let url = BloomParseServer.getS3LinkBase(bookInfo, bucket);
     if (params.part1 && params.part1.length > 0) {
-      url = url + "/" + encodeURIComponent(params.part1);
+      url = url + "/" + encodeUnicode(params.part1);
     }
     if (params.part2 && params.part2.length > 0) {
-      url = url + "/" + encodeURIComponent(params.part2);
+      url = url + "/" + encodeUnicode(params.part2);
     }
     if (params.part3 && params.part3.length > 0) {
-      url = url + "/" + encodeURIComponent(params.part3);
+      url = url + "/" + encodeUnicode(params.part3);
     }
     return url;
   }
+}
+
+// TODO: My only confidence in this is empirical, which isn't enough in matters of encoding! With this decode/encode, I haven't found any
+// artifacts that can't be retrieved when navigating our OPDS from an OPDS client.
+//
+// The OPDS catalog (in this same project) is making links that invoke this service.
+// Those links have some encoding already, e.g. "Doktor+Irwin.pdf"; If we re-encode that, well now we turn the + into %2B and of course S3 can't find it because we've now double encoded it.
+
+// On the other hand, we have seen instances where we are given names with raw Thai characters, which *do* need to be encoded because S3 can't handle them.
+// (note, it's not clear when this happens... a quick check of thai on dev )
+
+// So... what I'm trying here is to just decode then re-encode.
+function encodeUnicode(part: string): string {
+  var s = part.replace(/\+/g, " "); // converts the + to space because decodeURIComponent left the + alone
+  s = decodeURIComponent(s);
+  return encodeURIComponent(s);
 }

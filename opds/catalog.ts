@@ -48,14 +48,19 @@ export default class Catalog {
     if (!params.lang && !params.organizeby && !params.tag)
       return Catalog.makeRootXml(baseUrl, params, apiAccount);
 
-    // Note, you might expect that if we have a language parameter, then we don't need to list
+    // Review: is this true? http://opds-browser-demo.herokuapp.com/ likes to have
+    // the list, but the Thorium epub client gets confused by it, such that you end up seeing
+    //  "catalogs / bloom / filipino / afrikaans/ arabic".
+    //Note, you might expect that if we have a language parameter, then we don't need to list
     // all the language choices. But that is what OPDS calls for, because it allows clients
     // like an epub reader app to let you navigate to other places without having to have a memory
     // of what it has seen previously. We could add our own parameter for smarter clients to use
     // that removes the unnecessary computation and bandwidth involved in these links.
-    const languageLinks = skipServerElementsForFastTesting
-      ? null
-      : await Catalog.getLanguageLinks(params);
+    const languageLinks =
+      //params.lang ||
+      skipServerElementsForFastTesting
+        ? null
+        : await Catalog.getLanguageLinks(params);
 
     var bookEntries = "";
     // bookEntries will be null at the root, when they haven't selected a language yet (or if the unit tests don't want us to run the server query)
