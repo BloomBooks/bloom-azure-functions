@@ -153,7 +153,12 @@ export default class BloomParseServer {
     return book && book.harvestState === "Done";
   }
 
-  public static readonly ApiBaseUrl = "https://api.bloomlibrary.org/v1/fs";
+  // this gets changed if we are running on localhost
+  public static ApiBaseUrl = "https://api.bloomlibrary.org/v1";
+
+  private static FSApiBaseUrl() {
+    return BloomParseServer.ApiBaseUrl + "/fs";
+  }
 
   // typical book.baseUrl:
   // https://s3.amazonaws.com/BloomLibraryBooks-Sandbox/ken%40example.com%2faa647178-ed4d-4316-b8bf-0dc94536347d%2fsign+language+test%2f
@@ -171,9 +176,9 @@ export default class BloomParseServer {
       return undefined;
     }
     if (book.baseUrl.includes("/BloomLibraryBooks-Sandbox/")) {
-      return `${this.ApiBaseUrl}/dev-upload/${book.objectId}`;
+      return `${this.FSApiBaseUrl()}/dev-upload/${book.objectId}`;
     } else if (book.baseUrl.includes("/BloomLibraryBooks/")) {
-      return `${this.ApiBaseUrl}/upload/${book.objectId}`;
+      return `${this.FSApiBaseUrl()}/upload/${book.objectId}`;
     } else {
       return undefined; // things have changed: we don't know what's what any longer...
     }
@@ -198,9 +203,9 @@ export default class BloomParseServer {
       return undefined;
     }
     if (book.baseUrl.includes("/BloomLibraryBooks-Sandbox/")) {
-      return `${this.ApiBaseUrl}/dev-harvest/${book.objectId}`;
+      return `${this.FSApiBaseUrl()}/dev-harvest/${book.objectId}`;
     } else if (book.baseUrl.includes("/BloomLibraryBooks/")) {
-      return `${this.ApiBaseUrl}/harvest/${book.objectId}`;
+      return `${this.FSApiBaseUrl()}/harvest/${book.objectId}`;
     } else {
       return undefined; // things have changed: we don't know what's what any longer...
     }

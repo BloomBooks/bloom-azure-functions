@@ -1,5 +1,8 @@
 import { AzureFunction, Context, HttpRequest } from "@azure/functions";
-import { ApiAccount, BloomParseServerMode } from "../common/BloomParseServer";
+import BloomParseServer, {
+  ApiAccount,
+  BloomParseServerMode,
+} from "../common/BloomParseServer";
 import { getApiAccount } from "./apiAccount";
 import Catalog from "./catalog";
 
@@ -22,6 +25,8 @@ const opds: AzureFunction = async function (
   } else {
     baseUrl = req.url;
   }
+
+  BloomParseServer.ApiBaseUrl = baseUrl.substring(0, baseUrl.indexOf("v1") + 2);
 
   const params = req.query;
   var account: ApiAccount;
