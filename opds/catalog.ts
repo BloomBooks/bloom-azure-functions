@@ -25,10 +25,10 @@ export type CatalogParams = {
   // Organize by is currently undefined or language. We could add "collection" some day.
   // if undefined, then we're at the root
   organizeby?: "language";
-  // if omitnav=true, don't:
+  // if minimalnavlinks=true, don't:
   // * list "start", "up", and "self"
   // * list all the languages if we've already specified the language we want
-  omitnav?: boolean;
+  minimalnavlinks?: boolean;
   // epub is singled out here because of the use case of being used by a simple epub reader.
   // This would at a minimum mean that we only show books that have epubs. Ideally languages too.
   // And possibly we wouldn't require an apiAccount key, if we ever implement rate-limiting by IP address.
@@ -59,10 +59,12 @@ export default class Catalog {
     // all the language choices. But that is what OPDS calls for, because it allows clients
     // like an epub reader app to let you navigate to other places without having to have a memory
     // of what it has seen previously. The user can avoid the unnecessary computation and
-    // bandwidth involved in these links by using the `omitnav=true` parameter.
+    // bandwidth involved in these links by using the `minimalnavlinks=true` parameter.
     const languageLinks =
-      //params.lang ||
-      params.omitnav || skipServerElementsForFastTesting
+      // skip if we are already zoomed in on one language AND they don't want extra links
+      ((params.tag || params.lang) && params.minimalnavlinks) ||
+      // unit testing
+      skipServerElementsForFastTesting
         ? ""
         : await Catalog.getLanguageLinks(params);
 
@@ -78,7 +80,11 @@ export default class Catalog {
     return `<?xml version="1.0" encoding="UTF-8"?>
               <feed  ${this.getNamespaceDeclarations()}  >
                 ${header}
-                ${params.omitnav ? "" : this.makeOPDSDirectionLinks(params)}
+                ${
+                  params.minimalnavlinks
+                    ? ""
+                    : this.makeOPDSDirectionLinks(params)
+                }
                 ${languageLinks}
                 ${bookEntries}
               </feed>`;
@@ -211,7 +217,7 @@ export default class Catalog {
       },
       {
         // skip navigation links if they aren't needed
-        name: "omitnav",
+        name: "minimalnavlinks",
         default: undefined,
       },
     ];

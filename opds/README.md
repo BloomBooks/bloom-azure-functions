@@ -31,7 +31,7 @@ each other by an & (ampersand). The recognized query parameters are
 
 `key=pat@example.com:1a2bc3de` The _apiAccount_ to use.
 
-`omitnav=true` At the cost of not being OPDS-compliant, skip links that a smart API client doesn't really need. This will substantially reduce bandwidth and speed things up.
+`minimalnavlinks=true` At the cost of not being OPDS-compliant, skip links that a smart API client doesn't really need. This will substantially reduce bandwidth and speed things up.
 
 Example:
 The following would pull entries from the development parse table that have visible ePUB artifacts in the French language.

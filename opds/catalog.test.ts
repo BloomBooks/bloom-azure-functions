@@ -40,7 +40,7 @@ describe("Get books matching tag", () => {
       organizeby: undefined,
       lang: undefined,
       tag: "list:SEL", // https://bloomlibrary.org/SEL-books
-      omitnav: true,
+      minimalnavlinks: true,
     });
     setResultXml(xml);
   });
@@ -55,7 +55,7 @@ describe("Get books matching tag", () => {
   it("has one of the books we expect", async () => {
     expect("feed/entry/title[text()='\"Oh, Moses!!\"']").toHaveCount(1);
   });
-  it("does not list all the languages, because we have omitnav=true", async () => {
+  it("does not list all the languages, because we have minimalnavlinks=true", async () => {
     expect("feed/link[@rel='http://opds-spec.org/facet']").toHaveCount(0);
   });
 });
@@ -234,13 +234,13 @@ describe("OPDS Tibetan language page", () => {
     expect("feed/entry").toHaveAtMost(500); // I wanted a small number to catch likely errors, but didn't make it through review :-)
   });
 
-  it("has some language links if omitnav is not true", async () => {
+  it("has some language links if minimalnavlinks is not true", async () => {
     expect('feed/link[@rel="http://opds-spec.org/facet"]').toHaveAtLeast(50);
   });
-  it("has no language links if omitnav=true", async () => {
+  it("has no language links if minimalnavlinks=true", async () => {
     const xml = await Catalog.getCatalog("https://base-url-for-unit-test", {
       lang: "bo",
-      omitnav: true,
+      minimalnavlinks: true,
     });
     setResultXml(xml);
     expect('feed/link[@rel="http://opds-spec.org/facet"]').toHaveAtLeast(0);
