@@ -25,6 +25,10 @@ export type CatalogParams = {
   // Organize by is currently undefined or language. We could add "collection" some day.
   // if undefined, then we're at the root
   organizeby?: "language";
+  // if omitnav=true, don't:
+  // * list "start", "up", and "self"
+  // * list all the languages if we've already specified the language we want
+  omitnav?: boolean;
   // epub is singled out here because of the use case of being used by a simple epub reader.
   // This would at a minimum mean that we only show books that have epubs. Ideally languages too.
   // And possibly we wouldn't require an apiAccount key, if we ever implement rate-limiting by IP address.
@@ -54,12 +58,12 @@ export default class Catalog {
     //Note, you might expect that if we have a language parameter, then we don't need to list
     // all the language choices. But that is what OPDS calls for, because it allows clients
     // like an epub reader app to let you navigate to other places without having to have a memory
-    // of what it has seen previously. We could add our own parameter for smarter clients to use
-    // that removes the unnecessary computation and bandwidth involved in these links.
+    // of what it has seen previously. The user can avoid the unnecessary computation and
+    // bandwidth involved in these links by using the `omitnav=true` parameter.
     const languageLinks =
       //params.lang ||
-      skipServerElementsForFastTesting
-        ? null
+      params.omitnav || skipServerElementsForFastTesting
+        ? ""
         : await Catalog.getLanguageLinks(params);
 
     var bookEntries = "";
@@ -74,7 +78,7 @@ export default class Catalog {
     return `<?xml version="1.0" encoding="UTF-8"?>
               <feed  ${this.getNamespaceDeclarations()}  >
                 ${header}
-                ${this.makeOPDSDirectionLinks(params)}
+                ${params.omitnav ? "" : this.makeOPDSDirectionLinks(params)}
                 ${languageLinks}
                 ${bookEntries}
               </feed>`;
@@ -203,6 +207,11 @@ export default class Catalog {
       {
         // this is the referrer tag that comes from an apiAccount
         name: "ref",
+        default: undefined,
+      },
+      {
+        // skip navigation links if they aren't needed
+        name: "omitnav",
         default: undefined,
       },
     ];
