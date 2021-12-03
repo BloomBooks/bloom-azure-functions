@@ -40,6 +40,7 @@ describe("Get books matching tag", () => {
       organizeby: undefined,
       lang: undefined,
       tag: "list:SEL", // https://bloomlibrary.org/SEL-books
+      omitnav: true,
     });
     setResultXml(xml);
   });
@@ -53,6 +54,9 @@ describe("Get books matching tag", () => {
   });
   it("has one of the books we expect", async () => {
     expect("feed/entry/title[text()='\"Oh, Moses!!\"']").toHaveCount(1);
+  });
+  it("does not list all the languages, because we have omitnav=true", async () => {
+    expect("feed/link[@rel='http://opds-spec.org/facet']").toHaveCount(0);
   });
 });
 
@@ -78,6 +82,7 @@ describe("OPDS By Language Root", () => {
     expect("feed").toHaveCount(1);
     expect("feed/link[@rel='http://opds-spec.org/facet']").toHaveAtLeast(400); // note, this will be < the number of language rows, because we have to consolidate duplicates
   });
+
   it("does not list any books", () => {
     // review: is there a more direct way to identify a book entry as opposed to a navigation entry?
     expect("feed/entry/dcterms").toHaveCount(0);
@@ -99,6 +104,7 @@ describe("OPDS By Language Root", () => {
       'feed/link[@rel="http://opds-spec.org/facet" and @iso="fr"]/@title'
     ).toHaveText("French");
   });
+
   /* enhance: this capability not implemented AND writing the test will be expensive (currently we're testing against live and changeable database, sigh.)
   it("adds up the usage count of all duplicate languages (by isoCode)", async () => {});
   */
@@ -228,6 +234,17 @@ describe("OPDS Tibetan language page", () => {
     expect("feed/entry").toHaveAtMost(500); // I wanted a small number to catch likely errors, but didn't make it through review :-)
   });
 
+  it("has some language links if omitnav is not true", async () => {
+    expect('feed/link[@rel="http://opds-spec.org/facet"]').toHaveAtLeast(50);
+  });
+  it("has no language links if omitnav=true", async () => {
+    const xml = await Catalog.getCatalog("https://base-url-for-unit-test", {
+      lang: "bo",
+      omitnav: true,
+    });
+    setResultXml(xml);
+    expect('feed/link[@rel="http://opds-spec.org/facet"]').toHaveAtLeast(0);
+  });
   it("when multiple subjects are available, each gets its own element", async () => {
     // there was some mystery around the title... I couldn't just match the whole thing
     const xpath = "feed/entry[title[contains(text(),'Tashi')]]";
