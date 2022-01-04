@@ -168,6 +168,22 @@ describe("BookEntry", () => {
       `https://api.bloomlibrary.org/v1/fs/harvest/${kTestBookId}/${titleInTheBaseUrl}.bloomd`
     );
   });
+
+  // bloomSource is a new artifact type that we plan to implement
+  it("should not crash if bloomSource 'show' isn't implemented yet", () => {
+    book.show["bloomSource"] = undefined;
+    computeEntry();
+    const xpath = `entry/link[@title='bloomSource']`;
+    expect(xpath).toHaveCount(0);
+  });
+
+  it("should give bloomSource link if exists & allowed", () => {
+    testArtifactLink(
+      "bloomSource",
+      "bloomSource",
+      `https://api.bloomlibrary.org/v1/fs/harvest/${kTestBookId}/${titleInTheBaseUrl}.bloomSource`
+    );
+  });
   it("should give epub link if allowed", () => {
     testArtifactLink(
       "epub",
@@ -211,6 +227,7 @@ function testArtifactLink(
   url: string,
   shouldHaveLinkIfEverythingIsUndefined?: boolean // only for pdf
 ) {
+  if (!book.show[artifactName]) book.show[artifactName] = {};
   book.show[artifactName].harvester = true;
   book.show[artifactName].librarian = true;
   book.show[artifactName].user = true;
