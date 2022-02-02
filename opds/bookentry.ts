@@ -21,6 +21,7 @@ export default class BookEntry {
     desiredLang: string,
     referrerTag: string
   ): string {
+    // these will be excluded by the query, so just being double safe
     if (book.draft) {
       return "<!-- omitting a book because it is in DRAFT -->";
     }
@@ -67,7 +68,10 @@ export default class BookEntry {
 
     let entry = `<entry>`;
     entry += makeElementOrEmpty("id", book.bookInstanceId);
-    entry += makeElementOrEmpty("title", book.title);
+    entry += makeElementOrEmpty(
+      "title",
+      getDesiredTitle(desiredLang, book.allTitles, book.title)
+    );
     entry += makeElementOrEmpty("summary", book.summary);
 
     if (book.authors && book.authors.length > 0) {
@@ -110,6 +114,7 @@ export default class BookEntry {
     desiredLang: string
   ): boolean {
     // NB: I [jh] don't understand why epub is a special case, and haven't done any testing around this.
+    // epubs are generated in only one language by the harvester, presumably the language used by book.title.
     if (epubOnly) {
       if (book.allTitles) {
         // book.allTitles looks like a JSON string, but can contain invalid data that won't parse.
@@ -358,4 +363,22 @@ function makeElementOrEmpty(tag: string, value: string): string {
 function makeDCElementOrEmpty(tag: string, value: string): string {
   const t = getNeglectXmlNamespaces() ? tag : "dcterms:" + tag;
   return value ? `<${t}>${entities.encodeXML(value)}</${t}>` : "";
+}
+function getDesiredTitle(
+  desiredLang: string,
+  allTitles: string,
+  title: string
+): string {
+  if (desiredLang) {
+    try {
+      // sanitize input for JSON.parse().
+      const allTitles1 = allTitles.replace(/\n/g, "\\n").replace(/\r/g, "\\r");
+      const objTitles = JSON.parse(allTitles1);
+      const desiredTitle = objTitles[desiredLang];
+      if (desiredTitle) return desiredTitle;
+    } catch (ex) {
+      console.error(ex);
+    }
+  }
+  return title;
 }
