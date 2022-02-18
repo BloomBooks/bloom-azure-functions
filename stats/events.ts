@@ -32,6 +32,8 @@ export async function processEvents(
     sqlFunctionName = "common.get_reading_perbook_events";
   } else if (category === "reading" && rowType === "overview") {
     sqlFunctionName = "common.get_reading_overview";
+  } else if (category === "reading" && rowType === "locations") {
+    sqlFunctionName = "common.get_reading_locations";
   } else {
     throw new Error(`Unknown category and rowType: (${category}, ${rowType})`);
   }
