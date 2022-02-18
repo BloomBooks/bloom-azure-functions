@@ -178,7 +178,7 @@ async function getCombinedParseAndOrSqlFunction(
 ): Promise<string | undefined> {
   let sqlQuery = "";
   const parseDBQuery = filter.parseDBQuery;
-  const queryBasedOnIdsInTempTable: boolean = !!parseDBQuery;
+  const shouldQueryUsingIdsInTempTable: boolean = !!parseDBQuery;
   if (parseDBQuery) {
     // First, asynchronously determine the group of books by asking parse using the given query.
     sqlQuery = await generateAddParseBooksToTempTableStatement(
@@ -196,8 +196,13 @@ async function getCombinedParseAndOrSqlFunction(
 
   // Determine which books by passing parameters to postgresql directly (not book IDs from parse in a temp table).
   const [fromDate, toDate] = getDatesFromFilter(filter);
-  sqlQuery += `SELECT * from ${functionName}(${queryBasedOnIdsInTempTable.toString()}, '${fromDate}', '${toDate}', '${
-    filter.branding
-  }', '${filter.country}')`;
+  sqlQuery += `SELECT * from ${functionName}(${shouldQueryUsingIdsInTempTable.toString()}, '${fromDate}', '${toDate}', 
+  
+  // note branding is not actually needed anymore, but still expected by the postgresql function at the moment.
+  // Not all queries use this. At the moment the locations one does not. So we're just passing a (0 or null?) and the function side ignores it.
+  '${filter.branding}',
+  
+  // Not all queries use this. At the moment the locations one does not. So we're just passing a (0 or null?) and the function side ignores it.
+  '${filter.country}')`;
   return sqlQuery;
 }
