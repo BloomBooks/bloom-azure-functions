@@ -253,10 +253,14 @@ export default class BookEntry {
       harvestBaseUrl &&
       BookEntry.shouldWeIncludeLink(book, "bloomReader", false)
     ) {
+      const fileExt =
+        book.bloomPUBVersion && book.bloomPUBVersion >= 1
+          ? "bloompub"
+          : "bloomd";
       links += BookEntry.makeLink(
         "bloomPUB",
-        `${harvestBaseUrl}/${name}.bloomd`,
-        "application/bloomd+zip",
+        `${harvestBaseUrl}/${name}.${fileExt}`,
+        "application/bloompub+zip",
         referrerTag
       );
     }
