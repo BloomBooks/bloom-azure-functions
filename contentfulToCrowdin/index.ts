@@ -39,6 +39,8 @@ async function readTransformUpload() {
   //  so as not to be making production-level modifications unnecessarily.
   if (!runEvenIfLocal && isLocalEnvironment()) return;
 
+  if (!validateEnvironmentVariables()) return;
+
   const contentfulEntries = await getContentfulEntries();
   const highPriorityJson = transformContentfulEntriesToL10nJson(
     contentfulEntries,
@@ -70,6 +72,23 @@ async function readTransformUpload() {
   ]);
 }
 
+function validateEnvironmentVariables() {
+  if (!contentfulReadOnlyToken) {
+    console.error(
+      "env.bloomContentfulReadOnlyToken is not set; unable to run contentfulToCrowdin."
+    );
+    return false;
+  }
+
+  if (!crowdinApiToken) {
+    console.error(
+      "env.bloomCrowdinApiToken is not set; unable to run contentfulToCrowdin."
+    );
+    return false;
+  }
+  return true;
+}
+
 async function getContentfulEntries() {
   console.log("Querying Contentful...");
   const client = contentful.createClient({
@@ -78,10 +97,24 @@ async function getContentfulEntries() {
   });
   const collectionResponse = await client.getEntries({
     content_type: "collection",
+    "fields.localization[ne]": "No",
+    limit: 1000, // 1000 is the max we are allowed; beyond that, we will have to page.
   });
+  //console.log(`got ${collectionResponse.items.length} collection entries`);
+  if (collectionResponse.items.length >= 1000)
+    throw Error(
+      "More than 1000 collection entries; don't update Crowdin until code is enhanced lest we delete strings."
+    );
   const bannerResponse = await client.getEntries({
     content_type: "pageBanner",
+    "fields.localization[ne]": "No",
+    limit: 1000, // 1000 is the max we are allowed; beyond that, we will have to page.
   });
+  //console.log(`got ${bannerResponse.items.length} banner entries`);
+  if (bannerResponse.items.length >= 1000)
+    throw Error(
+      "More than 1000 banner entries; don't update Crowdin until code is enhanced lest we delete strings."
+    );
   return [...collectionResponse.items, ...bannerResponse.items];
 }
 
@@ -145,8 +178,9 @@ function transformContentfulEntriesToL10nJson(
       const previewLink = `https://alpha.bloomlibrary.org/_previewBanner/${e.sys.id}?uilang=en-US`;
       output["banner." + e.fields.title] = {
         message: e.fields.title,
-        description: `This is a title part of a page banner. See ${previewLink}. ${extraNotice ||
-          ""}`,
+        description: `This is a title part of a page banner. See ${previewLink}. ${
+          extraNotice || ""
+        }`,
       };
       if (e.fields.description) {
         // bold, headings, and links would seem to be relatively unambiguous ways to detect that there is markdown
@@ -162,8 +196,9 @@ function transformContentfulEntriesToL10nJson(
           message: e.fields.description,
           description: `This is the description part of a page banner titled "${
             e.fields.title
-          }".  ${markdownMessage}To see this in Bloom Library, go to ${previewLink}. ${extraNotice ||
-            ""}`,
+          }".  ${markdownMessage}To see this in Bloom Library, go to ${previewLink}. ${
+            extraNotice || ""
+          }`,
         };
       }
     });
