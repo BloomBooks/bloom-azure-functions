@@ -3,8 +3,8 @@
 if you want to get an auto run on each save (like watch),
 2) install `npm add -g ts-node-dev` and then `ts-node-dev --respawn index.ts`. */
 
-import { AzureFunction, Context, HttpRequest } from "@azure/functions";
-import * as contentful from "contentful";
+import { AzureFunction, Context } from "@azure/functions";
+import contentful = require("contentful");
 import crowdin from "@crowdin/crowdin-api-client";
 import { isLocalEnvironment } from "../common/utils";
 
