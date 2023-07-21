@@ -6,6 +6,10 @@ These files work with the `ms-azuretools.vscode-azurefunctions` extension in vsc
 
 To debug locally, `F5` (`F1`, `Debug: Start Debugging`). If all goes well, the terminal will output various urls for the functions.
 
+Careful! In July 2023, running via F5 caused a download and install of Azure Functions Core Tools version 3 which is past EOL and will not work correctly. Make sure you get [version 4](https://learn.microsoft.com/en-us/azure/azure-functions/functions-run-local?tabs=windows%2Cportal%2Cv2%2Cbash&pivots=programming-language-typescript#install-the-azure-functions-core-tools)!
+When you run, the log will display the Function Runtime version. Ensure it is 4.
+(If you get an error about unsupported node version, it is likely using Function Runtime version 3.)
+
 Now you can use your favorite REST client to run each function. Or you can connect your local BloomLibrary2 to point to this (see ApiConnection.ts there).
 
 By default, the timer functions are set to not do anything when running locally. Each one has a `runEvenIfLocal` const which can be set to true if desired.
