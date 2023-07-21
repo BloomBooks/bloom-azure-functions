@@ -9,8 +9,8 @@ const titleInTheBaseUrl = "titleFromTheBaseUrl";
 const kTestBookBaseUrl = `https://s3.amazonaws.com/BloomLibraryBooks/uploader/${titleInTheBaseUrl}`;
 
 function computeEntry() {
-  const xml = BookEntry.getOpdsEntryForBook(book, false, null, null);
-  //console.log(xml);
+  const xml = BookEntry.getOpdsEntryForBook(book, false, "", "");
+  // console.log(xml);
   setResultXml(xml);
 }
 
@@ -112,20 +112,20 @@ describe("BookEntry", () => {
   });
   it("should be sensitive to epub Only setting", () => {
     book.show["epub"] = false;
-    expect(BookEntry.getOpdsEntryForBook(book, true, null, null)).toBe(
+    expect(BookEntry.getOpdsEntryForBook(book, true, "", "")).toBe(
       "<!-- omitting a book because of artifact settings -->"
     );
   });
 
   it("should be sensitive to DRAFT setting", () => {
     book.draft = true;
-    expect(BookEntry.getOpdsEntryForBook(book, false, null, null)).toBe(
+    expect(BookEntry.getOpdsEntryForBook(book, false, "", "")).toBe(
       "<!-- omitting a book because it is in DRAFT -->"
     );
   });
 
   it("should include referrer tag", () => {
-    const xml = BookEntry.getOpdsEntryForBook(book, false, null, "example tag");
+    const xml = BookEntry.getOpdsEntryForBook(book, false, "", "example tag");
     setResultXml(xml);
     expect("//link[@title='ePUB']/@href").toContainText("ref=example%20tag");
     expect("//link[@title='PDF']/@href").toContainText("ref=example%20tag");
@@ -149,7 +149,7 @@ describe("BookEntry", () => {
   });
   it("should be sensitive to inCirculation setting", () => {
     book.inCirculation = false;
-    expect(BookEntry.getOpdsEntryForBook(book, false, null, null)).toBe(
+    expect(BookEntry.getOpdsEntryForBook(book, false, "", "")).toBe(
       "<!-- omitting a book because it is out of circulation -->"
     );
   });

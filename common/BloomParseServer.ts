@@ -252,6 +252,8 @@ export default class BloomParseServer {
     let newestDate, newestDateString;
     try {
       newestDate = new Date(Date.now() - embargoDays * 24 * 60 * 60 * 1000);
+      // add one day to make sure we get all books from the last day (since we're using less than or equal to the truncated date)
+      newestDate.setDate(newestDate.getDate() + 1);
       newestDateString = newestDate.toISOString().split("T")[0];
     } catch (err) {
       throw "Problem with embargo date handling: " + err.toString();

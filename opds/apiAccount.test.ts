@@ -29,25 +29,26 @@ describe("OPDS API Key Handling using DEV database", () => {
   });
   it("can login", async () => {
     jest.setTimeout(1000 * 10);
-    const answer = await BloomParseServer.loginAsCatalogService(); /* ? */
-    console.log(answer);
+    const answer = await BloomParseServer.loginAsCatalogService();
+    // console.log(answer);
     expect(answer).toBeTruthy();
   });
 
   it("finds the unit-test-account on dev server", async () => {
     if (!process.env["bloomParseSeverUnitTestApiAccountObjectId"]) {
       throw Error(
-        "OpdsUnitTestApiAccountObjectId needs to be in the environment variables. See README for more info."
+        "bloomParseSeverUnitTestApiAccountObjectId needs to be in the environment variables. See README for more info."
       );
     }
     const answer = await getApiAccount(
       `unit-test@example.com:${process.env["bloomParseSeverUnitTestApiAccountObjectId"]}`
-    ); /* ? */
-    console.log(answer);
+    );
+    // console.log(answer);
     expect(answer.errorMessage).toBeFalsy();
     expect(answer.resultCode).toBe(0);
-    expect(answer.account.embargoDays).toBe(undefined); // undefined means default. This is different from 0, which means no embargo.
-    expect(answer.account.user.username).toBe("unit-test@example.com");
-    expect(answer.account.referrerTag).toBe("unit-test-account");
+    expect(answer.account).toBeTruthy();
+    expect(answer.account?.embargoDays).toBe(undefined); // undefined means default. This is different from 0, which means no embargo.
+    expect(answer.account?.user.username).toBe("unit-test@example.com");
+    expect(answer.account?.referrerTag).toBe("unit-test-account");
   });
 });
