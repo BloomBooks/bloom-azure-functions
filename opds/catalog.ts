@@ -152,7 +152,7 @@ export default class Catalog {
   static getNamespaceDeclarations(): string {
     return neglectXmlNamespaces
       ? ""
-      : 'xmlns="http://www.w3.org/2005/Atom" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:opds="http://opds-spec.org/2010/catalog"';
+      : 'xmlns="http://www.w3.org/2005/Atom" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:bloom="https://bloomlibrary.org/opds" xmlns:opds="http://opds-spec.org/2010/catalog"';
   }
 
   public static makeHeaderElements(
@@ -277,7 +277,7 @@ export default class Catalog {
         // the total number of book records, which will be greater than the number of entries we actually
         // provide. Books can be excluded for a number of reasons (wrong format, not harvested, etc).
         // We *are* providing this data as "atMost", largely because it is good for unit tests and debugging.
-        (lang) => `<link rel="http://opds-spec.org/facet" 
+        (lang) => `<link rel="http://opds-spec.org/facet"
                       iso="${lang.isoCode}"
                       href="${
                         this.RootUrl +
@@ -285,7 +285,7 @@ export default class Catalog {
                         this.GetParamsForHref(params, "&", ["lang"])
                       }"
                       atMost="${lang.usageCount}"
-                      title="${lang.name}" 
+                      title="${lang.name}"
                       opds:facetGroup="Languages"
                       ${
                         // activeFacet should be set only if true according to the OPDS standard

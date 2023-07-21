@@ -1,6 +1,6 @@
 import { setNeglectXmlNamespaces } from "./catalog";
 import { setResultXml, xexpect as expect } from "../common/xmlUnitTestUtils";
-import BookEntry from "./bookentry";
+import BookEntry, { getLevelText, getNumberValueFromTags } from "./bookentry";
 
 var book: any = {};
 const kTestBookId = "abcdef";
@@ -218,6 +218,47 @@ describe("BookEntry", () => {
     book.tags = ["computedLevel:3"];
     computeEntry();
     expect("entry/subject").toHaveCount(0);
+  });
+
+  it("should include bloom:level entry iff book has a level or computedLevel", async () => {
+    // The real entries are bloom:level, but for unit tests, we ignore namespaces.
+
+    book.tags = ["level:1"];
+    computeEntry();
+    expect(`entry/level`).toHaveCount(1);
+    expect(`entry/level`).toHaveText(getLevelText(1));
+
+    book.tags = ["computedLevel:2"];
+    computeEntry();
+    expect(`entry/level`).toHaveCount(1);
+    expect(`entry/level`).toHaveText(getLevelText(2));
+
+    // level wins over computedLevel
+    book.tags = ["level:3", "computedLevel:4"];
+    computeEntry();
+    expect(`entry/level`).toHaveCount(1);
+    expect(`entry/level`).toHaveText(getLevelText(3));
+
+    // if there's no level or computedLevel, don't include the entry
+    book.tags = ["topic:Dogs"];
+    computeEntry();
+    expect(`entry/level`).toHaveCount(0);
+  });
+
+  it("getNumberValueFromTags parses numbers, non-numbers, and missing tags correctly", () => {
+    const tags = ["level:1", "computedLevel:0", "topic:Dogs"];
+    let result;
+    result = getNumberValueFromTags(tags, "level:");
+    expect(result).toBe(1);
+
+    result = getNumberValueFromTags(tags, "computedLevel:");
+    expect(result).toBe(0);
+
+    result = getNumberValueFromTags(tags, "topic:");
+    expect(Number.isNaN(result)).toBeTruthy();
+
+    result = getNumberValueFromTags(tags, "prefixNotPresent:");
+    expect(result).toBe(undefined);
   });
 });
 

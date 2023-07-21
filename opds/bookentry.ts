@@ -43,13 +43,10 @@ export default class BookEntry {
     }
     // librarian needs to approve it first
     if (book.tags && book.tags.indexOf("system:Incoming") > -1) {
-      // If the ePUB hasn't been harvested, don't bother showing the book.
       return "<!-- omitting a book because it is awaiting site policy review -->";
     }
-
-    // Enhance: we could still provide the PDF & other stuff even it cannot harvest.
+    // If the book hasn't been harvested, don't bother showing the book.
     if (book.harvestState !== "Done") {
-      // If the ePUB hasn't been harvested, don't bother showing the book.
       return "<!-- omitting a book because of harvest state -->";
     }
 
@@ -82,6 +79,7 @@ export default class BookEntry {
     entry += makeElementOrEmpty("published", book.published);
     entry += makeElementOrEmpty("updated", book.updatedAt);
 
+    // dcterms: namespace elements
     if (book.tags) {
       // note: haven't figured out how to get ts-jest to allow optional chaining
       book.tags.forEach((tag) => {
@@ -104,6 +102,10 @@ export default class BookEntry {
       // (It's also probably not valid according to the OPDS standard.)
       return "";
     }
+
+    // bloom: namespace elements
+    entry += makeBloomLevelElementOrEmpty(book);
+
     entry += links;
     return entry + `</entry>`;
   }
@@ -368,6 +370,50 @@ function makeDCElementOrEmpty(tag: string, value: string): string {
   const t = getNeglectXmlNamespaces() ? tag : "dcterms:" + tag;
   return value ? `<${t}>${entities.encodeXML(value)}</${t}>` : "";
 }
+
+function makeBloomLevelElementOrEmpty(book: any): string {
+  if (!book.tags) return "";
+
+  let levelText;
+  const priorityOrderedPrefixes = ["level:", "computedLevel:"];
+  for (const prefix of priorityOrderedPrefixes) {
+    const levelNum = getNumberValueFromTags(book.tags, prefix);
+    if (!Number.isNaN(levelNum) && levelNum >= 0) {
+      levelText = getLevelText(levelNum);
+      break;
+    }
+  }
+
+  if (!levelText) return "";
+
+  const entryTag = getNeglectXmlNamespaces() ? "level" : "bloom:level";
+  return `<${entryTag}>${levelText}</${entryTag}>`;
+}
+
+// exported for testing
+export function getNumberValueFromTags(tags: any, prefix: string): number {
+  const levelTag = tags.find((tag) => tag.startsWith(prefix));
+  if (levelTag) {
+    const level = levelTag.replace(prefix, "");
+    return parseInt(level, 10);
+  }
+}
+
+export function getLevelText(level: number): string {
+  switch (level) {
+    case 1:
+      return "first words and phrases";
+    case 2:
+      return "first sentences";
+    case 3:
+      return "first paragraphs";
+    case 4:
+      return "longer paragraphs";
+    default:
+      return "";
+  }
+}
+
 function getDesiredTitle(
   desiredLang: string,
   allTitles: string,
