@@ -80,7 +80,7 @@ describe("OPDS By Language Root", () => {
 
   it("has reasonable number of language links", () => {
     expect("feed").toHaveCount(1);
-    expect("feed/link[@rel='http://opds-spec.org/facet']").toHaveAtLeast(400); // note, this will be < the number of language rows, because we have to consolidate duplicates
+    expect("feed/link[@rel='http://opds-spec.org/facet']").toHaveAtLeast(500); // note, this will be < the number of language rows, because we have to consolidate duplicates
   });
 
   it("does not list any books", () => {
@@ -97,12 +97,12 @@ describe("OPDS By Language Root", () => {
   it("adds up all the usages of the various duplicate languages (by isoCode)", async () => {
     expect(
       'feed/link[@rel="http://opds-spec.org/facet" and @iso="fr"]/@atMost'
-    ).toBeIntGreaterThan(400);
+    ).toBeIntGreaterThan(800);
   });
   it("uses the language name that is mostly commonly used among duplicates", async () => {
     expect(
       'feed/link[@rel="http://opds-spec.org/facet" and @iso="fr"]/@title'
-    ).toHaveText("French");
+    ).toHaveText("français");
   });
 
   /* enhance: this capability not implemented AND writing the test will be expensive (currently we're testing against live and changeable database, sigh.)
@@ -230,8 +230,8 @@ describe("OPDS Tibetan language page", () => {
   beforeEach(() => {});
 
   it("has some entries", async () => {
-    expect("feed/entry").toHaveAtLeast(17); // in Nov 2021 there are 19 with 2 out of circulation, though really it's just 2 books repeated
-    expect("feed/entry").toHaveAtMost(500); // I wanted a small number to catch likely errors, but didn't make it through review :-)
+    expect("feed/entry").toHaveAtLeast(8); // in Jul 2023 there are 11; 2 of those are out of circulation; 1 is draft... though really it's just 3 books repeated
+    expect("feed/entry").toHaveAtMost(100); // A smaller number would be more likely to catch errors, but makes the test more fragile
   });
 
   it("has some language links if minimalnavlinks is not true", async () => {
@@ -246,16 +246,14 @@ describe("OPDS Tibetan language page", () => {
     expect('feed/link[@rel="http://opds-spec.org/facet"]').toHaveAtLeast(0);
   });
   it("when multiple subjects are available, each gets its own element", async () => {
-    // there was some mystery around the title... I couldn't just match the whole thing
-    const xpath = "feed/entry[title[contains(text(),'Tashi')]]";
+    const xpath = "feed/entry[title[contains(text(),'ང་བཀྲ་ཤིས་ཡིན།')]]";
     expect(xpath).toHaveCount(1);
     expect(xpath + "/subject[1]").toMatch("community living");
     expect(xpath + "/subject[2]").toMatch("culture");
   });
 
   it("has various links", async () => {
-    // there was some mystery around the title... I couldn't just match the whole thing
-    const xpath = "feed/entry[title[contains(text(),'Tashi')]]";
+    const xpath = "feed/entry[title[contains(text(),'ང་བཀྲ་ཤིས་ཡིན།')]]";
     expect(xpath).toHaveCount(1);
 
     //logTailResultXml(500);
