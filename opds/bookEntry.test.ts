@@ -260,6 +260,29 @@ describe("BookEntry", () => {
     result = getNumberValueFromTags(tags, "prefixNotPresent:");
     expect(result).toBe(undefined);
   });
+
+  it("should include an hreflang attribute for each pdf and epub link", () => {
+    computeEntry();
+    // When we haven't added a langTag, none of the artifact links should have an hreflang attribute
+    for (const artifactName of ["PDF", "ePUB", "Read On Bloom Library", "bloomPUB"]) {
+      const xpath = `entry/link[@title='${artifactName}']`;
+      expect(xpath).toHaveCount(1);
+      const xpathWithHreflang = `${xpath}[@hreflang]`;
+      expect(xpathWithHreflang).toHaveCount(0);
+    }
+    // Add langTags for pdf and epub and check that they go into hreflang attributes
+    book.show.pdf.langTag = "fr";
+    book.show.epub.langTag = "fr";
+    computeEntry();
+    expect("entry/link[@title='PDF']").toHaveAttributeValue(
+      "hreflang",
+      "fr"
+    );
+    expect("entry/link[@title='ePUB']").toHaveAttributeValue(
+      "hreflang",
+      "fr"
+    );
+  });
 });
 
 function testArtifactLink(

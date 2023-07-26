@@ -192,6 +192,13 @@ export default class BookEntry {
       : book.show[artifactName][firstWithOpinion];
   }
 
+  private static getLangTagForArtifact(
+    book: any,
+    artifactName: "pdf" | "epub",
+  ): string {
+    return book?.show?.[artifactName]?.langTag;
+  }
+
   private static getLinkElements(book: any, referrerTag: string) {
     const blorgRoot =
       BloomParseServer.Source === BloomParseServerMode.DEVELOPMENT
@@ -231,7 +238,9 @@ export default class BookEntry {
         "ePUB",
         epubLink,
         "application/epub+zip",
-        referrerTag
+        referrerTag,
+        undefined,
+        BookEntry.getLangTagForArtifact(book, "epub"),
       );
     }
 
@@ -248,7 +257,9 @@ export default class BookEntry {
         "PDF",
         `${uploadBaseUrl}/${name}.pdf`,
         "application/pdf",
-        referrerTag
+        referrerTag,
+        undefined,
+        BookEntry.getLangTagForArtifact(book, "pdf"),
       );
     }
     if (
@@ -304,7 +315,8 @@ export default class BookEntry {
     url: string,
     mimeType: string,
     referrerTag: string,
-    specialRel?: string
+    specialRel?: string,
+    langTag?: string,
   ): string {
     if (referrerTag && referrerTag.startsWith("http"))
       throw new Error(`Referrer tag, ${referrerTag} looks like a rel or href.`);
@@ -315,11 +327,17 @@ export default class BookEntry {
       href += href.indexOf("?") > -1 ? "&amp;" : "?";
       href += `ref=${encodeURIComponent(referrerTag)}`;
     }
+
+    let hrefLangAttr = "";
+    if (langTag) {
+      hrefLangAttr = `hreflang=\"${langTag}\"`;
+    }
+
     // can't use ?? yet because ts-jest chokes
     const rel = specialRel
       ? specialRel
       : "http://opds-spec.org/acquisition/open-access";
-    return `<link rel="${rel}" href="${href}" type="${mimeType}" title="${title}" />
+    return `<link rel="${rel}" href="${href}" type="${mimeType}" title="${title}" ${hrefLangAttr}/>
 `;
   }
 
