@@ -1,6 +1,6 @@
 # Development
 
-Where possible, develop using unit tests and then just do a sanity check using the actual http server. E.g., `npm test`. `WallabyJS` is highly recommended for instant feedback.
+Where possible, develop using unit tests (e.g., `npm test`) and then just do a sanity check using the actual http server. `WallabyJS` is highly recommended for instant feedback.
 
 These files work with the `ms-azuretools.vscode-azurefunctions` extension in vscode.
 
