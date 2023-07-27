@@ -11,7 +11,8 @@
     "bloomlibrary",
     "Contentful",
     "dcterms",
+    "epub",
     "Localizable",
     "OPDS"
-  ],
+  ]
 }

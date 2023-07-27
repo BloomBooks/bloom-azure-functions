@@ -210,6 +210,14 @@ describe("BookEntry", () => {
     );
   });
 
+  it("should not give PDF link if artifact does not exist", () => {
+    expect("entry/link[@title='PDF']").toHaveCount(1);
+
+    book.show.pdf.exists = false;
+    computeEntry();
+    expect("entry/link[@title='PDF']").toHaveCount(0);
+  });
+
   it("subject entry is present iff book has a topic", async () => {
     book.tags = ["topic:Dogs", "computedLevel:3"];
     computeEntry();
@@ -264,7 +272,12 @@ describe("BookEntry", () => {
   it("should include an hreflang attribute for each pdf and epub link", () => {
     computeEntry();
     // When we haven't added a langTag, none of the artifact links should have an hreflang attribute
-    for (const artifactName of ["PDF", "ePUB", "Read On Bloom Library", "bloomPUB"]) {
+    for (const artifactName of [
+      "PDF",
+      "ePUB",
+      "Read On Bloom Library",
+      "bloomPUB",
+    ]) {
       const xpath = `entry/link[@title='${artifactName}']`;
       expect(xpath).toHaveCount(1);
       const xpathWithHreflang = `${xpath}[@hreflang]`;
@@ -274,14 +287,8 @@ describe("BookEntry", () => {
     book.show.pdf.langTag = "fr";
     book.show.epub.langTag = "fr";
     computeEntry();
-    expect("entry/link[@title='PDF']").toHaveAttributeValue(
-      "hreflang",
-      "fr"
-    );
-    expect("entry/link[@title='ePUB']").toHaveAttributeValue(
-      "hreflang",
-      "fr"
-    );
+    expect("entry/link[@title='PDF']").toHaveAttributeValue("hreflang", "fr");
+    expect("entry/link[@title='ePUB']").toHaveAttributeValue("hreflang", "fr");
   });
 });
 

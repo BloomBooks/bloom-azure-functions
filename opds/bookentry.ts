@@ -56,7 +56,7 @@ export default class BookEntry {
         // If the ePUB artifact shouldn't be shown, don't generate a book entry for an ePUB catalog.
         return "<!-- omitting a book because of artifact settings -->";
       }
-      if (!BookEntry.inDesiredLanguage(book, epubOnly, desiredLang)) {
+      if (!BookEntry.isEpubInDesiredLanguage(book, desiredLang)) {
         // If the ePUB appears not to be in the desired language, don't generate a book entry for
         // an ePUB catalog.
         return "<!-- omitting a book because of language requested vs. language available -->";
@@ -110,68 +110,35 @@ export default class BookEntry {
     return entry + `</entry>`;
   }
 
-  private static inDesiredLanguage(
+  private static isEpubInDesiredLanguage(
     book: any,
-    epubOnly: boolean,
     desiredLang: string
   ): boolean {
-    // NB: I [jh] don't understand why epub is a special case, and haven't done any testing around this.
-    // epubs are generated in only one language by the harvester, presumably the language used by book.title.
-    if (epubOnly) {
-      if (book.allTitles) {
-        // book.allTitles looks like a JSON string, but can contain invalid data that won't parse.
-        // So we'll use string searching to parse it looking for a matching title and its language.
-        // first we need to quote \ and " in the title string should they appear.
-        const title = book.title.replace("\\", "\\\\").replace('"', '\\"');
-        const idxTitle = book.allTitles.indexOf('"' + title + '"');
-        if (idxTitle > 0) {
-          const idxTerm = book.allTitles.lastIndexOf('"', idxTitle - 1);
-          if (idxTerm > 0) {
-            const idxBegin = book.allTitles.lastIndexOf('"', idxTerm - 1);
-            if (idxBegin > 0) {
-              const lang = book.allTitles.substring(idxBegin + 1, idxTerm);
-              // console.log(
-              //   `INFO: found "${book.title}" in allTitles: lang=${lang}`
-              // );
-              return lang === desiredLang;
-            }
-          }
-        }
-        console.warn(
-          `WARNING: did not find "${title} in allTitles (${book.allTitles})`
-        );
-      }
-      // assume the first language in langPointers is the language of the ePUB: this may well be wrong
-      // but we don't have any better information to go by.
-      if (book.langPointers && book.langPointers.length > 0) {
+    const epubLangTag = BookEntry.getLangTagForArtifact(book, "epub");
+    if (!epubLangTag) {
+      console.warn(
+        `WARNING: did not find langTag for the "${book.title}" ePUB!`
+      );
+    } else {
+      return epubLangTag === desiredLang;
+    }
+
+    // assume the first language in langPointers is the language of the ePUB: this may well be wrong
+    // but we don't have any better information to go by.
+    if (book.langPointers && book.langPointers.length > 0) {
+      if (book.langPointers.length > 1) {
         console.warn(
           `WARNING: assuming book.langPointers[0] (${book.langPointers[0].isoCode}) is the language for the "${book.title}" ePUB!`
         );
-        return desiredLang == book.langPointers[0].isoCode;
-      } else if (book.languages && book.languages.length > 0) {
+      }
+      return desiredLang == book.langPointers[0].isoCode;
+    } else if (book.languages && book.languages.length > 0) {
+      if (book.languages.length > 1) {
         console.warn(
           `WARNING: assuming book.languages[0] (${book.languages[0]}) is the language for the "${book.title}" ePUB!`
         );
-        return desiredLang == book.languages[0];
-      } else {
-        return false;
       }
-    }
-    // Assume any matching language will do for the collection of ePUB, PDF, and bloomPUB.
-    if (book.langPointers && book.langPointers.length) {
-      for (let i = 0; i < book.langPointers.length; ++i) {
-        const lang = book.langPointers[i];
-        if (lang.isoCode === desiredLang) {
-          return true;
-        }
-      }
-    }
-    if (book.languages && book.languages.length) {
-      for (let i = 0; i < book.languages.length; ++i) {
-        if (book.languages[i] === desiredLang) {
-          return true;
-        }
-      }
+      return desiredLang == book.languages[0];
     }
     return false;
   }
@@ -184,6 +151,9 @@ export default class BookEntry {
     if (book.show === undefined || book.show[artifactName] === undefined)
       return defaultIfWeHaveNoOpinions;
 
+    // First make sure the artifact exists
+    if (book.show[artifactName].exists === false) return false;
+
     const firstWithOpinion = ["user", "librarian", "harvester"].find(
       (judge) => book.show[artifactName][judge] !== undefined
     );
@@ -194,12 +164,12 @@ export default class BookEntry {
 
   private static getLangTagForArtifact(
     book: any,
-    artifactName: "pdf" | "epub",
+    artifactName: "pdf" | "epub"
   ): string {
     return book?.show?.[artifactName]?.langTag;
   }
 
-  private static getLinkElements(book: any, referrerTag: string) {
+  private static getLinkElements(book: any, referrerTag: string): string {
     const blorgRoot =
       BloomParseServer.Source === BloomParseServerMode.DEVELOPMENT
         ? "https://dev.bloomlibrary.org"
@@ -240,7 +210,7 @@ export default class BookEntry {
         "application/epub+zip",
         referrerTag,
         undefined,
-        BookEntry.getLangTagForArtifact(book, "epub"),
+        BookEntry.getLangTagForArtifact(book, "epub")
       );
     }
 
@@ -259,7 +229,7 @@ export default class BookEntry {
         "application/pdf",
         referrerTag,
         undefined,
-        BookEntry.getLangTagForArtifact(book, "pdf"),
+        BookEntry.getLangTagForArtifact(book, "pdf")
       );
     }
     if (
@@ -316,7 +286,7 @@ export default class BookEntry {
     mimeType: string,
     referrerTag: string,
     specialRel?: string,
-    langTag?: string,
+    langTag?: string
   ): string {
     if (referrerTag && referrerTag.startsWith("http"))
       throw new Error(`Referrer tag, ${referrerTag} looks like a rel or href.`);
