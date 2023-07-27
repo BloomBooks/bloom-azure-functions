@@ -99,3 +99,5 @@ contentfulToCrowdin/bloom-library-contentful.json
 __azurite*.*
 
 __blobstorage__/
+
+*.orig
