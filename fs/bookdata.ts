@@ -34,11 +34,10 @@ export default class BookData {
         return null;
     }
     BloomParseServer.setServer(source);
-    let infoArray: any[] = await BloomParseServer.getBookInfo(params.bookid);
-    if (!infoArray || infoArray.length == 0 || !infoArray[0].baseUrl) {
+    let bookInfo: any = await BloomParseServer.getBookInfoByObjectId(params.bookid);
+    if (!bookInfo || !bookInfo.baseUrl) {
       return null;
     }
-    const bookInfo = infoArray[0];
     let url = BloomParseServer.getS3LinkBase(bookInfo, bucket);
     if (params.part1 && params.part1.length > 0) {
       url = url + "/" + encodeUnicode(params.part1);

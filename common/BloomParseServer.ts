@@ -25,24 +25,28 @@ export default class BloomParseServer {
     }
   }
 
+  public static getParseUrlBase(): string {
+    switch (BloomParseServer.Source) {
+      case BloomParseServerMode.DEVELOPMENT:
+        return "https://dev-parse.bloomlibrary.org";
+      case BloomParseServerMode.PRODUCTION:
+      default:
+        return "https://parse.bloomlibrary.org";
+    }
+  }
+
   public static getParseTableUrl(tableName: string): string {
-    switch (BloomParseServer.Source) {
-      case BloomParseServerMode.DEVELOPMENT:
-        return "https://dev-parse.bloomlibrary.org/classes/" + tableName;
-      case BloomParseServerMode.PRODUCTION:
-      default:
-        return "https://parse.bloomlibrary.org/classes/" + tableName;
-    }
+    return BloomParseServer.getParseUrlBase() + "/classes/" + tableName;
   }
+
   public static getParseLoginUrl(): string {
-    switch (BloomParseServer.Source) {
-      case BloomParseServerMode.DEVELOPMENT:
-        return "https://dev-parse.bloomlibrary.org/login";
-      case BloomParseServerMode.PRODUCTION:
-      default:
-        return "https://parse.bloomlibrary.org/login";
-    }
+    return BloomParseServer.getParseUrlBase() + "/login";
   }
+
+public static getParseUserUrl(): string {
+  return BloomParseServer.getParseUrlBase() + "/users/me";
+}
+
   public static getParseAppId(): string {
     switch (BloomParseServer.Source) {
       case BloomParseServerMode.DEVELOPMENT:
@@ -55,6 +59,22 @@ export default class BloomParseServer {
         return (
           process.env["OpdsParseAppIdProd"] ||
           "OpdsParseAppIdProd is missing from env!"
+        );
+    }
+  }
+
+  public static getParseReadOnlyMasterKey(): string {
+    switch (BloomParseServer.Source) {
+      case BloomParseServerMode.DEVELOPMENT:
+        return (
+          process.env["ParseReadOnlyMasterKeyDev"] ||
+          "ParseReadOnlyMasterKeyDev is missing from env!"
+        );
+      case BloomParseServerMode.PRODUCTION:
+      default:
+        return (
+          process.env["ParseReadOnlyMasterKeyProd"] ||
+          "ParseReadOnlyMasterKeyProd is missing from env!"
         );
     }
   }
@@ -296,8 +316,7 @@ export default class BloomParseServer {
     return results.data.results;
   }
 
-  // Get the complete information for the single book identified by the objectId value.
-  public static getBookInfo(objectId: string): Promise<any> {
+  public static getBookInfo(where: string): Promise<any> {
     return new Promise<any[]>((resolve, reject) =>
       axios
         .get(BloomParseServer.getParseTableUrl("books"), {
@@ -306,16 +325,32 @@ export default class BloomParseServer {
           },
           params: {
             include: "uploader,langPointers",
-            where: `{"objectId":{"$eq":"${objectId}"}}`,
+            where,
           },
         })
         .then((result) => {
-          resolve(result.data.results);
+          if (result.data.results.length > 1) {
+            reject(new Error("More than one book found for " + where));
+          }
+          resolve(result.data.results[0]);
         })
         .catch((err) => {
           console.log("ERROR: caught axios.get error: " + err);
           reject(err);
         })
+    );
+  }
+
+  public static getBookInfoByObjectId(objectId: string): Promise<any> {
+    return this.getBookInfo(`{"objectId":{"$eq":"${objectId}"}}`);
+  }
+
+  public static getBookInfoByInstanceIdAndUploaderObjectId(
+    bookInstanceId: string,
+    uploaderObjectId: string
+  ): Promise<any> {
+    return this.getBookInfo(
+      `{"uploader":{"__type":"Pointer","className":"_User","objectId":"${uploaderObjectId}"}, "bookInstanceId":{"$eq":"${bookInstanceId}"}}`
     );
   }
 
@@ -389,6 +424,23 @@ export default class BloomParseServer {
       );
     }
     return null;
+  }
+
+  public static async getLoggedInUserInfo(sessionToken) {
+    try {
+      const results = await axios.get(
+        BloomParseServer.getParseUserUrl(),
+        {
+          headers: {
+            "X-Parse-Application-Id": BloomParseServer.getParseAppId(),
+            "X-Parse-Session-Token": sessionToken,
+          },
+        }
+      );
+      return results.data;
+    } catch (error) {
+      return null; // not a valid session token; no user info to return
+    }
   }
 }
 

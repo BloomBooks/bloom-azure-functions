@@ -13,6 +13,8 @@
   "//": "typescript and @azure/functions need to be here rather than devDependencies so the",
   "// ": "Azure deployment script can run the typescript transpilation using our local typescript",
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.421.0",
+    "@aws-sdk/s3-request-presigner": "^3.421.0",
     "@azure/functions": "^1.2.3",
     "@crowdin/crowdin-api-client": "^1.12.3",
     "@types/node": "^13.13.52",
