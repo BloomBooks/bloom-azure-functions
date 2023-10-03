@@ -67,7 +67,7 @@ export async function handleUploadStart(
     const existingBookInfo = await parseServer.getBookInfoByObjectId(
       bookObjectId
     );
-    if (!BloomParseServer.canModifyBook(userInfo, existingBookInfo)) {
+    if (!(await BloomParseServer.canModifyBook(userInfo, existingBookInfo))) {
       context.res = {
         status: 400,
         body: "Please provide a valid Authentication-Token and existing-book-object-id (if book exists)",

@@ -33,7 +33,7 @@ export async function handleUploadFinish(
     return;
   }
   const bookInfo = await parseServer.getBookInfoByObjectId(bookId);
-  if (!BloomParseServer.canModifyBook(userInfo, bookInfo)) {
+  if (!(await BloomParseServer.canModifyBook(userInfo, bookInfo))) {
     context.res = {
       status: 400,
       body: "Please provide a valid Authentication-Token and transaction-id",
