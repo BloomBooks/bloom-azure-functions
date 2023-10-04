@@ -43,9 +43,9 @@ export default class BloomParseServer {
     return BloomParseServer.getParseUrlBase() + "/login";
   }
 
-public static getParseUserUrl(): string {
-  return BloomParseServer.getParseUrlBase() + "/users/me";
-}
+  public static getParseUserUrl(): string {
+    return BloomParseServer.getParseUrlBase() + "/users/me";
+  }
 
   public static getParseAppId(): string {
     switch (BloomParseServer.Source) {
@@ -428,15 +428,12 @@ public static getParseUserUrl(): string {
 
   public static async getLoggedInUserInfo(sessionToken) {
     try {
-      const results = await axios.get(
-        BloomParseServer.getParseUserUrl(),
-        {
-          headers: {
-            "X-Parse-Application-Id": BloomParseServer.getParseAppId(),
-            "X-Parse-Session-Token": sessionToken,
-          },
-        }
-      );
+      const results = await axios.get(BloomParseServer.getParseUserUrl(), {
+        headers: {
+          "X-Parse-Application-Id": BloomParseServer.getParseAppId(),
+          "X-Parse-Session-Token": sessionToken,
+        },
+      });
       return results.data;
     } catch (error) {
       return null; // not a valid session token; no user info to return

@@ -34,7 +34,9 @@ export default class BookData {
         return null;
     }
     BloomParseServer.setServer(source);
-    let bookInfo: any = await BloomParseServer.getBookInfoByObjectId(params.bookid);
+    let bookInfo: any = await BloomParseServer.getBookInfoByObjectId(
+      params.bookid
+    );
     if (!bookInfo || !bookInfo.baseUrl) {
       return null;
     }
