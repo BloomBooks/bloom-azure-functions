@@ -7,7 +7,7 @@ const kSandboxS3BucketName = "BloomLibraryBooks-Sandbox";
 const kProductionS3BucketName = "BloomLibraryBooks";
 const kS3Region = "us-east-1";
 
-export async function createPresignedUrl(src, key) {
+export async function createPresignedUrl(src: "prod" | "dev", key) {
   let s3BucketName;
   if (src === "prod") {
     s3BucketName = kProductionS3BucketName;

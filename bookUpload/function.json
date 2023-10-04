@@ -5,7 +5,7 @@
       "type": "httpTrigger",
       "direction": "in",
       "name": "req",
-      "methods": ["get", "post"],
+      "methods": ["get"],
       "route": "book-upload/{actionType}"
     },
     {
@@ -15,5 +15,4 @@
     }
   ],
   "scriptFile": "../dist/bookUpload/index.js"
-
 }
