@@ -4,12 +4,6 @@ import BloomParseServer, {
 } from "../common/BloomParseServer";
 import { createPresignedUrl } from "./s3";
 
-// Check if user has permission to upload book, and if return a presigned S3 url to be used for that upload
-
-function canUpdateBook(userInfo, book) {
-  return book !== undefined && book.uploader.objectId === userInfo.objectId;
-}
-
 //Sample query: http://localhost:7071/v1/book-upload/get-update-url?src=dev&session-token=r:d49f9797f0bcb7ae3fbc4f1c1affe43f&book-instance-id=eeaddab4-fbdd-4c50-8967-e7f9401fd657
 
 const bookUpload: AzureFunction = async function (
@@ -18,31 +12,42 @@ const bookUpload: AzureFunction = async function (
 ): Promise<void> {
   const queryParams = req.query;
   const src = queryParams["src"] as BloomParseServerMode;
-  let s3BucketName;
   if (src === "prod") {
     BloomParseServer.setServer("prod");
   } else {
     BloomParseServer.setServer("dev");
   }
 
-  const userInfo = await BloomParseServer.getLoggedInUserInfo(
-    queryParams["session-token"]
-  );
-  if (!userInfo) {
-    context.res = {
-      status: 400,
-      body: "Invalid session token",
-    };
-    return;
-  }
+  const userInfo = await getUserFromSession(context, req);
+  if (!userInfo) return;
 
+  switch (req.method) {
+    case "GET":
+      await handleGet(context, req, userInfo, src);
+      return;
+    default:
+      context.res = {
+        status: 400,
+        body: "Unhandled HTTP method",
+      };
+      return;
+  }
+};
+
+async function handleGet(
+  context: Context,
+  req: HttpRequest,
+  userInfo: any,
+  src: "prod" | "dev"
+) {
+  const queryParams = req.query;
   var bookInstanceId;
   const actionType: string = req.params.actionType;
   if (actionType === "get-update-url") {
     const book = await BloomParseServer.getBookInfoByObjectId(
       queryParams["book-object-id"]
     );
-    if (!canUpdateBook(userInfo, book)) {
+    if (!canModifyBook(userInfo, book)) {
       context.res = {
         status: 400,
         body: "Please provide a valid parse book ID and session ID",
@@ -79,12 +84,39 @@ const bookUpload: AzureFunction = async function (
     return;
   }
 
+  // If everything checks out, return a presigned S3 url to be used for uploading the book to S3
   const key = `${userInfo.email}/${bookInstanceId}/`;
   const clientUrl = await createPresignedUrl(src, key);
   context.res = {
     status: 200,
     body: clientUrl,
   };
-};
+}
+
+// Validate the session token and return the user info
+async function getUserFromSession(context: Context, req: HttpRequest) {
+  // Note that req.headers' keys are all lower case.
+  let sessionToken = req.headers["session-token"];
+  if (!sessionToken) {
+    sessionToken = req.headers["x-parse-session-token"];
+  }
+  if (!sessionToken) {
+    sessionToken = req.query["session-token"];
+  }
+  const userInfo = await BloomParseServer.getLoggedInUserInfo(sessionToken);
+  if (!userInfo) {
+    context.res = {
+      status: 400,
+      body: "Invalid session token",
+    };
+    return;
+  }
+  return userInfo;
+}
+
+// Check if user has permission to modify the book
+function canModifyBook(userInfo, book) {
+  return book !== undefined && book.uploader.objectId === userInfo.objectId;
+}
 
 export default bookUpload;
