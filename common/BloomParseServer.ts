@@ -439,6 +439,27 @@ export default class BloomParseServer {
       return null; // not a valid session token; no user info to return
     }
   }
+
+  public static async updateBaseUrl(
+    bookObjectId: string,
+    baseUrl: string,
+    sessionToken: string
+  ) {
+    // TODO copilot wrote this, does it work?
+    const results = await axios.put(
+      BloomParseServer.getParseTableUrl("books") + "/" + bookObjectId,
+      {
+        baseUrl,
+      },
+      {
+        headers: {
+          "X-Parse-Application-Id": BloomParseServer.getParseAppId(),
+          "X-Parse-Session-Token": sessionToken,
+        },
+      }
+    );
+    return results.data;
+  }
 }
 
 export type ApiAccount = {

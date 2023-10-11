@@ -6,7 +6,7 @@
       "direction": "in",
       "name": "req",
       "methods": ["get"],
-      "route": "book-upload/{actionType}"
+      "route": "book/{action}"
     },
     {
       "type": "http",
@@ -14,5 +14,5 @@
       "name": "res"
     }
   ],
-  "scriptFile": "../dist/bookUpload/index.js"
+  "scriptFile": "../dist/book/index.js"
 }
