@@ -1,6 +1,10 @@
 import { Context, HttpRequest } from "@azure/functions";
 import BloomParseServer from "../common/BloomParseServer";
-import { copyBook, getS3PrefixFromPath, getTemporaryS3Credentials } from "./s3";
+import {
+  copyBook,
+  getS3PrefixFromEncodedPath,
+  getTemporaryS3Credentials,
+} from "./s3";
 
 export async function handleUploadStart(
   context: Context,
@@ -31,7 +35,9 @@ async function handleUploadStartGet( // TODO rename
 
   const randomString = ""; // TODO
   // const prefix = `${randomString}/${userInfo.email}/${bookInstanceId}/`;
-  const prefix = "noel_chou@sil.org/testCopyBook2/"; // TODO just for testing
+  // TODO add book title?
+  const prefix = "noel_chou@sil.org/testCopyBook5"; // TODO just for testing
+  // TODO why an extra / directory?
 
   const existingBookId = queryParams["existing-book-id"];
   if (existingBookId !== undefined) {
@@ -39,7 +45,7 @@ async function handleUploadStartGet( // TODO rename
       existingBookId
     );
     // we are modifying an existing book. Check that we have permission, then copy old book to new folder for efficient syncing
-    if (!canModifyBook(userInfo, existingBookInfo)) {
+    if (!BloomParseServer.canModifyBook(userInfo, existingBookInfo)) {
       context.res = {
         status: 400,
         body: "Please provide a valid session ID and book path",
@@ -47,7 +53,10 @@ async function handleUploadStartGet( // TODO rename
       return;
     }
 
-    const existingBookPath = getS3PrefixFromPath(existingBookInfo.baseUrl, src);
+    const existingBookPath = getS3PrefixFromEncodedPath(
+      existingBookInfo.baseUrl,
+      src
+    );
     try {
       await copyBook(
         "dev",
@@ -56,6 +65,10 @@ async function handleUploadStartGet( // TODO rename
       );
     } catch (err) {
       console.log(err);
+      context.res = {
+        status: 400,
+        body: "Error copying book",
+      };
       return; // TODO what to do here?
     }
   }
@@ -69,16 +82,8 @@ async function handleUploadStartGet( // TODO rename
   context.res = {
     status: 200,
     body: {
-      path: prefix, // TODO a fuller url?
+      "s3-path": prefix, // TODO a fuller url?
       credentials: tempCredentials,
     },
   };
-}
-
-// Check if user has permission to modify the book
-function canModifyBook(userInfo, bookInfo) {
-  var a = bookInfo == undefined;
-  return (
-    bookInfo !== undefined && bookInfo.uploader.objectId === userInfo.objectId
-  );
 }

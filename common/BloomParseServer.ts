@@ -460,6 +460,14 @@ export default class BloomParseServer {
     );
     return results.data;
   }
+
+  // Check if user has permission to modify the book
+  public static canModifyBook(userInfo, bookInfo) {
+    var a = bookInfo == undefined;
+    return (
+      bookInfo !== undefined && bookInfo.uploader.objectId === userInfo.objectId
+    );
+  }
 }
 
 export type ApiAccount = {

@@ -4,6 +4,7 @@ import BloomParseServer, {
 } from "../common/BloomParseServer";
 import { handleUploadStart } from "./uploadStart";
 import { handleUploadFinish } from "./uploadFinish";
+import { allowPublicRead } from "./s3";
 
 const book: AzureFunction = async function (
   context: Context,
