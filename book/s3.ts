@@ -16,9 +16,9 @@ const kS3Region = "us-east-1";
 import { STSClient, GetFederationTokenCommand } from "@aws-sdk/client-sts"; // ES Modules import
 
 // TODO compare this with extractBookFilename and getS3LinkBase from BloomParseSErver
-export function getS3PrefixFromEncodedPath(path: string, src: "prod" | "dev") {
-  // sanity check if book is from a different bucket than src
-  if (!path.includes(getBucketName(src))) {
+export function getS3PrefixFromEncodedPath(path: string, env: "prod" | "dev") {
+  // sanity check if book is from a different bucket than env
+  if (!path.includes(getBucketName(env))) {
     throw new Error("book path and source do not match");
   }
   // take everything after the last slash in path
@@ -28,9 +28,9 @@ export function getS3PrefixFromEncodedPath(path: string, src: "prod" | "dev") {
   // ("noel_chou@sil.org/fdb49f4f-4414-4269-ab1c-38ad8658a22d/BL-12238 test5+in+test5Damal/");
 }
 
-export function getS3UrlFromPrefix(prefix: string, src: "prod" | "dev") {
+export function getS3UrlFromPrefix(prefix: string, env: "prod" | "dev") {
   const encodedPrefix = urlEncode(prefix);
-  return `https://s3.amazonaws.com/${getBucketName(src)}/${encodedPrefix}`;
+  return `https://s3.amazonaws.com/${getBucketName(env)}/${encodedPrefix}`;
 }
 
 function urlEncode(str: string) {
@@ -41,11 +41,11 @@ function unencode(path: string) {
   return path.replace("%40", "@").replace(/%2f/g, "/").replace(/\+/g, " ");
 }
 
-async function listPrefixContents(src: "prod" | "dev", prefix: string) {
+async function listPrefixContents(prefix: string, env: "prod" | "dev") {
   //  TODO make sure this gets all descendant levels
   const client = getS3Client();
   const listCommandInput = {
-    Bucket: getBucketName(src),
+    Bucket: getBucketName(env),
     Prefix: prefix,
   };
   const listCommand = new ListObjectsV2Command(listCommandInput);
@@ -53,13 +53,13 @@ async function listPrefixContents(src: "prod" | "dev", prefix: string) {
   return listResponse.Contents;
 }
 
-export async function allowPublicRead(src: "prod" | "dev", prefix: string) {
-  const bookFiles = await listPrefixContents(src, prefix);
+export async function allowPublicRead(prefix: string, env: "prod" | "dev") {
+  const bookFiles = await listPrefixContents(prefix, env);
   const client = getS3Client();
   if (!bookFiles) {
     throw new Error("ListObjectsV2Command returned no contents"); // TODO redo
   }
-  const bucket = getBucketName(src);
+  const bucket = getBucketName(env);
   //for each object in listResponse, copy it to the destination
   for (let i = 0; i < bookFiles.length; i++) {
     // TODO can this be a foreach?
@@ -73,43 +73,37 @@ export async function allowPublicRead(src: "prod" | "dev", prefix: string) {
     };
     const command = new PutObjectAclCommand(input);
     const response = await client.send(command);
-    console.log(response);
   }
 }
 
-export async function deleteBook(src: "prod" | "dev", bookPath: string) {
-  const bookPathPrefix = getS3PrefixFromEncodedPath(bookPath, src);
-  const bookFiles = await listPrefixContents(src, bookPathPrefix);
+export async function deleteBook(bookPath: string, env: "prod" | "dev") {
+  const bookPathPrefix = getS3PrefixFromEncodedPath(bookPath, env);
+  const bookFiles = await listPrefixContents(bookPathPrefix, env);
   if (!bookFiles) {
     throw new Error("ListObjectsV2Command returned no contents"); // TODO redo
   }
   const client = getS3Client();
   const deleteCommand = new DeleteObjectsCommand({
-    Bucket: getBucketName(src),
+    Bucket: getBucketName(env),
     Delete: {
       Objects: bookFiles.map((file) => ({ Key: file.Key })),
     },
   });
   const response = await client.send(deleteCommand);
-  console.log(response);
-  // if (response.Errors) {
-  //   console.log("Error deleting book from S3");
-  //   console.log(response.Errors);
-  // }
 }
 
 export async function copyBook(
-  src: "prod" | "dev",
   srcPath: string,
-  destPath: string
+  destPath: string,
+  env: "prod" | "dev"
 ) {
   const client = getS3Client();
 
-  const bookFiles = await listPrefixContents(src, srcPath);
+  const bookFiles = await listPrefixContents(srcPath, env);
   if (!bookFiles) {
     throw new Error("ListObjectsV2Command returned no contents"); // TODO redo
   }
-  const bucket = getBucketName(src);
+  const bucket = getBucketName(env);
   //for each object in listResponse, copy it to the destination
   for (let i = 0; i < bookFiles.length; i++) {
     // TODO can this be a foreach?
@@ -124,7 +118,6 @@ export async function copyBook(
 
     const copyCommand = new CopyObjectCommand(copyCommandInput);
     const response = await client.send(copyCommand); // TODO what if errors?
-    console.log(response);
   }
 }
 
@@ -168,41 +161,16 @@ export async function getTemporaryS3Credentials(prefix: string) {
   }
 }
 
-export function getBucketName(src: "prod" | "dev") {
+export function getBucketName(env: "prod" | "dev") {
   // TODO switch to switch statement?
-  if (src === "prod") {
+  if (env === "prod") {
     return kProductionS3BucketName;
-  } else if (src === "dev") {
+  } else if (env === "dev") {
     return kSandboxS3BucketName;
   } else {
-    throw new Error("Invalid src parameter"); // TODO is this still neccesary?
+    throw new Error("Invalid env parameter"); // TODO is this still neccesary?
   }
 }
-
-// TODO delete?
-export async function createPresignedUrl(src: "prod" | "dev", key) {
-  let s3BucketName;
-  if (src === "prod") {
-    s3BucketName = kProductionS3BucketName;
-  } else if (src === "dev") {
-    s3BucketName = kSandboxS3BucketName;
-  } else {
-    throw new Error("Invalid src parameter");
-  }
-  return createPresignedUrlWithClient({
-    region: kS3Region,
-    bucket: s3BucketName,
-    key,
-  });
-}
-
-// TODO delete?
-// copied from https://docs.aws.amazon.com/AmazonS3/latest/userguide/example_s3_Scenario_PresignedUrl_section.html
-const createPresignedUrlWithClient = ({ region, bucket, key }) => {
-  const client = getS3Client();
-  const command = new PutObjectCommand({ Bucket: bucket, Key: key });
-  return getSignedUrl(client, command, { expiresIn: 3600 });
-};
 
 function getS3Client() {
   return new S3Client({ region: kS3Region });

@@ -11,8 +11,8 @@ const book: AzureFunction = async function (
   req: HttpRequest
 ): Promise<void> {
   const queryParams = req.query;
-  const src = queryParams["src"] as BloomParseServerMode;
-  if (src === "dev") {
+  const env = queryParams["env"] as BloomParseServerMode;
+  if (env === "dev") {
     BloomParseServer.setServer("dev");
   } else {
     BloomParseServer.setServer("prod");
@@ -23,10 +23,10 @@ const book: AzureFunction = async function (
 
   switch (req.params.action) {
     case "upload-start":
-      await handleUploadStart(context, req, userInfo, src);
+      await handleUploadStart(context, req, userInfo, env);
       return;
     case "upload-finish":
-      await handleUploadFinish(context, req, userInfo, src);
+      await handleUploadFinish(context, req, userInfo, env);
       return;
     default:
       context.res = {

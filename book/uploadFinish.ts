@@ -7,11 +7,11 @@ export async function handleUploadFinish(
   context: Context,
   req: HttpRequest,
   userInfo: any,
-  src: "prod" | "dev"
+  env: "prod" | "dev"
 ): Promise<void> {
   switch (req.method) {
     case "GET":
-      await handleUploadFinishGet(context, req, userInfo, src);
+      await handleUploadFinishGet(context, req, userInfo, env);
       return;
     default:
       context.res = {
@@ -26,7 +26,7 @@ async function handleUploadFinishGet( // TODO rename
   context: Context,
   req: HttpRequest,
   userInfo: any,
-  src: "prod" | "dev"
+  env: "prod" | "dev"
 ) {
   const queryParams = req.query;
 
@@ -70,11 +70,10 @@ async function handleUploadFinishGet( // TODO rename
   try {
     await BloomParseServer.updateBaseUrl(
       bookId,
-      getS3UrlFromPrefix(newS3Path, src),
+      getS3UrlFromPrefix(newS3Path, env),
       sessionToken
     );
   } catch (e) {
-    console.log(e);
     context.res = {
       status: 500,
       body: "Error updating baseUrl in Parse",
@@ -83,9 +82,8 @@ async function handleUploadFinishGet( // TODO rename
   }
 
   try {
-    await allowPublicRead(src, newS3Path);
+    await allowPublicRead(newS3Path, env);
   } catch (e) {
-    console.log(e);
     context.res = {
       status: 500,
       body: "Error setting new book to allow public read",
@@ -94,13 +92,12 @@ async function handleUploadFinishGet( // TODO rename
   }
 
   try {
-    await deleteBook(src, oldBaseURl);
+    await deleteBook(oldBaseURl, env);
     context.res = {
       status: 200,
       body: "Successfully updated book",
     };
   } catch (e) {
-    console.log(e);
     context.res = {
       status: 500,
       body: "Error deleting old book",
@@ -108,6 +105,8 @@ async function handleUploadFinishGet( // TODO rename
   }
 }
 
-// TODO: src argument order, prefix vs path, and which to pass to and from bloomdesktop
+// TODO: prefix vs path, and which to pass to and from bloomdesktop
+// test credentials
+// all error handling
 
 // https://s3.amazonaws.com/BloomLibraryBooks-Sandbox/noel_chou%40sil.org%2f0246f675-41fc-4a1c-a385-40dc1b034c8b%2fWindy+Day++AI+Experiment%2f
