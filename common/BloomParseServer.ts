@@ -2,22 +2,26 @@ import axios from "axios";
 
 // For testing and development, we prefer to use the parse table associated with the development Bloom Library.
 // For production, we need to use the parse table associated with the production Bloom Library.
-export enum BloomParseServerMode {
+export enum Environment {
+  UNITTEST = "unit-test",
   DEVELOPMENT = "dev",
   PRODUCTION = "prod",
 }
 
 export default class BloomParseServer {
-  public static DefaultSource: string = BloomParseServerMode.PRODUCTION;
+  public static DefaultSource: string = Environment.PRODUCTION;
   public static Source: string;
 
   public static setServer(source: string) {
     switch (source ? source.toLowerCase() : null) {
-      case BloomParseServerMode.DEVELOPMENT:
-        BloomParseServer.Source = BloomParseServerMode.DEVELOPMENT;
+      case Environment.UNITTEST:
+        BloomParseServer.Source = Environment.UNITTEST;
         break;
-      case BloomParseServerMode.PRODUCTION:
-        BloomParseServer.Source = BloomParseServerMode.PRODUCTION;
+      case Environment.DEVELOPMENT:
+        BloomParseServer.Source = Environment.DEVELOPMENT;
+        break;
+      case Environment.PRODUCTION:
+        BloomParseServer.Source = Environment.PRODUCTION;
         break;
       default:
         BloomParseServer.Source = BloomParseServer.DefaultSource;
@@ -27,9 +31,11 @@ export default class BloomParseServer {
 
   public static getParseUrlBase(): string {
     switch (BloomParseServer.Source) {
-      case BloomParseServerMode.DEVELOPMENT:
+      case Environment.UNITTEST:
+        return "https://bloom-parse-server-unittest.azurewebsites.net/parse";
+      case Environment.DEVELOPMENT:
         return "https://dev-parse.bloomlibrary.org";
-      case BloomParseServerMode.PRODUCTION:
+      case Environment.PRODUCTION:
       default:
         return "https://parse.bloomlibrary.org";
     }
@@ -49,12 +55,12 @@ export default class BloomParseServer {
 
   public static getParseAppId(): string {
     switch (BloomParseServer.Source) {
-      case BloomParseServerMode.DEVELOPMENT:
+      case Environment.DEVELOPMENT:
         return (
           process.env["OpdsParseAppIdDev"] ||
           "OpdsParseAppIdDev is missing from env!"
         );
-      case BloomParseServerMode.PRODUCTION:
+      case Environment.PRODUCTION:
       default:
         return (
           process.env["OpdsParseAppIdProd"] ||
@@ -65,12 +71,12 @@ export default class BloomParseServer {
 
   public static getParseReadOnlyMasterKey(): string {
     switch (BloomParseServer.Source) {
-      case BloomParseServerMode.DEVELOPMENT:
+      case Environment.DEVELOPMENT:
         return (
           process.env["ParseReadOnlyMasterKeyDev"] ||
           "ParseReadOnlyMasterKeyDev is missing from env!"
         );
-      case BloomParseServerMode.PRODUCTION:
+      case Environment.PRODUCTION:
       default:
         return (
           process.env["ParseReadOnlyMasterKeyProd"] ||

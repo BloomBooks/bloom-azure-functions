@@ -7,11 +7,11 @@ export async function handleUploadFinish(
   context: Context,
   req: HttpRequest,
   userInfo: any,
-  env: "prod" | "dev"
+  env: "prod" | "dev" | "unit-test"
 ): Promise<void> {
   switch (req.method) {
-    case "GET":
-      await handleUploadFinishGet(context, req, userInfo, env);
+    case "POST":
+      await handleUploadFinishPost(context, req, userInfo, env);
       return;
     default:
       context.res = {
@@ -22,11 +22,11 @@ export async function handleUploadFinish(
   }
 }
 
-async function handleUploadFinishGet( // TODO rename
+async function handleUploadFinishPost( // TODO rename
   context: Context,
   req: HttpRequest,
   userInfo: any,
-  env: "prod" | "dev"
+  env: "prod" | "dev" | "unit-test"
 ) {
   const queryParams = req.query;
 

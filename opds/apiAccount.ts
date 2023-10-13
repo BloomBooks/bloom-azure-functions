@@ -1,11 +1,11 @@
 import BloomParseServer, {
-  BloomParseServerMode,
+  Environment,
   ApiAccount,
 } from "../common/BloomParseServer";
 
 export async function getApiAccount(
   key: string,
-  devOrProductionServer?: BloomParseServerMode
+  devOrProductionServer?: Environment
 ): Promise<{
   account?: ApiAccount;
   resultCode: number;
@@ -39,10 +39,10 @@ export async function getApiAccount(
 
     const account = await BloomParseServer.getApiAccount(objectId);
 
-    /* [JH] I'm backing off this because frankly I'm having trouble finding what is wrong on prod, so 
+    /* [JH] I'm backing off this because frankly I'm having trouble finding what is wrong on prod, so
     I want this feedback there.
     // Only on dev, we give more information about what went wrong
-    //if (BloomParseServer.DefaultSource == BloomParseServerMode.DEVELOPMENT) {
+    //if (BloomParseServer.DefaultSource == Environment.DEVELOPMENT) {
       */
     if (!account) {
       return {
@@ -63,7 +63,7 @@ export async function getApiAccount(
       };
     }
 
-    /* [JH] I'm backing off this because frankly I'm having trouble finding what is wrong on prod, so 
+    /* [JH] I'm backing off this because frankly I'm having trouble finding what is wrong on prod, so
     I want this feedback there.
     Note, for some (probably unneeded) security, we don't tell the user what we know about what went wrong.
     if (!account || account.user.username !== keyParts[0]) {

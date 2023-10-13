@@ -16,7 +16,10 @@ const kS3Region = "us-east-1";
 import { STSClient, GetFederationTokenCommand } from "@aws-sdk/client-sts"; // ES Modules import
 
 // TODO compare this with extractBookFilename and getS3LinkBase from BloomParseSErver
-export function getS3PrefixFromEncodedPath(path: string, env: "prod" | "dev") {
+export function getS3PrefixFromEncodedPath(
+  path: string,
+  env: "prod" | "dev" | "unit-test"
+) {
   // sanity check if book is from a different bucket than env
   if (!path.includes(getBucketName(env))) {
     throw new Error("book path and source do not match");
@@ -28,7 +31,10 @@ export function getS3PrefixFromEncodedPath(path: string, env: "prod" | "dev") {
   // ("noel_chou@sil.org/fdb49f4f-4414-4269-ab1c-38ad8658a22d/BL-12238 test5+in+test5Damal/");
 }
 
-export function getS3UrlFromPrefix(prefix: string, env: "prod" | "dev") {
+export function getS3UrlFromPrefix(
+  prefix: string,
+  env: "prod" | "dev" | "unit-test"
+) {
   const encodedPrefix = urlEncode(prefix);
   return `https://s3.amazonaws.com/${getBucketName(env)}/${encodedPrefix}`;
 }
@@ -41,7 +47,10 @@ function unencode(path: string) {
   return path.replace("%40", "@").replace(/%2f/g, "/").replace(/\+/g, " ");
 }
 
-async function listPrefixContents(prefix: string, env: "prod" | "dev") {
+async function listPrefixContents(
+  prefix: string,
+  env: "prod" | "dev" | "unit-test"
+) {
   //  TODO make sure this gets all descendant levels
   const client = getS3Client();
   const listCommandInput = {
@@ -53,7 +62,10 @@ async function listPrefixContents(prefix: string, env: "prod" | "dev") {
   return listResponse.Contents;
 }
 
-export async function allowPublicRead(prefix: string, env: "prod" | "dev") {
+export async function allowPublicRead(
+  prefix: string,
+  env: "prod" | "dev" | "unit-test"
+) {
   const bookFiles = await listPrefixContents(prefix, env);
   const client = getS3Client();
   if (!bookFiles) {
@@ -76,7 +88,10 @@ export async function allowPublicRead(prefix: string, env: "prod" | "dev") {
   }
 }
 
-export async function deleteBook(bookPath: string, env: "prod" | "dev") {
+export async function deleteBook(
+  bookPath: string,
+  env: "prod" | "dev" | "unit-test"
+) {
   const bookPathPrefix = getS3PrefixFromEncodedPath(bookPath, env);
   const bookFiles = await listPrefixContents(bookPathPrefix, env);
   if (!bookFiles) {
@@ -95,7 +110,7 @@ export async function deleteBook(bookPath: string, env: "prod" | "dev") {
 export async function copyBook(
   srcPath: string,
   destPath: string,
-  env: "prod" | "dev"
+  env: "prod" | "dev" | "unit-test"
 ) {
   const client = getS3Client();
 
@@ -161,7 +176,7 @@ export async function getTemporaryS3Credentials(prefix: string) {
   }
 }
 
-export function getBucketName(env: "prod" | "dev") {
+export function getBucketName(env: "prod" | "dev" | "unit-test") {
   // TODO switch to switch statement?
   if (env === "prod") {
     return kProductionS3BucketName;

@@ -1,7 +1,5 @@
 import { AzureFunction, Context, HttpRequest } from "@azure/functions";
-import BloomParseServer, {
-  BloomParseServerMode,
-} from "../common/BloomParseServer";
+import BloomParseServer, { Environment } from "../common/BloomParseServer";
 import { handleUploadStart } from "./uploadStart";
 import { handleUploadFinish } from "./uploadFinish";
 import { allowPublicRead } from "./s3";
@@ -11,8 +9,10 @@ const book: AzureFunction = async function (
   req: HttpRequest
 ): Promise<void> {
   const queryParams = req.query;
-  const env = queryParams["env"] as BloomParseServerMode;
-  if (env === "dev") {
+  const env = queryParams["env"] as Environment;
+  if (env === "unit-test") {
+    BloomParseServer.setServer("unit-test");
+  } else if (src === "dev") {
     BloomParseServer.setServer("dev");
   } else {
     BloomParseServer.setServer("prod");

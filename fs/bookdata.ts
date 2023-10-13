@@ -1,6 +1,4 @@
-import BloomParseServer, {
-  BloomParseServerMode,
-} from "../common/BloomParseServer";
+import BloomParseServer, { Environment } from "../common/BloomParseServer";
 
 export default class BookData {
   // Get the real URL for the content based on the input URL parameters.
@@ -16,19 +14,19 @@ export default class BookData {
     switch (params.bucket) {
       case "upload":
         bucket = "BloomLibraryBooks";
-        source = BloomParseServerMode.PRODUCTION;
+        source = Environment.PRODUCTION;
         break;
       case "dev-upload":
         bucket = "BloomLibraryBooks-Sandbox";
-        source = BloomParseServerMode.DEVELOPMENT;
+        source = Environment.DEVELOPMENT;
         break;
       case "harvest":
         bucket = "bloomharvest";
-        source = BloomParseServerMode.PRODUCTION;
+        source = Environment.PRODUCTION;
         break;
       case "dev-harvest":
         bucket = "bloomharvest-sandbox";
-        source = BloomParseServerMode.DEVELOPMENT;
+        source = Environment.DEVELOPMENT;
         break;
       default:
         return null;

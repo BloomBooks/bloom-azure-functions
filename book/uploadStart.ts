@@ -10,11 +10,11 @@ export async function handleUploadStart(
   context: Context,
   req: HttpRequest,
   userInfo: any,
-  env: "prod" | "dev"
+  env: "prod" | "dev" | "unit-test"
 ): Promise<void> {
   switch (req.method) {
-    case "GET":
-      await handleUploadStartGet(context, req, userInfo, env);
+    case "POST":
+      await handleUploadStartPost(context, req, userInfo, env);
       return;
     default:
       context.res = {
@@ -25,11 +25,11 @@ export async function handleUploadStart(
   }
 }
 
-async function handleUploadStartGet( // TODO rename
+async function handleUploadStartPost( // TODO rename
   context: Context,
   req: HttpRequest,
   userInfo: any,
-  env: "prod" | "dev"
+  env: "prod" | "dev" | "unit-test"
 ) {
   const queryParams = req.query;
 

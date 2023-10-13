@@ -1,7 +1,7 @@
 import BookEntry from "./bookentry";
 import BloomParseServer, {
   ApiAccount,
-  BloomParseServerMode,
+  Environment,
 } from "../common/BloomParseServer";
 
 const kOpdsNavigationTypeAttribute = `type="application/atom+xml;profile=opds-catalog;kind=navigation"`;
@@ -196,7 +196,7 @@ export default class Catalog {
       },
       {
         name: "src",
-        default: BloomParseServerMode.PRODUCTION,
+        default: Environment.PRODUCTION,
       },
       {
         name: "epub",

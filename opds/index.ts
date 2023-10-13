@@ -1,7 +1,7 @@
 import { AzureFunction, Context, HttpRequest } from "@azure/functions";
 import BloomParseServer, {
   ApiAccount,
-  BloomParseServerMode,
+  Environment,
 } from "../common/BloomParseServer";
 import { getApiAccount } from "./apiAccount";
 import Catalog from "./catalog";
@@ -33,7 +33,7 @@ const opds: AzureFunction = async function (
   if (params["key"]) {
     const accountResult = await getApiAccount(
       params["key"],
-      params["src"] as BloomParseServerMode
+      params["src"] as Environment
     );
     if (accountResult.resultCode) {
       context.res = {
