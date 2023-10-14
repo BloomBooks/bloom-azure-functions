@@ -1,4 +1,3 @@
-// import https from "https";
 import {
   CopyObjectCommand,
   DeleteObjectsCommand,
@@ -7,19 +6,16 @@ import {
   PutObjectCommand,
   S3Client,
 } from "@aws-sdk/client-s3";
-import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 const kUnitTestS3BucketName = "BloomLibraryBooks-UnitTests";
 const kSandboxS3BucketName = "BloomLibraryBooks-Sandbox";
 const kProductionS3BucketName = "BloomLibraryBooks";
 const kS3Region = "us-east-1";
 import { STSClient, GetFederationTokenCommand } from "@aws-sdk/client-sts"; // ES Modules import
+import { escape } from "querystring";
+import { Environment } from "./utils";
 
-// TODO compare this with extractBookFilename and getS3LinkBase from BloomParseSErver
-export function getS3PrefixFromEncodedPath(
-  path: string,
-  env: "prod" | "dev" | "unit-test"
-) {
+export function getS3PrefixFromEncodedPath(path: string, env: Environment) {
   // sanity check if book is from a different bucket than env
   if (!path.includes(getBucketName(env))) {
     throw new Error("book path and source do not match");
@@ -28,29 +24,23 @@ export function getS3PrefixFromEncodedPath(
   const lastSlashIndex = path.lastIndexOf("/");
   const urlEncodedPrefix = path.substring(lastSlashIndex + 1);
   return unencode(urlEncodedPrefix);
-  // ("noel_chou@sil.org/fdb49f4f-4414-4269-ab1c-38ad8658a22d/BL-12238 test5+in+test5Damal/");
 }
 
-export function getS3UrlFromPrefix(
-  prefix: string,
-  env: "prod" | "dev" | "unit-test"
-) {
-  const encodedPrefix = urlEncode(prefix);
-  return `https://s3.amazonaws.com/${getBucketName(env)}/${encodedPrefix}`;
-}
-
-function urlEncode(str: string) {
-  return str.replace("@", "%40").replace("/", "%2f").replace(/ /g, "+");
+export function urlEncode(str: string) {
+  const a = encodeURIComponent(str);
+  const b = escape(str);
+  return encodeURIComponent(str); // TODO does this encoding work?
+  // return str.replace("@", "%40").replace(/\//g, "%2f").replace(/ /g, "+");
 }
 
 function unencode(path: string) {
-  return path.replace("%40", "@").replace(/%2f/g, "/").replace(/\+/g, " ");
+  const a = decodeURIComponent(path);
+  const b = unescape(path);
+  return decodeURIComponent(path);
+  // TODO  make sure spaces are getting decoded properly, whether + or %20
 }
 
-async function listPrefixContents(
-  prefix: string,
-  env: "prod" | "dev" | "unit-test"
-) {
+async function listPrefixContents(prefix: string, env: Environment) {
   //  TODO make sure this gets all descendant levels
   const client = getS3Client();
   const listCommandInput = {
@@ -62,22 +52,16 @@ async function listPrefixContents(
   return listResponse.Contents;
 }
 
-export async function allowPublicRead(
-  prefix: string,
-  env: "prod" | "dev" | "unit-test"
-) {
+export async function allowPublicRead(prefix: string, env: Environment) {
   const bookFiles = await listPrefixContents(prefix, env);
   const client = getS3Client();
   if (!bookFiles) {
-    throw new Error("ListObjectsV2Command returned no contents"); // TODO redo
+    throw new Error("ListObjectsV2Command returned no contents");
   }
   const bucket = getBucketName(env);
   //for each object in listResponse, copy it to the destination
-  for (let i = 0; i < bookFiles.length; i++) {
-    // TODO can this be a foreach?
-    const object = bookFiles[i];
-    const key = object.Key;
-
+  for (const bookFile of bookFiles) {
+    const key = bookFile.Key;
     const input = {
       Bucket: bucket,
       ACL: "public-read",
@@ -85,17 +69,18 @@ export async function allowPublicRead(
     };
     const command = new PutObjectAclCommand(input);
     const response = await client.send(command);
+    if (response.$metadata.httpStatusCode !== 200) {
+      // TODO test
+      throw new Error("Allow public read failed");
+    }
   }
 }
 
-export async function deleteBook(
-  bookPath: string,
-  env: "prod" | "dev" | "unit-test"
-) {
+export async function deleteBook(bookPath: string, env: Environment) {
   const bookPathPrefix = getS3PrefixFromEncodedPath(bookPath, env);
   const bookFiles = await listPrefixContents(bookPathPrefix, env);
   if (!bookFiles) {
-    throw new Error("ListObjectsV2Command returned no contents"); // TODO redo
+    throw new Error("ListObjectsV2Command returned no contents");
   }
   const client = getS3Client();
   const deleteCommand = new DeleteObjectsCommand({
@@ -105,25 +90,24 @@ export async function deleteBook(
     },
   });
   const response = await client.send(deleteCommand);
+  // TODO future work: we want this to somehow notify us of the now-orphan old book files
 }
 
 export async function copyBook(
   srcPath: string,
   destPath: string,
-  env: "prod" | "dev" | "unit-test"
+  env: Environment
 ) {
   const client = getS3Client();
 
   const bookFiles = await listPrefixContents(srcPath, env);
   if (!bookFiles) {
-    throw new Error("ListObjectsV2Command returned no contents"); // TODO redo
+    throw new Error("ListObjectsV2Command returned no contents");
   }
   const bucket = getBucketName(env);
   //for each object in listResponse, copy it to the destination
-  for (let i = 0; i < bookFiles.length; i++) {
-    // TODO can this be a foreach?
-    const object = bookFiles[i];
-    const key = object.Key;
+  for (const bookFile of bookFiles) {
+    const key = bookFile.Key;
 
     const copyCommandInput = {
       Bucket: bucket,
@@ -132,7 +116,11 @@ export async function copyBook(
     };
 
     const copyCommand = new CopyObjectCommand(copyCommandInput);
-    const response = await client.send(copyCommand); // TODO what if errors?
+    const response = await client.send(copyCommand);
+    if (response.$metadata.httpStatusCode !== 200) {
+      // TODO test
+      throw new Error("CopyObjectCommand failed");
+    }
   }
 }
 
@@ -158,15 +146,7 @@ export async function getTemporaryS3Credentials(prefix: string) {
     const input = {
       Name: "testTemporaryCredentialsName",
       Policy: policy,
-      // DurationSeconds: Number("int"),
-      // Tags: [
-      //   // tagListType
-      //   {
-      //     // Tag
-      //     Key: "STRING_VALUE", // required
-      //     Value: "STRING_VALUE", // required
-      //   },
-      // ],
+      DurationSeconds: 86400, // 24 hours
     };
     const command = new GetFederationTokenCommand(input);
     const response = await client.send(command);
@@ -176,14 +156,14 @@ export async function getTemporaryS3Credentials(prefix: string) {
   }
 }
 
-export function getBucketName(env: "prod" | "dev" | "unit-test") {
-  // TODO switch to switch statement?
-  if (env === "prod") {
-    return kProductionS3BucketName;
-  } else if (env === "dev") {
-    return kSandboxS3BucketName;
-  } else {
-    throw new Error("Invalid env parameter"); // TODO is this still neccesary?
+export function getBucketName(env: Environment) {
+  switch (env) {
+    case Environment.PRODUCTION:
+      return kProductionS3BucketName;
+    case Environment.DEVELOPMENT:
+      return kSandboxS3BucketName;
+    case Environment.UNITTEST:
+      return kUnitTestS3BucketName;
   }
 }
 

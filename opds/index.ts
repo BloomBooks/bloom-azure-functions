@@ -1,8 +1,6 @@
 import { AzureFunction, Context, HttpRequest } from "@azure/functions";
-import BloomParseServer, {
-  ApiAccount,
-  Environment,
-} from "../common/BloomParseServer";
+import BloomParseServer, { ApiAccount } from "../common/BloomParseServer";
+import { Environment } from "../common/utils";
 import { getApiAccount } from "./apiAccount";
 import Catalog from "./catalog";
 

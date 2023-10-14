@@ -1,7 +1,5 @@
-import BloomParseServer, {
-  Environment,
-  ApiAccount,
-} from "../common/BloomParseServer";
+import BloomParseServer, { ApiAccount } from "../common/BloomParseServer";
+import { Environment } from "../common/utils";
 
 export async function getApiAccount(
   key: string,

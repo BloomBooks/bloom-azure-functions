@@ -1,4 +1,5 @@
-import BloomParseServer, { Environment } from "../common/BloomParseServer";
+import BloomParseServer from "../common/BloomParseServer";
+import { Environment } from "../common/utils";
 
 export default class BookData {
   // Get the real URL for the content based on the input URL parameters.

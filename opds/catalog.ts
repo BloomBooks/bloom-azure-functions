@@ -1,8 +1,6 @@
 import BookEntry from "./bookentry";
-import BloomParseServer, {
-  ApiAccount,
-  Environment,
-} from "../common/BloomParseServer";
+import BloomParseServer, { ApiAccount } from "../common/BloomParseServer";
+import { Environment } from "../common/utils";
 
 const kOpdsNavigationTypeAttribute = `type="application/atom+xml;profile=opds-catalog;kind=navigation"`;
 

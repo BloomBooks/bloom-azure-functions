@@ -1,4 +1,5 @@
-import BloomParseServer, { Environment } from "./BloomParseServer";
+import BloomParseServer from "../common/BloomParseServer";
+import { Environment } from "./utils";
 
 describe("BloomParseServer", () => {
   beforeAll(() => {

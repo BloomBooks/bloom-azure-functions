@@ -1,12 +1,5 @@
 import axios from "axios";
-
-// For testing and development, we prefer to use the parse table associated with the development Bloom Library.
-// For production, we need to use the parse table associated with the production Bloom Library.
-export enum Environment {
-  UNITTEST = "unit-test",
-  DEVELOPMENT = "dev",
-  PRODUCTION = "prod",
-}
+import { Environment } from "./utils";
 
 export default class BloomParseServer {
   public static DefaultSource: string = Environment.PRODUCTION;
@@ -446,17 +439,28 @@ export default class BloomParseServer {
     }
   }
 
-  public static async updateBaseUrl(
+  public static async createBookRecord(bookInfo: any, sessionToken: string) {
+    const results = await axios.post(
+      BloomParseServer.getParseTableUrl("books"),
+      bookInfo,
+      {
+        headers: {
+          "X-Parse-Application-Id": BloomParseServer.getParseAppId(),
+          "X-Parse-Session-Token": sessionToken,
+        },
+      }
+    );
+    return results.data;
+  }
+
+  public static async modifyBookRecord(
     bookObjectId: string,
-    baseUrl: string,
+    bookInfo: any,
     sessionToken: string
   ) {
-    // TODO copilot wrote this, does it work?
     const results = await axios.put(
       BloomParseServer.getParseTableUrl("books") + "/" + bookObjectId,
-      {
-        baseUrl,
-      },
+      bookInfo,
       {
         headers: {
           "X-Parse-Application-Id": BloomParseServer.getParseAppId(),

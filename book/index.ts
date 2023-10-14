@@ -1,8 +1,9 @@
 import { AzureFunction, Context, HttpRequest } from "@azure/functions";
-import BloomParseServer, { Environment } from "../common/BloomParseServer";
+import BloomParseServer from "../common/BloomParseServer";
+import { Environment } from "../common/utils";
 import { handleUploadStart } from "./uploadStart";
 import { handleUploadFinish } from "./uploadFinish";
-import { allowPublicRead } from "./s3";
+import { allowPublicRead } from "../common/s3";
 
 const book: AzureFunction = async function (
   context: Context,
@@ -10,16 +11,22 @@ const book: AzureFunction = async function (
 ): Promise<void> {
   const queryParams = req.query;
   const env = queryParams["env"] as Environment;
-  if (env === "unit-test") {
-    BloomParseServer.setServer("unit-test");
-  } else if (src === "dev") {
-    BloomParseServer.setServer("dev");
+  if (env === Environment.UNITTEST) {
+    BloomParseServer.setServer(Environment.UNITTEST);
+  } else if (env === Environment.DEVELOPMENT) {
+    BloomParseServer.setServer(Environment.DEVELOPMENT);
   } else {
-    BloomParseServer.setServer("prod");
+    BloomParseServer.setServer(Environment.PRODUCTION);
   }
 
   const userInfo = await getUserFromSession(context, req);
-  if (!userInfo) return; //TODO what happens here?
+  if (!userInfo) {
+    context.res = {
+      status: 400,
+      body: "Invalid session token",
+    };
+    return;
+  }
 
   switch (req.params.action) {
     case "upload-start":
@@ -41,10 +48,6 @@ const book: AzureFunction = async function (
 async function getUserFromSession(context: Context, req: HttpRequest) {
   // Note that req.headers' keys are all lower case.
   let sessionToken = req.headers["session-token"];
-  // TODO delete session token getting below:
-  if (!sessionToken) {
-    sessionToken = req.query["session-token"];
-  }
   const userInfo = await BloomParseServer.getLoggedInUserInfo(sessionToken);
   if (!userInfo) {
     context.res = {
