@@ -3,7 +3,6 @@ import BloomParseServer from "../common/BloomParseServer";
 import { Environment } from "../common/utils";
 import { handleUploadStart } from "./uploadStart";
 import { handleUploadFinish } from "./uploadFinish";
-import { allowPublicRead } from "../common/s3";
 
 const book: AzureFunction = async function (
   context: Context,
@@ -23,7 +22,7 @@ const book: AzureFunction = async function (
   if (!userInfo) {
     context.res = {
       status: 400,
-      body: "Invalid session token",
+      body: "Unable to validate user. Did you include a valid session token header?",
     };
     return;
   }
@@ -48,15 +47,7 @@ const book: AzureFunction = async function (
 async function getUserFromSession(context: Context, req: HttpRequest) {
   // Note that req.headers' keys are all lower case.
   let sessionToken = req.headers["session-token"];
-  const userInfo = await BloomParseServer.getLoggedInUserInfo(sessionToken);
-  if (!userInfo) {
-    context.res = {
-      status: 400,
-      body: "Invalid session token",
-    };
-    return;
-  }
-  return userInfo;
+  return await BloomParseServer.getLoggedInUserInfo(sessionToken);
 }
 
 export default book;

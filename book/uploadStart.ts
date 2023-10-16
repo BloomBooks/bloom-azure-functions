@@ -34,8 +34,6 @@ export async function handleUploadStart(
   }
 
   const currentTime = urlEncode(new Date().toISOString());
-  const encodedBookTitle = urlEncode(bookTitle);
-
   const prefix = "noel_chou@sil.org/testCopyBook8/"; // TODO just for testing
   // const prefix = `${bookObjectId}/${currentTime}/${encodedBookTitle}/`;
   const bookObjectId = queryParams["book-object-id"];

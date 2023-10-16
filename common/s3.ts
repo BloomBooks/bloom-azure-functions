@@ -3,7 +3,6 @@ import {
   DeleteObjectsCommand,
   ListObjectsV2Command,
   PutObjectAclCommand,
-  PutObjectCommand,
   S3Client,
 } from "@aws-sdk/client-s3";
 
@@ -36,8 +35,8 @@ export function urlEncode(str: string) {
 function unencode(path: string) {
   const a = decodeURIComponent(path);
   const b = unescape(path);
-  return decodeURIComponent(path);
-  // TODO  make sure spaces are getting decoded properly, whether + or %20
+  return decodeURIComponent(path).replace(/\+/g, " ");
+  // TODO + for spaces do not decode properly
 }
 
 async function listPrefixContents(prefix: string, env: Environment) {
@@ -170,3 +169,5 @@ export function getBucketName(env: Environment) {
 function getS3Client() {
   return new S3Client({ region: kS3Region });
 }
+
+//hCcJWQoj1I
