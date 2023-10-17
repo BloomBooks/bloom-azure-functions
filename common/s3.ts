@@ -26,14 +26,14 @@ export function getS3PrefixFromEncodedPath(path: string, env: Environment) {
 }
 
 export function urlEncode(str: string) {
-  const a = encodeURIComponent(str);
+  const a = encodeURIComponent(str); // TODO delete
   const b = escape(str);
   return encodeURIComponent(str); // TODO does this encoding work?
   // return str.replace("@", "%40").replace(/\//g, "%2f").replace(/ /g, "+");
 }
 
 function unencode(path: string) {
-  const a = decodeURIComponent(path);
+  const a = decodeURIComponent(path); // TODO delete
   const b = unescape(path);
   return decodeURIComponent(path).replace(/\+/g, " ");
   // TODO + for spaces do not decode properly

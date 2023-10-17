@@ -4,7 +4,6 @@ import {
   copyBook,
   getS3PrefixFromEncodedPath,
   getTemporaryS3Credentials,
-  urlEncode,
 } from "../common/s3";
 import { Environment } from "../common/utils";
 
@@ -22,26 +21,46 @@ export async function handleUploadStart(
     return;
   }
 
-  const queryParams = req.query;
+  const sessionToken = req.headers["session-token"];
 
-  const bookTitle = queryParams["book-title"];
+  const queryParams = req.query;
+  const currentTime = Date.now();
+  let bookRecord = { ...req.body, uploadPendingTimestamp: currentTime };
+
+  const bookTitle = bookRecord.title;
   if (bookTitle === undefined) {
     context.res = {
       status: 400,
-      body: "Please provide a book title",
+      body: "Please provide a valid book record including a title in the request body",
     };
     return;
   }
 
-  const currentTime = urlEncode(new Date().toISOString());
-  const prefix = "noel_chou@sil.org/testCopyBook8/"; // TODO just for testing
-  // const prefix = `${bookObjectId}/${currentTime}/${encodedBookTitle}/`;
-  const bookObjectId = queryParams["book-object-id"];
-  if (bookObjectId !== undefined) {
+  let bookObjectId = queryParams["book-object-id"];
+  const isNewBook = bookObjectId === undefined;
+  if (isNewBook) {
+    try {
+      bookObjectId = await BloomParseServer.createBookRecord(
+        bookRecord,
+        sessionToken
+      );
+    } catch (err) {
+      context.res = {
+        status: 400,
+        body: "Unable to create book record",
+      };
+      return;
+    }
+  }
+
+  const prefix = `noel_chou@sil.org/uploadTest/${bookObjectId}/${currentTime}/${bookTitle}/`; // TODO just for testing
+  // const prefix = `${bookObjectId}/${currentTime}/${bookTitle}/`;
+
+  if (!isNewBook) {
+    // we are modifying an existing book. Check that we have permission, then copy old book to new folder for efficient syncing
     const existingBookInfo = await BloomParseServer.getBookInfoByObjectId(
       bookObjectId
     );
-    // we are modifying an existing book. Check that we have permission, then copy old book to new folder for efficient syncing
     if (!BloomParseServer.canModifyBook(userInfo, existingBookInfo)) {
       context.res = {
         status: 400,
@@ -63,7 +82,11 @@ export async function handleUploadStart(
       };
       return;
     }
+
+    // TODO note, this could overwrite fields of the book record
+    BloomParseServer.modifyBookRecord(bookObjectId, bookRecord, sessionToken);
   }
+
   try {
     var tempCredentials = await getTemporaryS3Credentials(prefix);
   } catch (err) {
@@ -77,8 +100,12 @@ export async function handleUploadStart(
   context.res = {
     status: 200,
     body: {
-      "s3-path": prefix, // TODO return a url-safe encoded prefix...are we sure?
+      "s3-path": prefix,
       credentials: tempCredentials,
     },
   };
 }
+
+//TODO
+// test case where failure beteween uplaod start and upload fail, and then upload start again. Make sure it happens in the case where upload fail after cleanup
+// write some cleanup task

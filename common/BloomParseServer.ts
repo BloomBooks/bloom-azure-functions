@@ -440,17 +440,25 @@ export default class BloomParseServer {
   }
 
   public static async createBookRecord(bookInfo: any, sessionToken: string) {
-    const results = await axios.post(
-      BloomParseServer.getParseTableUrl("books"),
-      bookInfo,
-      {
-        headers: {
-          "X-Parse-Application-Id": BloomParseServer.getParseAppId(),
-          "X-Parse-Session-Token": sessionToken,
-        },
-      }
-    );
-    return results.data;
+    // Can't use getParseTableUrl() which gives https://dev-parse.bloomlibrary.org/classes/books
+    // because then there's a redirect which turns the POST into a GET
+    // TODO not sure how to refactor for this. Where to put this url?
+    const url =
+      "https://bloom-parse-server-develop.azurewebsites.net/parse/classes/books";
+    const results = await axios.post(url, bookInfo, {
+      headers: {
+        "X-Parse-Application-Id": BloomParseServer.getParseAppId(),
+        "X-Parse-Session-Token": sessionToken,
+        "Content-Type": "application/json",
+      },
+    });
+    const a = results.data;
+    if (results.status !== 201) {
+      throw new Error(
+        `Failed to create book record`
+      );
+    }
+    return results.data.objectId;
   }
 
   public static async modifyBookRecord(
