@@ -24,13 +24,13 @@ export default class BloomParseServer {
 
   public static getParseUrlBase(): string {
     switch (BloomParseServer.Source) {
-      case Environment.UNITTEST:
-        return "https://bloom-parse-server-unittest.azurewebsites.net/parse";
-      case Environment.DEVELOPMENT:
-        return "https://dev-parse.bloomlibrary.org";
       case Environment.PRODUCTION:
       default:
-        return "https://parse.bloomlibrary.org";
+        return "https://server.bloomlibrary.org/parse";
+      case Environment.DEVELOPMENT:
+        return "https://dev-server.bloomlibrary.org/parse";
+      case Environment.UNITTEST:
+        return "https://bloom-parse-server-unittest.azurewebsites.net/parse";
     }
   }
 
@@ -48,16 +48,23 @@ export default class BloomParseServer {
 
   public static getParseAppId(): string {
     switch (BloomParseServer.Source) {
-      case Environment.DEVELOPMENT:
-        return (
-          process.env["OpdsParseAppIdDev"] ||
-          "OpdsParseAppIdDev is missing from env!"
-        );
       case Environment.PRODUCTION:
       default:
         return (
+          process.env["ParseAppIdProd"] ||
           process.env["OpdsParseAppIdProd"] ||
-          "OpdsParseAppIdProd is missing from env!"
+          "ParseAppIdProd is missing from env!"
+        );
+      case Environment.DEVELOPMENT:
+        return (
+          process.env["ParseAppIdDev"] ||
+          process.env["OpdsParseAppIdDev"] ||
+          "ParseAppIdDev is missing from env!"
+        );
+      case Environment.UNITTEST:
+        return (
+          process.env["ParseAppIdUnitTest"] ||
+          "ParseAppIdUnitTest is missing from env!"
         );
     }
   }
@@ -454,9 +461,7 @@ export default class BloomParseServer {
     });
     const a = results.data;
     if (results.status !== 201) {
-      throw new Error(
-        `Failed to create book record`
-      );
+      throw new Error(`Failed to create book record`);
     }
     return results.data.objectId;
   }

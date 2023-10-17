@@ -38,10 +38,11 @@ The resulting production url for functions is then `api.bloomlibrary.org/v1/__FU
 
 # Environment Variables
 
-Two environment variables need to be set for the **opds** and **fs** functions to access the relevant parse tables.
+Two environment variables need to be set for the **book**, **opds**, and **fs** functions to access the relevant parse tables.
 
-- _OpdsParseAppIdDev_ - the APP\*ID from the bloom-parse-server-develop configuration in Azure
-- _OpdsParseAppIdProd_ - the APP\*ID from the bloom-parse-server-production configuration in Azure
+- _ParseAppIdProd_ - the APP_ID from the bloom-parse-server-production configuration in Azure
+- _ParseAppIdDev_ - the APP_ID from the bloom-parse-server-develop configuration in Azure
+- _ParseAppIdUnitTest_ - the APP_ID from the bloom-parse-server-unittest configuration in Azure
 
 ### postgreSQL connection variables
 
