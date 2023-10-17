@@ -1,7 +1,13 @@
 import { Context, HttpRequest } from "@azure/functions";
 import BloomParseServer from "../common/BloomParseServer";
-import { allowPublicRead, deleteBook } from "../common/s3";
+import {
+  allowPublicRead,
+  deleteBook,
+  getS3PrefixFromEncodedPath,
+  getS3UrlFromPrefix,
+} from "../common/s3";
 import { Environment } from "../common/utils";
+import { get } from "http";
 
 export async function handleUploadFinish(
   context: Context,
@@ -19,8 +25,27 @@ export async function handleUploadFinish(
 
   const queryParams = req.query;
 
-  const newS3Path = req.body.baseUrl;
-  if (newS3Path === undefined) {
+  let sessionToken = req.headers["session-token"];
+
+  const bookId = queryParams["book-object-id"];
+  if (bookId === undefined) {
+    context.res = {
+      status: 400,
+      body: "Please provide a valid book ID",
+    };
+    return;
+  }
+  const bookInfo = await BloomParseServer.getBookInfoByObjectId(bookId);
+  if (!BloomParseServer.canModifyBook(userInfo, bookInfo)) {
+    context.res = {
+      status: 400,
+      body: "Please provide a valid session ID and book ID",
+    };
+    return;
+  }
+
+  const newBaseUrl = req.body.baseUrl;
+  if (newBaseUrl === undefined) {
     context.res = {
       status: 400,
       body: "Please provide valid book info, including a baseURl, in the body",
@@ -28,49 +53,30 @@ export async function handleUploadFinish(
     return;
   }
 
-  let sessionToken = req.headers["session-token"];
+  // TODO uncomment
+  // if (!newBaseUrl.startsWith(getS3UrlFromPrefix(bookId, env))) {
+  //   context.res = {
+  //     status: 400,
+  //     body: "Invalid book base URL. Please use the prefix provided by the upload start function",
+  //   };
+  //   return;
+  // }
 
-  const bookId = queryParams["book-object-id"];
-  if (bookId === undefined) {
-    try {
-      BloomParseServer.createBookRecord(req.body, sessionToken);
-    } catch (e) {
-      context.res = {
-        status: 500,
-        body: "Error creating parse book record",
-      };
-      return;
-    }
-  } else {
-    const bookInfo = await BloomParseServer.getBookInfoByObjectId(bookId);
-    if (!BloomParseServer.canModifyBook(userInfo, bookInfo)) {
-      context.res = {
-        status: 400,
-        body: "Please provide a valid session ID and book ID",
-      };
-      return;
-    }
+  const oldBaseURl = bookInfo.baseUrl;
 
-    const oldBaseURl = bookInfo.baseUrl;
-    // make sure user has permission to modify the book
-    try {
-      await BloomParseServer.modifyBookRecord(
-        bookId,
-        req.body, // TODO is this right
-        sessionToken
-      );
-    } catch (e) {
-      context.res = {
-        status: 500,
-        body: "Error updating parse book record",
-      };
-      return;
-    }
-    await deleteBook(oldBaseURl, env);
+  try {
+    await BloomParseServer.modifyBookRecord(bookId, req.body, sessionToken);
+  } catch (e) {
+    context.res = {
+      status: 500,
+      body: "Error updating parse book record",
+    };
+    return;
   }
 
   try {
-    await allowPublicRead(newS3Path, env);
+    const newPrefix = getS3PrefixFromEncodedPath(newBaseUrl, env);
+    await allowPublicRead(newPrefix, env);
   } catch (e) {
     context.res = {
       status: 500,
@@ -79,10 +85,13 @@ export async function handleUploadFinish(
     return;
   }
 
+  await deleteBook(oldBaseURl, env);
+
   context.res = {
     status: 200,
     body: "Successfully updated book",
   };
 }
 
-// TODO get the baseUrl with then new s3 path out of the body on finish. We will decide whether it will be url encoded. It will be parsebookid/timestamp/title
+// from upload start, give something that starts with http...s3...no %2f, leave the slashes in the prefix
+// TODO talk more about whether we need a lock on upload-finish,

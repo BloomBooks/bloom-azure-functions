@@ -3,9 +3,12 @@ import BloomParseServer from "../common/BloomParseServer";
 import {
   copyBook,
   getS3PrefixFromEncodedPath,
+  getS3UrlFromPrefix,
   getTemporaryS3Credentials,
 } from "../common/s3";
 import { Environment } from "../common/utils";
+
+const kPendingString = "pending";
 
 export async function handleUploadStart(
   context: Context,
@@ -25,23 +28,24 @@ export async function handleUploadStart(
 
   const queryParams = req.query;
   const currentTime = Date.now();
-  let bookRecord = { ...req.body, uploadPendingTimestamp: currentTime };
-
-  const bookTitle = bookRecord.title;
-  if (bookTitle === undefined) {
-    context.res = {
-      status: 400,
-      body: "Please provide a valid book record including a title in the request body",
-    };
-    return;
-  }
 
   let bookObjectId = queryParams["book-object-id"];
   const isNewBook = bookObjectId === undefined;
   if (isNewBook) {
+    const newBookRecord = {
+      title: kPendingString,
+      bookInstanceId: kPendingString,
+      uploadPendingTimestamp: currentTime,
+      uploader: {
+        __type: "Pointer",
+        className: "_User",
+        objectId: userInfo.objectId,
+      },
+    };
+
     try {
       bookObjectId = await BloomParseServer.createBookRecord(
-        bookRecord,
+        newBookRecord,
         sessionToken
       );
     } catch (err) {
@@ -53,7 +57,7 @@ export async function handleUploadStart(
     }
   }
 
-  const prefix = `noel_chou@sil.org/uploadTest/${bookObjectId}/${currentTime}/${bookTitle}/`; // TODO just for testing
+  const prefix = `noel_chou@sil.org/uploadTest/${bookObjectId}/${currentTime}/`; // TODO just for testing
   // const prefix = `${bookObjectId}/${currentTime}/${bookTitle}/`;
 
   if (!isNewBook) {
@@ -69,12 +73,24 @@ export async function handleUploadStart(
       return;
     }
 
-    const existingBookPath = getS3PrefixFromEncodedPath(
+    let existingBookPath = getS3PrefixFromEncodedPath(
       existingBookInfo.baseUrl,
       env
     );
+    //if the last char of existingBookPath is a slash, remove it
+    if (existingBookPath.endsWith("/")) {
+      existingBookPath = existingBookPath.substring(
+        0,
+        existingBookPath.length - 1
+      );
+    }
+    // take everything up and including the last slash (not including trailing slash)
+    const existingBookPathBeforeTitle = existingBookPath.substring(
+      0,
+      existingBookPath.lastIndexOf("/") + 1
+    );
     try {
-      await copyBook(existingBookPath, prefix, env);
+      await copyBook(existingBookPathBeforeTitle, prefix, env);
     } catch (err) {
       context.res = {
         status: 500,
@@ -82,13 +98,10 @@ export async function handleUploadStart(
       };
       return;
     }
-
-    // TODO note, this could overwrite fields of the book record
-    BloomParseServer.modifyBookRecord(bookObjectId, bookRecord, sessionToken);
   }
 
   try {
-    var tempCredentials = await getTemporaryS3Credentials(prefix);
+    var tempCredentials = await getTemporaryS3Credentials(prefix, env);
   } catch (err) {
     context.res = {
       status: 500,
@@ -97,15 +110,12 @@ export async function handleUploadStart(
     return;
   }
 
+  const s3Path = getS3UrlFromPrefix(prefix, env);
   context.res = {
     status: 200,
     body: {
-      "s3-path": prefix,
+      "s3-path": s3Path,
       credentials: tempCredentials,
     },
   };
 }
-
-//TODO
-// test case where failure beteween uplaod start and upload fail, and then upload start again. Make sure it happens in the case where upload fail after cleanup
-// write some cleanup task

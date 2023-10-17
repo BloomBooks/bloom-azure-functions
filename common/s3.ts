@@ -14,21 +14,32 @@ import { STSClient, GetFederationTokenCommand } from "@aws-sdk/client-sts"; // E
 import { escape } from "querystring";
 import { Environment } from "./utils";
 
+function getS3UrlBase(env) {
+  return `https://s3.amazonaws.com/${getBucketName(env)}/`;
+}
+
 export function getS3PrefixFromEncodedPath(path: string, env: Environment) {
   // sanity check if book is from a different bucket than env
   if (!path.includes(getBucketName(env))) {
-    throw new Error("book path and source do not match");
+    throw new Error("book path and environments do not match");
   }
-  // take everything after the last slash in path
-  const lastSlashIndex = path.lastIndexOf("/");
-  const urlEncodedPrefix = path.substring(lastSlashIndex + 1);
+  const urlBase = getS3UrlBase(env);
+  if (!path.startsWith(urlBase)) {
+    throw new Error(`book path should start with ${urlBase}`);
+  }
+  // remove the url base
+  const urlEncodedPrefix = path.substring(urlBase.length);
   return unencode(urlEncodedPrefix);
+}
+
+export function getS3UrlFromPrefix(prefix: string, env: Environment) {
+  return `${getS3UrlBase(env)}${getBucketName(env)}/${prefix}`;
 }
 
 export function urlEncode(str: string) {
   const a = encodeURIComponent(str); // TODO delete
   const b = escape(str);
-  return encodeURIComponent(str); // TODO does this encoding work?
+  return encodeURIComponent(str);
   // return str.replace("@", "%40").replace(/\//g, "%2f").replace(/ /g, "+");
 }
 
@@ -123,9 +134,13 @@ export async function copyBook(
   }
 }
 
-export async function getTemporaryS3Credentials(prefix: string) {
+export async function getTemporaryS3Credentials(
+  prefix: string,
+  env: Environment
+) {
   try {
     const client = new STSClient({ region: kS3Region });
+    const bucket = getBucketName(env);
     // policy modified from https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_temp_control-access_getfederationtoken.html
     const policy = JSON.stringify({
       Version: "2012-10-17",
@@ -133,12 +148,12 @@ export async function getTemporaryS3Credentials(prefix: string) {
         {
           Effect: "Allow",
           Action: ["s3:ListBucket"],
-          Resource: [`arn:aws:s3:::${prefix}`],
+          Resource: [`arn:aws:s3:::${bucket}`],
         },
         {
           Effect: "Allow",
           Action: ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"],
-          Resource: [`arn:aws:s3:::${prefix}/*`],
+          Resource: [`arn:aws:s3:::${bucket}/${prefix}/*`],
         },
       ],
     });
