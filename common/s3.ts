@@ -11,7 +11,6 @@ const kSandboxS3BucketName = "BloomLibraryBooks-Sandbox";
 const kProductionS3BucketName = "BloomLibraryBooks";
 const kS3Region = "us-east-1";
 import { STSClient, GetFederationTokenCommand } from "@aws-sdk/client-sts"; // ES Modules import
-import { escape } from "querystring";
 import { Environment } from "./utils";
 
 function getS3UrlBase(env) {
@@ -36,22 +35,11 @@ export function getS3UrlFromPrefix(prefix: string, env: Environment) {
   return `${getS3UrlBase(env)}${getBucketName(env)}/${prefix}`;
 }
 
-export function urlEncode(str: string) {
-  const a = encodeURIComponent(str); // TODO delete
-  const b = escape(str);
-  return encodeURIComponent(str);
-  // return str.replace("@", "%40").replace(/\//g, "%2f").replace(/ /g, "+");
-}
-
 function unencode(path: string) {
-  const a = decodeURIComponent(path); // TODO delete
-  const b = unescape(path);
-  return decodeURIComponent(path).replace(/\+/g, " ");
-  // TODO + for spaces do not decode properly
+  return decodeURIComponent(path).replace(/\+/g, " "); // also replaces + with space
 }
 
 async function listPrefixContents(prefix: string, env: Environment) {
-  //  TODO make sure this gets all descendant levels
   const client = getS3Client();
   const listCommandInput = {
     Bucket: getBucketName(env),
@@ -80,7 +68,6 @@ export async function allowPublicRead(prefix: string, env: Environment) {
     const command = new PutObjectAclCommand(input);
     const response = await client.send(command);
     if (response.$metadata.httpStatusCode !== 200) {
-      // TODO test
       throw new Error("Allow public read failed");
     }
   }
@@ -128,7 +115,6 @@ export async function copyBook(
     const copyCommand = new CopyObjectCommand(copyCommandInput);
     const response = await client.send(copyCommand);
     if (response.$metadata.httpStatusCode !== 200) {
-      // TODO test
       throw new Error("CopyObjectCommand failed");
     }
   }
@@ -138,36 +124,32 @@ export async function getTemporaryS3Credentials(
   prefix: string,
   env: Environment
 ) {
-  try {
-    const client = new STSClient({ region: kS3Region });
-    const bucket = getBucketName(env);
-    // policy modified from https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_temp_control-access_getfederationtoken.html
-    const policy = JSON.stringify({
-      Version: "2012-10-17",
-      Statement: [
-        {
-          Effect: "Allow",
-          Action: ["s3:ListBucket"],
-          Resource: [`arn:aws:s3:::${bucket}`],
-        },
-        {
-          Effect: "Allow",
-          Action: ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"],
-          Resource: [`arn:aws:s3:::${bucket}/${prefix}/*`],
-        },
-      ],
-    });
-    const input = {
-      Name: "testTemporaryCredentialsName",
-      Policy: policy,
-      DurationSeconds: 86400, // 24 hours
-    };
-    const command = new GetFederationTokenCommand(input);
-    const response = await client.send(command);
-    return response.Credentials;
-  } catch (err) {
-    console.error(err);
-  }
+  const client = new STSClient({ region: kS3Region });
+  const bucket = getBucketName(env);
+  // policy modified from https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_temp_control-access_getfederationtoken.html
+  const policy = JSON.stringify({
+    Version: "2012-10-17",
+    Statement: [
+      {
+        Effect: "Allow",
+        Action: ["s3:ListBucket"],
+        Resource: [`arn:aws:s3:::${bucket}`],
+      },
+      {
+        Effect: "Allow",
+        Action: ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"],
+        Resource: [`arn:aws:s3:::${bucket}/${prefix}/*`],
+      },
+    ],
+  });
+  const input = {
+    Name: "testTemporaryCredentialsName",
+    Policy: policy,
+    DurationSeconds: 86400, // 24 hours
+  };
+  const command = new GetFederationTokenCommand(input);
+  const response = await client.send(command);
+  return response.Credentials;
 }
 
 export function getBucketName(env: Environment) {
@@ -184,5 +166,3 @@ export function getBucketName(env: Environment) {
 function getS3Client() {
   return new S3Client({ region: kS3Region });
 }
-
-//hCcJWQoj1I

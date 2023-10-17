@@ -57,8 +57,7 @@ export async function handleUploadStart(
     }
   }
 
-  const prefix = `noel_chou@sil.org/uploadTest/${bookObjectId}/${currentTime}/`; // TODO just for testing
-  // const prefix = `${bookObjectId}/${currentTime}/${bookTitle}/`;
+  const prefix = `${bookObjectId}/${currentTime}/`;
 
   if (!isNewBook) {
     // we are modifying an existing book. Check that we have permission, then copy old book to new folder for efficient syncing
@@ -77,7 +76,7 @@ export async function handleUploadStart(
       existingBookInfo.baseUrl,
       env
     );
-    //if the last char of existingBookPath is a slash, remove it
+    //if the last character of existingBookPath is a slash, remove it
     if (existingBookPath.endsWith("/")) {
       existingBookPath = existingBookPath.substring(
         0,
@@ -105,7 +104,7 @@ export async function handleUploadStart(
   } catch (err) {
     context.res = {
       status: 500,
-      body: "Error generatinog temporary credentials",
+      body: "Error generating temporary credentials",
     };
     return;
   }

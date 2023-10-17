@@ -7,7 +7,6 @@ import {
   getS3UrlFromPrefix,
 } from "../common/s3";
 import { Environment } from "../common/utils";
-import { get } from "http";
 
 export async function handleUploadFinish(
   context: Context,
@@ -53,14 +52,13 @@ export async function handleUploadFinish(
     return;
   }
 
-  // TODO uncomment
-  // if (!newBaseUrl.startsWith(getS3UrlFromPrefix(bookId, env))) {
-  //   context.res = {
-  //     status: 400,
-  //     body: "Invalid book base URL. Please use the prefix provided by the upload start function",
-  //   };
-  //   return;
-  // }
+  if (!newBaseUrl.startsWith(getS3UrlFromPrefix(bookId, env))) {
+    context.res = {
+      status: 400,
+      body: "Invalid book base URL. Please use the prefix provided by the upload start function",
+    };
+    return;
+  }
 
   const oldBaseURl = bookInfo.baseUrl;
 
@@ -85,13 +83,15 @@ export async function handleUploadFinish(
     return;
   }
 
-  await deleteBook(oldBaseURl, env);
+  try {
+    await deleteBook(oldBaseURl, env);
+  } catch (e) {
+    console.log(e);
+    // TODO future work: we want this to somehow notify us of the now-orphan old book files
+  }
 
   context.res = {
     status: 200,
     body: "Successfully updated book",
   };
 }
-
-// from upload start, give something that starts with http...s3...no %2f, leave the slashes in the prefix
-// TODO talk more about whether we need a lock on upload-finish,

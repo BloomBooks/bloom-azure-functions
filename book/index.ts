@@ -18,7 +18,7 @@ const book: AzureFunction = async function (
     BloomParseServer.setServer(Environment.PRODUCTION);
   }
 
-  const userInfo = await getUserFromSession(context, req);
+  const userInfo = await getUserFromSession(req);
   if (!userInfo) {
     context.res = {
       status: 400,
@@ -44,7 +44,7 @@ const book: AzureFunction = async function (
 };
 
 // Validate the session token and return the user info
-async function getUserFromSession(context: Context, req: HttpRequest) {
+async function getUserFromSession(req: HttpRequest) {
   // Note that req.headers' keys are all lower case.
   let sessionToken = req.headers["session-token"];
   return await BloomParseServer.getLoggedInUserInfo(sessionToken);
