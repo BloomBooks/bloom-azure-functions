@@ -32,7 +32,7 @@ export function getS3PrefixFromEncodedPath(path: string, env: Environment) {
 }
 
 export function getS3UrlFromPrefix(prefix: string, env: Environment) {
-  return `${getS3UrlBase(env)}${getBucketName(env)}/${prefix}`;
+  return `${getS3UrlBase(env)}${prefix}`;
 }
 
 function unencode(path: string) {
