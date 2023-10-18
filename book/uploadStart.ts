@@ -67,7 +67,7 @@ export async function handleUploadStart(
     if (!BloomParseServer.canModifyBook(userInfo, existingBookInfo)) {
       context.res = {
         status: 400,
-        body: "Please provide a valid session ID and book path",
+        body: "Please provide a valid session ID and book object id if present",
       };
       return;
     }

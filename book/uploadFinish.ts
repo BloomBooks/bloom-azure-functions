@@ -43,7 +43,8 @@ export async function handleUploadFinish(
     return;
   }
 
-  const newBaseUrl = req.body.baseUrl;
+  let newBookRecord = req.body;
+  const newBaseUrl = newBookRecord.baseUrl;
   if (newBaseUrl === undefined) {
     context.res = {
       status: 400,
@@ -60,18 +61,6 @@ export async function handleUploadFinish(
     return;
   }
 
-  const oldBaseURl = bookInfo.baseUrl;
-
-  try {
-    await BloomParseServer.modifyBookRecord(bookId, req.body, sessionToken);
-  } catch (e) {
-    context.res = {
-      status: 500,
-      body: "Error updating parse book record",
-    };
-    return;
-  }
-
   try {
     const newPrefix = getS3PrefixFromEncodedPath(newBaseUrl, env);
     await allowPublicRead(newPrefix, env);
@@ -79,6 +68,25 @@ export async function handleUploadFinish(
     context.res = {
       status: 500,
       body: "Error setting new book to allow public read",
+    };
+    return;
+  }
+
+  const oldBaseURl = bookInfo.baseUrl;
+
+  delete newBookRecord.uploader; // don't modify uploader
+  newBookRecord["updateSource"] = "API upload_start";
+  newBookRecord["uploadPendingTimestamp"] = undefined;
+  try {
+    await BloomParseServer.modifyBookRecord(
+      bookId,
+      newBookRecord,
+      sessionToken
+    );
+  } catch (e) {
+    context.res = {
+      status: 500,
+      body: "Error updating parse book record",
     };
     return;
   }
