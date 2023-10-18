@@ -26,7 +26,7 @@ export async function handleUploadFinish(
 
   let sessionToken = req.headers["session-token"];
 
-  const bookId = queryParams["book-object-id"];
+  const bookId = queryParams["transaction-id"];
   if (bookId === undefined) {
     context.res = {
       status: 400,
@@ -75,7 +75,6 @@ export async function handleUploadFinish(
   const oldBaseURl = bookInfo.baseUrl;
 
   delete newBookRecord.uploader; // don't modify uploader
-  newBookRecord["updateSource"] = "API upload_start";
   newBookRecord["uploadPendingTimestamp"] = undefined;
   try {
     await BloomParseServer.modifyBookRecord(
@@ -92,7 +91,7 @@ export async function handleUploadFinish(
   }
 
   try {
-    await deleteBook(oldBaseURl, env);
+    if (oldBaseURl) await deleteBook(oldBaseURl, env);
   } catch (e) {
     console.log(e);
     // TODO future work: we want this to somehow notify us of the now-orphan old book files

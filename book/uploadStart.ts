@@ -29,12 +29,13 @@ export async function handleUploadStart(
   const queryParams = req.query;
   const currentTime = Date.now();
 
-  let bookObjectId = queryParams["book-object-id"];
+  let bookObjectId = queryParams["existing-book-object-id"];
   const isNewBook = bookObjectId === undefined;
   if (isNewBook) {
     const newBookRecord = {
       title: kPendingString,
       bookInstanceId: kPendingString,
+      updateSource: "BloomDesktop via API",
       uploadPendingTimestamp: currentTime,
       uploader: {
         __type: "Pointer",
@@ -113,7 +114,8 @@ export async function handleUploadStart(
   context.res = {
     status: 200,
     body: {
-      "s3-path": s3Path,
+      url: s3Path,
+      "transaction-id": bookObjectId,
       credentials: tempCredentials,
     },
   };
