@@ -75,7 +75,7 @@ export async function handleUploadFinish(
   const oldBaseURl = bookInfo.baseUrl;
 
   delete newBookRecord.uploader; // don't modify uploader
-  newBookRecord["uploadPendingTimestamp"] = undefined;
+  newBookRecord["uploadPendingTimestamp"] = null;
   try {
     await BloomParseServer.modifyBookRecord(
       bookId,
