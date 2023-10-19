@@ -161,7 +161,7 @@ export async function getTemporaryS3Credentials(
       {
         Effect: "Allow",
         Action: ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"],
-        Resource: [`arn:aws:s3:::${bucket}/${prefix}/*`],
+          Resource: [`arn:aws:s3:::${bucket}/${prefix}*`],
       },
     ],
   });
