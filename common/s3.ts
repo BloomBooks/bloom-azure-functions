@@ -39,27 +39,35 @@ function unencode(path: string) {
   return decodeURIComponent(path).replace(/\+/g, " "); // also replaces + with space
 }
 
-async function listPrefixContents(prefix: string, env: Environment) {
+async function listPrefixContentsKeys(prefix: string, env: Environment) {
   const client = getS3Client();
-  const listCommandInput = {
-    Bucket: getBucketName(env),
-    Prefix: prefix,
-  };
-  const listCommand = new ListObjectsV2Command(listCommandInput);
-  const listResponse = await client.send(listCommand);
-  return listResponse.Contents;
+
+  let continuationToken;
+  let contentKeys = [];
+  do {
+    const listCommandInput = {
+      Bucket: getBucketName(env),
+      Prefix: prefix,
+      ContinuationToken: continuationToken,
+    };
+    const listCommand = new ListObjectsV2Command(listCommandInput);
+    const listResponse = await client.send(listCommand);
+    const keys = listResponse.Contents.map((file) => file.Key);
+    contentKeys = contentKeys.concat(keys);
+    continuationToken = listResponse.NextContinuationToken;
+  } while (continuationToken);
+  return contentKeys;
 }
 
 export async function allowPublicRead(prefix: string, env: Environment) {
-  const bookFiles = await listPrefixContents(prefix, env);
+  const bookFileKeys = await listPrefixContentsKeys(prefix, env);
   const client = getS3Client();
-  if (!bookFiles) {
+  if (!bookFileKeys) {
     throw new Error("ListObjectsV2Command returned no contents");
   }
   const bucket = getBucketName(env);
   //for each object in listResponse, copy it to the destination
-  for (const bookFile of bookFiles) {
-    const key = bookFile.Key;
+  for (const key of bookFileKeys) {
     const input = {
       Bucket: bucket,
       ACL: "public-read",
@@ -75,19 +83,36 @@ export async function allowPublicRead(prefix: string, env: Environment) {
 
 export async function deleteBook(bookPath: string, env: Environment) {
   const bookPathPrefix = getS3PrefixFromEncodedPath(bookPath, env);
-  const bookFiles = await listPrefixContents(bookPathPrefix, env);
-  if (!bookFiles) {
-    throw new Error("ListObjectsV2Command returned no contents");
-  }
   const client = getS3Client();
-  const deleteCommand = new DeleteObjectsCommand({
-    Bucket: getBucketName(env),
-    Delete: {
-      Objects: bookFiles.map((file) => ({ Key: file.Key })),
-    },
-  });
-  const response = await client.send(deleteCommand);
-  // TODO future work: we want this to somehow notify us of the now-orphan old book files
+  let errorOcurred = false;
+  let continuationToken;
+  do {
+    const listCommandInput = {
+      Bucket: getBucketName(env),
+      Prefix: bookPathPrefix,
+      continuationToken,
+    };
+    const listCommand = new ListObjectsV2Command(listCommandInput);
+    const listResponse = await client.send(listCommand);
+    continuationToken = listResponse.NextContinuationToken;
+    const keys = listResponse.Contents.map((file) => ({ Key: file.Key }));
+    const deleteCommandInput = {
+      Bucket: getBucketName(env),
+      Delete: {
+        Objects: keys,
+      },
+    };
+    const deleteCommand = new DeleteObjectsCommand(deleteCommandInput);
+    const deleteCommandResponse = await client.send(deleteCommand);
+    if (deleteCommandResponse.$metadata.httpStatusCode !== 200) {
+      errorOcurred = true;
+    }
+  } while (continuationToken);
+
+  if (errorOcurred) {
+    throw new Error("DeleteObjectsCommand failed");
+    // TODO future work: we want this to somehow notify us of the now-orphan old book files
+  }
 }
 
 export async function copyBook(
@@ -97,15 +122,13 @@ export async function copyBook(
 ) {
   const client = getS3Client();
 
-  const bookFiles = await listPrefixContents(srcPath, env);
-  if (!bookFiles) {
+  const bookFileKeys = await listPrefixContentsKeys(srcPath, env);
+  if (!bookFileKeys) {
     throw new Error("ListObjectsV2Command returned no contents");
   }
   const bucket = getBucketName(env);
   //for each object in listResponse, copy it to the destination
-  for (const bookFile of bookFiles) {
-    const key = bookFile.Key;
-
+  for (const key of bookFileKeys) {
     const copyCommandInput = {
       Bucket: bucket,
       CopySource: `/${bucket}/${key}`,
