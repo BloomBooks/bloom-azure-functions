@@ -43,12 +43,12 @@ export async function handleUploadFinish(
     return;
   }
 
-  let newBookRecord = req.body;
-  const newBaseUrl = newBookRecord.baseUrl;
+  const bookRecord = req.body;
+  const newBaseUrl = bookRecord.baseUrl;
   if (newBaseUrl === undefined) {
     context.res = {
       status: 400,
-      body: "Please provide valid book info, including a baseURl, in the body",
+      body: "Please provide valid book info, including a baseUrl, in the body",
     };
     return;
   }
@@ -56,7 +56,7 @@ export async function handleUploadFinish(
   if (!newBaseUrl.startsWith(getS3UrlFromPrefix(bookId, env))) {
     context.res = {
       status: 400,
-      body: "Invalid book base URL. Please use the prefix provided by the upload start function",
+      body: "Invalid book base URL. Please use the prefix provided by the upload-start function",
     };
     return;
   }
@@ -67,21 +67,31 @@ export async function handleUploadFinish(
   } catch (e) {
     context.res = {
       status: 500,
-      body: "Error setting new book to allow public read",
+      body: "Error setting book files to allow public read",
     };
     return;
   }
 
   const oldBaseURl = bookInfo.baseUrl;
+  const isNewBook = !oldBaseURl;
 
-  delete newBookRecord.uploader; // don't modify uploader
-  newBookRecord["uploadPendingTimestamp"] = null;
+  if (isNewBook) {
+    // Since the creation of a new book is now a two-step process
+    // (upload-start creates an empty record and upload-finish fills it in),
+    // we need to indicate to the parse cloud code that this is a new book
+    // so it can appropriate set the harvestState field.
+    bookRecord.updateSource += " (new book)";
+
+    // When upload-start created the initial record, we set inCirculation to false
+    // to prevent blorg and other book consumers from showing the book before it's ready.
+    // Now that we have a real book ready, we need to set it to true.
+    bookRecord.inCirculation = true;
+  }
+
+  delete bookRecord.uploader; // don't modify uploader
+  bookRecord.uploadPendingTimestamp = null;
   try {
-    await BloomParseServer.modifyBookRecord(
-      bookId,
-      newBookRecord,
-      sessionToken
-    );
+    await BloomParseServer.modifyBookRecord(bookId, bookRecord, sessionToken);
   } catch (e) {
     context.res = {
       status: 500,
