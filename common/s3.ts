@@ -95,6 +95,9 @@ export async function deleteBook(bookPath: string, env: Environment) {
     const listCommand = new ListObjectsV2Command(listCommandInput);
     const listResponse = await client.send(listCommand);
     continuationToken = listResponse.NextContinuationToken;
+    if (!listResponse.Contents) {
+      break;
+    }
     const keys = listResponse.Contents.map((file) => ({ Key: file.Key }));
     const deleteCommandInput = {
       Bucket: getBucketName(env),
