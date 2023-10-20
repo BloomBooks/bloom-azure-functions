@@ -37,6 +37,7 @@ export async function handleUploadStart(
       bookInstanceId: kPendingString,
       updateSource: "BloomDesktop via API",
       uploadPendingTimestamp: currentTime,
+      inCirculation: false, // prevent various things from displaying it until upload-finish makes it a complete record
       uploader: {
         __type: "Pointer",
         className: "_User",
