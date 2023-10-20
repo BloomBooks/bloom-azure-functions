@@ -1,6 +1,7 @@
 import { xexpect as expect } from "../common/xmlUnitTestUtils";
 import { getApiAccount } from "./apiAccount";
-import BloomParseServer, { Environment } from "../common/BloomParseServer";
+import BloomParseServer from "../common/BloomParseServer";
+import { Environment } from "../common/utils";
 
 describe("OPDS API Key Handling using DEV database", () => {
   beforeAll(() => {

@@ -99,6 +99,21 @@ export async function handleUploadStart(
       };
       return;
     }
+    try {
+      BloomParseServer.modifyBookRecord(
+        bookObjectId,
+        {
+          uploadPendingTimestamp: currentTime,
+        },
+        sessionToken
+      );
+    } catch (err) {
+      context.res = {
+        status: 500,
+        body: "Unable to modify book record",
+      };
+      return;
+    }
   }
 
   try {
