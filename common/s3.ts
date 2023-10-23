@@ -5,13 +5,13 @@ import {
   PutObjectAclCommand,
   S3Client,
 } from "@aws-sdk/client-s3";
+import { STSClient, GetFederationTokenCommand } from "@aws-sdk/client-sts";
+import { Environment } from "./utils";
 
 const kUnitTestS3BucketName = "BloomLibraryBooks-UnitTests";
 const kSandboxS3BucketName = "BloomLibraryBooks-Sandbox";
 const kProductionS3BucketName = "BloomLibraryBooks";
 const kS3Region = "us-east-1";
-import { STSClient, GetFederationTokenCommand } from "@aws-sdk/client-sts"; // ES Modules import
-import { Environment } from "./utils";
 
 function getS3UrlBase(env) {
   return `https://s3.amazonaws.com/${getBucketName(env)}/`;
@@ -44,6 +44,7 @@ async function listPrefixContentsKeys(prefix: string, env: Environment) {
 
   let continuationToken;
   let contentKeys = [];
+  // S3 only allows 1000 keys per request, so we need to loop until we get them all
   do {
     const listCommandInput = {
       Bucket: getBucketName(env),
@@ -86,6 +87,7 @@ export async function deleteBook(bookPath: string, env: Environment) {
   const client = getS3Client();
   let errorOcurred = false;
   let continuationToken;
+  // S3 only allows 1000 keys per request, so we need to loop until we delete them all
   do {
     const listCommandInput = {
       Bucket: getBucketName(env),
@@ -164,12 +166,12 @@ export async function getTemporaryS3Credentials(
       {
         Effect: "Allow",
         Action: ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"],
-          Resource: [`arn:aws:s3:::${bucket}/${prefix}*`],
+        Resource: [`arn:aws:s3:::${bucket}/${prefix}*`],
       },
     ],
   });
   const input = {
-    Name: "testTemporaryCredentialsName",
+    Name: "TemporaryBookUploadCredentials",
     Policy: policy,
     DurationSeconds: 86400, // 24 hours
   };

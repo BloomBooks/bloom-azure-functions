@@ -69,22 +69,6 @@ export default class BloomParseServer {
     }
   }
 
-  public static getParseReadOnlyMasterKey(): string {
-    switch (BloomParseServer.Source) {
-      case Environment.DEVELOPMENT:
-        return (
-          process.env["ParseReadOnlyMasterKeyDev"] ||
-          "ParseReadOnlyMasterKeyDev is missing from env!"
-        );
-      case Environment.PRODUCTION:
-      default:
-        return (
-          process.env["ParseReadOnlyMasterKeyProd"] ||
-          "ParseReadOnlyMasterKeyProd is missing from env!"
-        );
-    }
-  }
-
   // Given the book parse data and bucket, get the base URL for accessing the data stored on S3.
   // The base URL will look like one of the following:
   // https://s3.amazonaws.com/BloomLibraryBooks/<uploader-email>/<book-instance-guid>/<book-title>

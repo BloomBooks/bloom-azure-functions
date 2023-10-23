@@ -79,7 +79,7 @@ export async function handleUploadFinish(
     // Since the creation of a new book is now a two-step process
     // (upload-start creates an empty record and upload-finish fills it in),
     // we need to indicate to the parse cloud code that this is a new book
-    // so it can appropriate set the harvestState field.
+    // so it can appropriately set the harvestState field.
     bookRecord.updateSource += " (new book)";
 
     // When upload-start created the initial record, we set inCirculation to false
