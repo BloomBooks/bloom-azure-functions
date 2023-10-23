@@ -469,6 +469,22 @@ export default class BloomParseServer {
       bookInfo !== undefined && bookInfo.uploader.objectId === userInfo.objectId
     );
   }
+
+  public static async deleteBookRecord(
+    bookObjectId: string,
+    sessionToken: string
+  ) {
+    const results = await axios.delete(
+      BloomParseServer.getParseTableUrl("books") + "/" + bookObjectId,
+      {
+        headers: {
+          "X-Parse-Application-Id": BloomParseServer.getParseAppId(),
+          "X-Parse-Session-Token": sessionToken,
+        },
+      }
+    );
+    return results;
+  }
 }
 
 export type ApiAccount = {

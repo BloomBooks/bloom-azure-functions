@@ -2,9 +2,11 @@ import { Context, HttpRequest } from "@azure/functions";
 import BloomParseServer from "../common/BloomParseServer";
 import {
   copyBook,
+  deleteFiles,
   getS3PrefixFromEncodedPath,
   getS3UrlFromPrefix,
   getTemporaryS3Credentials,
+  listPrefixContentsKeys,
 } from "../common/s3";
 import { Environment } from "../common/utils";
 
@@ -78,18 +80,44 @@ export async function handleUploadStart(
       existingBookInfo.baseUrl,
       env
     );
-    //if the last character of existingBookPath is a slash, remove it
-    if (existingBookPath.endsWith("/")) {
-      existingBookPath = existingBookPath.substring(
-        0,
-        existingBookPath.length - 1
+
+    // If another upload of this book has been started but not finished, delete its files
+    // This is safe because we copy the book files in uploadStart just for efficiency,
+    // Bloom Desktop will upload any files that are not there
+    if (existingBookInfo.uploadPendingTimestamp) {
+      const allFilesForThisBook = await listPrefixContentsKeys(
+        bookObjectId,
+        env
       );
+      const currentlyUsedFilesForThisBook = await listPrefixContentsKeys(
+        existingBookPath,
+        env
+      );
+      const filesToDelete = allFilesForThisBook.filter(
+        (file) => !currentlyUsedFilesForThisBook.includes(file)
+      );
+      try {
+        await deleteFiles(filesToDelete, env);
+      } catch (err) {
+        context.res = {
+          status: 500,
+          body: "Unable to delete files",
+        };
+        return;
+      }
     }
-    // take everything up and including the last slash (not including trailing slash)
+
+    //book path is in the form of bookId/timestamp/title
+    //We want everything before the title; take everything up to the second slash in existingBookPath
+    const secondSlashIndex = existingBookPath.indexOf(
+      "/",
+      existingBookPath.indexOf("/") + 1
+    );
     const existingBookPathBeforeTitle = existingBookPath.substring(
       0,
-      existingBookPath.lastIndexOf("/") + 1
+      secondSlashIndex + 1
     );
+
     try {
       await copyBook(existingBookPathBeforeTitle, prefix, env);
     } catch (err) {

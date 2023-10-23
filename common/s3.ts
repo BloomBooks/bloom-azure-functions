@@ -39,7 +39,7 @@ function unencode(path: string) {
   return decodeURIComponent(path).replace(/\+/g, " "); // also replaces + with space
 }
 
-async function listPrefixContentsKeys(prefix: string, env: Environment) {
+export async function listPrefixContentsKeys(prefix: string, env: Environment) {
   const client = getS3Client();
 
   let continuationToken;
@@ -82,8 +82,7 @@ export async function allowPublicRead(prefix: string, env: Environment) {
   }
 }
 
-export async function deleteBook(bookPath: string, env: Environment) {
-  const bookPathPrefix = getS3PrefixFromEncodedPath(bookPath, env);
+export async function deleteBook(bookPathPrefix: string, env: Environment) {
   const client = getS3Client();
   let errorOcurred = false;
   let continuationToken;
@@ -100,24 +99,31 @@ export async function deleteBook(bookPath: string, env: Environment) {
     if (!listResponse.Contents) {
       break;
     }
-    const keys = listResponse.Contents.map((file) => ({ Key: file.Key }));
-    const deleteCommandInput = {
-      Bucket: getBucketName(env),
-      Delete: {
-        Objects: keys,
-      },
-    };
-    const deleteCommand = new DeleteObjectsCommand(deleteCommandInput);
-    const deleteCommandResponse = await client.send(deleteCommand);
+    const keys = listResponse.Contents.map((file) => file.Key);
+    const deleteCommandResponse = await deleteFiles(keys, env);
     if (deleteCommandResponse.$metadata.httpStatusCode !== 200) {
       errorOcurred = true;
     }
   } while (continuationToken);
 
   if (errorOcurred) {
-    throw new Error("DeleteObjectsCommand failed");
+    console.log("DeleteObjectsCommand failed");
     // TODO future work: we want this to somehow notify us of the now-orphan old book files
   }
+}
+
+export async function deleteFiles(fileKeys, env) {
+  const client = getS3Client();
+  const deleteCommandInput = {
+    Bucket: getBucketName(env),
+    Delete: {
+      Objects: fileKeys.map((key) => ({
+        Key: key,
+      })),
+    },
+  };
+  const deleteCommand = new DeleteObjectsCommand(deleteCommandInput);
+  return await client.send(deleteCommand);
 }
 
 export async function copyBook(
