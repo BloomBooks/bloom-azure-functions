@@ -1,0 +1,13 @@
+{
+  "bindings": [
+    {
+      "name": "bookCleanup",
+      "type": "httpTrigger",
+      "direction": "in",
+      "schedule": "0 40 11 * * *",
+      "methods": ["post"],
+      "route": "bookCleanup"
+    }
+  ],
+  "scriptFile": "../dist/bookCleanup/index.js"
+}

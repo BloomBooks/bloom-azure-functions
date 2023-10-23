@@ -301,7 +301,7 @@ export default class Catalog {
     params: CatalogParams,
     embargoDays: number
   ): Promise<string> {
-    const books = await BloomParseServer.getBooks(
+    const books = await BloomParseServer.getBooksForCatalog(
       params.lang,
       params.tag,
       embargoDays

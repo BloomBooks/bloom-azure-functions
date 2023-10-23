@@ -16,11 +16,11 @@ describe("BloomParseServer", () => {
     I haven't thought of an affordable way to just keep it working.  Therefore you pretty much have to customize it
     to run it
 
-  it("getBooks() returns expected number of Hausa books, using embargo days", async () => {
+  it("getBooksForCatalog() returns expected number of Hausa books, using embargo days", async () => {
     BloomParseServer.Source = Environment.DEVELOPMENT;
-    const allFoobarBooks = await BloomParseServer.getBooks("de", 0);
+    const allFoobarBooks = await BloomParseServer.getBooksForCatalog("de", 0);
     expect(allFoobarBooks.length).toBe(4);
-    const oldFoobarBooks = await BloomParseServer.getBooks("de", 194);
+    const oldFoobarBooks = await BloomParseServer.getBooksForCatalog("de", 194);
     expect(oldFoobarBooks.length).toBe(3);
   });
 

@@ -254,7 +254,7 @@ export default class BloomParseServer {
 
   // Get all the books in circulation that fit the current parameters.
   // Further filtering may be needed, but those two filters should reduce the transfer considerably.
-  public static async getBooks(
+  public static async getBooksForCatalog(
     desiredLang: string,
     tag: string | undefined,
     embargoDays: number
@@ -306,7 +306,7 @@ export default class BloomParseServer {
     return results.data.results;
   }
 
-  public static getBookInfo(where: string): Promise<any> {
+  public static getBooks(where: string, onlyOne = false): Promise<any> {
     return new Promise<any[]>((resolve, reject) =>
       axios
         .get(BloomParseServer.getParseTableUrl("books"), {
@@ -319,10 +319,14 @@ export default class BloomParseServer {
           },
         })
         .then((result) => {
-          if (result.data.results.length > 1) {
-            reject(new Error("More than one book found for " + where));
+          if (onlyOne) {
+            if (result.data.results.length > 1) {
+              reject(new Error("More than one book found for " + where));
+            }
+            resolve(result.data.results[0]);
+          } else {
+            resolve(result.data.results);
           }
-          resolve(result.data.results[0]);
         })
         .catch((err) => {
           console.log("ERROR: caught axios.get error: " + err);
@@ -332,33 +336,52 @@ export default class BloomParseServer {
   }
 
   public static getBookInfoByObjectId(objectId: string): Promise<any> {
-    return this.getBookInfo(`{"objectId":{"$eq":"${objectId}"}}`);
+    return this.getBooks(`{"objectId":{"$eq":"${objectId}"}}`, true);
   }
 
   public static getBookInfoByInstanceIdAndUploaderObjectId(
     bookInstanceId: string,
     uploaderObjectId: string
   ): Promise<any> {
-    return this.getBookInfo(
-      `{"uploader":{"__type":"Pointer","className":"_User","objectId":"${uploaderObjectId}"}, "bookInstanceId":{"$eq":"${bookInstanceId}"}}`
+    return this.getBooks(
+      `{"uploader":{"__type":"Pointer","className":"_User","objectId":"${uploaderObjectId}"}, "bookInstanceId":{"$eq":"${bookInstanceId}"}}`,
+      true
     );
   }
 
   // This Azure function logs in to the Parse server, using a hard-coded user name ("catalog-service").
   // That account has a ParseServer "role" which is allowed to read the `apiAccount` and `user` tables.
   public static async loginAsCatalogService(): Promise<string> {
+    return await BloomParseServer.loginAsUser(
+      "catalog-service",
+      process.env["bloomParseServerCatalogServicePassword"] // should be the same for dev and production
+    );
+  }
+
+  // This Azure function logs in to the Parse server, using a hard-coded user name ("book-cleanup").
+  // That account has a ParseServer "role" which is allows it to delete the old unfinished uploads from the books table.
+  public static async loginAsBookCleanupUser(): Promise<string> {
+    return await BloomParseServer.loginAsUser(
+      "book-cleanup",
+      process.env["bloomParseServerBookCleanupPassword"]
+    );
+  }
+
+  public static async loginAsUser(
+    username: string,
+    password: string
+  ): Promise<string> {
     const results = await axios.get(BloomParseServer.getParseLoginUrl(), {
       headers: {
         "X-Parse-Application-Id": BloomParseServer.getParseAppId(),
       },
       params: {
-        username: "catalog-service",
-        password: process.env["bloomParseServerCatalogServicePassword"], // should be the same for dev and production
+        username: username,
+        password: password,
       },
     });
     return results.data.sessionToken;
-
-    // don't catch errors, let the go up
+    // don't catch errors, let them go up
   }
 
   //Get an object containing the data from the apiAccount table row with the specified ID (not yet authenticated)
