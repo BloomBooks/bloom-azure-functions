@@ -101,7 +101,10 @@ export async function handleUploadFinish(
   }
 
   try {
-    if (oldBaseURl) await deleteBook(oldBaseURl, env);
+    if (oldBaseURl) {
+      const bookPathPrefix = getS3PrefixFromEncodedPath(oldBaseURl, env);
+      await deleteBook(bookPathPrefix, env);
+    }
   } catch (e) {
     console.log(e);
     // TODO future work: we want this to somehow notify us of the now-orphan old book files
