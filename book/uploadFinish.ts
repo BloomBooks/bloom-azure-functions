@@ -23,9 +23,6 @@ export async function handleUploadFinish(
   }
 
   const queryParams = req.query;
-
-  let sessionToken = req.headers["session-token"];
-
   const bookId = queryParams["transaction-id"];
   if (bookId === undefined) {
     context.res = {
@@ -38,7 +35,7 @@ export async function handleUploadFinish(
   if (!BloomParseServer.canModifyBook(userInfo, bookInfo)) {
     context.res = {
       status: 400,
-      body: "Please provide a valid session ID and book ID",
+      body: "Please provide a valid Authentication-Token and transaction-id",
     };
     return;
   }
@@ -91,7 +88,11 @@ export async function handleUploadFinish(
   delete bookRecord.uploader; // don't modify uploader
   bookRecord.uploadPendingTimestamp = null;
   try {
-    await BloomParseServer.modifyBookRecord(bookId, bookRecord, sessionToken);
+    await BloomParseServer.modifyBookRecord(
+      bookId,
+      bookRecord,
+      userInfo.sessionToken
+    );
   } catch (e) {
     context.res = {
       status: 500,

@@ -46,8 +46,8 @@ const book: AzureFunction = async function (
 // Validate the session token and return the user info
 async function getUserFromSession(req: HttpRequest) {
   // Note that req.headers' keys are all lower case.
-  let sessionToken = req.headers["session-token"];
-  return await BloomParseServer.getLoggedInUserInfo(sessionToken);
+  const authenticationToken = req.headers["authentication-token"];
+  return await BloomParseServer.getLoggedInUserInfo(authenticationToken);
 }
 
 export default book;

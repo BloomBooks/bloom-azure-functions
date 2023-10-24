@@ -17,7 +17,7 @@ Gets everything ready for a client to begin uploading book files.
 #### Request:
 
 - Header:
-  - `Session-Token`
+  - `Authentication-Token`
     - parse server session token for the user uploading the book.
 - Query parameter:
   - `existing-book-object-id` (optional)
@@ -40,7 +40,7 @@ Finalizes the update after the client uploads the book files.
 #### Request:
 
 - Header:
-  - `Session-Token`
+  - `Authentication-Token`
     - parse server session token for the user uploading the book.
 - Query parameter:
   - `transaction-id` (required)

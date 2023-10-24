@@ -26,8 +26,6 @@ export async function handleUploadStart(
     return;
   }
 
-  const sessionToken = req.headers["session-token"];
-
   const queryParams = req.query;
   const currentTime = Date.now();
 
@@ -50,7 +48,7 @@ export async function handleUploadStart(
     try {
       bookObjectId = await BloomParseServer.createBookRecord(
         newBookRecord,
-        sessionToken
+        userInfo.sessionToken
       );
     } catch (err) {
       context.res = {
@@ -71,7 +69,7 @@ export async function handleUploadStart(
     if (!BloomParseServer.canModifyBook(userInfo, existingBookInfo)) {
       context.res = {
         status: 400,
-        body: "Please provide a valid session ID and book object id if present",
+        body: "Please provide a valid Authentication-Token and existing-book-object-id (if book exists)",
       };
       return;
     }
@@ -133,7 +131,7 @@ export async function handleUploadStart(
         {
           uploadPendingTimestamp: currentTime,
         },
-        sessionToken
+        userInfo.sessionToken
       );
     } catch (err) {
       context.res = {
