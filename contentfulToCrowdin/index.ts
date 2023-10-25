@@ -18,6 +18,7 @@ const kCrowdinProjectId = 261564;
 //listCrowdinFiles();
 readTransformUpload();
 
+// See README for schedule of time triggered tasks
 const contentfulToCrowdin: AzureFunction = async (
   context: Context
 ): Promise<void> => {

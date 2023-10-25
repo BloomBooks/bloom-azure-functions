@@ -306,6 +306,10 @@ export default class BloomParseServer {
     return results.data.results;
   }
 
+  public static getBook(where: string): Promise<any> {
+    return this.getBooks(where, true);
+  }
+
   public static getBooks(where: string, onlyOne = false): Promise<any> {
     return new Promise<any[]>((resolve, reject) =>
       axios
@@ -336,16 +340,15 @@ export default class BloomParseServer {
   }
 
   public static getBookInfoByObjectId(objectId: string): Promise<any> {
-    return this.getBooks(`{"objectId":{"$eq":"${objectId}"}}`, true);
+    return this.getBook(`{"objectId":{"$eq":"${objectId}"}}`);
   }
 
   public static getBookInfoByInstanceIdAndUploaderObjectId(
     bookInstanceId: string,
     uploaderObjectId: string
   ): Promise<any> {
-    return this.getBooks(
-      `{"uploader":{"__type":"Pointer","className":"_User","objectId":"${uploaderObjectId}"}, "bookInstanceId":{"$eq":"${bookInstanceId}"}}`,
-      true
+    return this.getBook(
+      `{"uploader":{"__type":"Pointer","className":"_User","objectId":"${uploaderObjectId}"}, "bookInstanceId":{"$eq":"${bookInstanceId}"}}`
     );
   }
 
@@ -359,7 +362,7 @@ export default class BloomParseServer {
   }
 
   // This Azure function logs in to the Parse server, using a hard-coded user name ("book-cleanup").
-  // That account has a ParseServer "role" which is allows it to delete the old unfinished uploads from the books table.
+  // That account has a ParseServer "role" which is allowed to delete the old unfinished uploads from the books table.
   public static async loginAsBookCleanupUser(): Promise<string> {
     return await BloomParseServer.loginAsUser(
       "book-cleanup",

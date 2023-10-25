@@ -1,14 +1,18 @@
 import { AzureFunction, Context } from "@azure/functions";
 import BloomParseServer from "../common/BloomParseServer";
 import { deleteBook } from "../common/s3";
-import { Environment } from "../common/utils";
+import { Environment, isLocalEnvironment } from "../common/utils";
 
 const runEvenIfLocal: boolean = false;
 
-const bookCleanup: AzureFunction = async function (
+// See README for schedule of time triggered tasks
+const timerTrigger: AzureFunction = async function (
   context: Context,
   dailyTimer: any
 ): Promise<void> {
+  // By default, we don't want to run this if we are running the functions locally.
+  if (!runEvenIfLocal && isLocalEnvironment()) return;
+
   context.log("bookCleanup trigger function started", new Date().toISOString());
 
   if (dailyTimer.isPastDue) {
@@ -55,6 +59,4 @@ async function bookCleanupInternal(env: Environment) {
   }
 }
 
-export default bookCleanup;
-
-// TODO make this back into a timer trigger
+export default timerTrigger;
