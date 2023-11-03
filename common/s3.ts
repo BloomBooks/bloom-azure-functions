@@ -3,6 +3,7 @@ import {
   DeleteObjectsCommand,
   ListObjectsV2Command,
   PutObjectAclCommand,
+  PutObjectCommand,
   S3Client,
 } from "@aws-sdk/client-s3";
 import { STSClient, GetFederationTokenCommand } from "@aws-sdk/client-sts";
@@ -11,7 +12,7 @@ import { Environment } from "./utils";
 const kUnitTestS3BucketName = "BloomLibraryBooks-UnitTests";
 const kSandboxS3BucketName = "BloomLibraryBooks-Sandbox";
 const kProductionS3BucketName = "BloomLibraryBooks";
-const kS3Region = "us-east-1";
+export const kS3Region = "us-east-1";
 
 function getS3UrlBase(env) {
   return `https://s3.amazonaws.com/${getBucketName(env)}/`;
@@ -53,6 +54,9 @@ export async function listPrefixContentsKeys(prefix: string, env: Environment) {
     };
     const listCommand = new ListObjectsV2Command(listCommandInput);
     const listResponse = await client.send(listCommand);
+    if (!listResponse.Contents) {
+      break;
+    }
     const keys = listResponse.Contents.map((file) => file.Key);
     contentKeys = contentKeys.concat(keys);
     continuationToken = listResponse.NextContinuationToken;
@@ -197,6 +201,24 @@ export function getBucketName(env: Environment) {
   }
 }
 
-function getS3Client() {
+export function getS3Client() {
   return new S3Client({ region: kS3Region });
+}
+
+// for unit tests
+export async function uploadTestFileToS3(
+  prefix: string,
+  env: Environment,
+  client?: S3Client
+) {
+  if (!client) {
+    client = getS3Client();
+  }
+  const uploadCommandInput = {
+    Bucket: getBucketName(env),
+    Key: prefix,
+    Body: "testfilebody",
+  };
+  const uploadCommand = new PutObjectCommand(uploadCommandInput);
+  return await client.send(uploadCommand);
 }
