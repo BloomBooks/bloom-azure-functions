@@ -53,6 +53,9 @@ export async function listPrefixContentsKeys(prefix: string, env: Environment) {
     };
     const listCommand = new ListObjectsV2Command(listCommandInput);
     const listResponse = await client.send(listCommand);
+    if (!listResponse.Contents) {
+      break;
+    }
     const keys = listResponse.Contents.map((file) => file.Key);
     contentKeys = contentKeys.concat(keys);
     continuationToken = listResponse.NextContinuationToken;
@@ -197,6 +200,6 @@ export function getBucketName(env: Environment) {
   }
 }
 
-function getS3Client() {
+export function getS3Client() {
   return new S3Client({ region: kS3Region });
 }
