@@ -364,10 +364,19 @@ export default class BloomParseServer {
   // This Azure function logs in to the Parse server, using a hard-coded user name ("book-cleanup").
   // That account has a ParseServer "role" which is allowed to delete the old unfinished uploads from the books table.
   public static async loginAsBookCleanupUser(): Promise<string> {
-    return await BloomParseServer.loginAsUser(
-      "book-cleanup",
-      process.env["bloomParseServerBookCleanupPassword"]
-    );
+    let password;
+    switch (BloomParseServer.Source) {
+      case Environment.PRODUCTION:
+        password = process.env["bloomParseServerProdBookCleanupPassword"];
+        break;
+      case Environment.DEVELOPMENT:
+        password = process.env["bloomParseServerDevBookCleanupPassword"];
+        break;
+      case Environment.UNITTEST:
+        password = process.env["bloomParseServerUnitTestBookCleanupPassword"];
+        break;
+    }
+    return await BloomParseServer.loginAsUser("book-cleanup", password);
   }
 
   public static async loginAsUser(

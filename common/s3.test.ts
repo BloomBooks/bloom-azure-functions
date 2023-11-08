@@ -170,5 +170,3 @@ describe("s3", () => {
     expect(downloadResponse.$metadata.httpStatusCode).toBe(200);
   });
 });
-
-// TODO test plan should include a line involving books with over 1000 files
