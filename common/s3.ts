@@ -201,7 +201,7 @@ export function getBucketName(env: Environment) {
   }
 }
 
-export function getS3Client() {
+function getS3Client() {
   return new S3Client({ region: kS3Region });
 }
 

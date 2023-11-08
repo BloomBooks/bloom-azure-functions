@@ -38,11 +38,15 @@ The resulting production url for functions is then `api.bloomlibrary.org/v1/__FU
 
 # Environment Variables
 
-Two environment variables need to be set for the **book**, **opds**, and **fs** functions to access the relevant parse tables.
+These environment variables need to be set for the **book**, **opds**, and **fs** functions to access the relevant parse tables.
 
 - _ParseAppIdProd_ - the APP_ID from the bloom-parse-server-production configuration in Azure
 - _ParseAppIdDev_ - the APP_ID from the bloom-parse-server-develop configuration in Azure
 - _ParseAppIdUnitTest_ - the APP_ID from the bloom-parse-server-unittest configuration in Azure
+
+The bookCleanup function also requires the password for the book-cleanup users to be in the following environment variables: `bloomParseServerProdBookCleanupPassword` for prod, `bloomParseServerDevBookCleanupPassword` for dev and `bloomParseServerUnitTestBookCleanupPassword` for unit tests.
+
+The opds function also requires the password for the `catalog-service` user in the environment variable `bloomParseServerCatalogServicePassword`.
 
 ### postgreSQL connection variables
 
@@ -162,6 +166,8 @@ See `./book/README.md`.
 The **bookCleanup** function is a timer function set to run once per day. See schedule below.
 
 It cleans up Parse and s3 artifacts from failed book uploads that were started over 24 hours ago but never completed.
+
+The server (or your machine if you are testing locally) must have the password for the `book-cleanup` user as an environment variable: `bloomParseServerProdBookCleanupPassword` for prod, `bloomParseServerDevBookCleanupPassword` for dev and `bloomParseServerUnitTestBookCleanupPassword` for unit tests.
 
 # dailyTimer Function
 

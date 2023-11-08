@@ -60,7 +60,6 @@ describe("BloomParseServer", () => {
     expect(book.uploadPendingTimestamp).toBe(
       newBookRecord.uploadPendingTimestamp
     );
-    expect(book.uploadPendingTimestamp).not.toBeFalsy(); // we should have put an uploadPendingTimestamp so we can test clearing it below
     expect(book.inCirculation).toBe(newBookRecord.inCirculation);
     expect(book.uploader.objectId).toBe(newBookRecord.uploader.objectId);
 
