@@ -86,6 +86,21 @@ export async function handleUploadFinish(
   }
 
   delete bookRecord.uploader; // don't modify uploader
+
+  bookRecord.langPointers = [];
+  for (let i = 0; i < bookRecord.languageDescriptors.length; i++) {
+    const languageId = await BloomParseServer.getOrCreateLanguage(
+      bookRecord.languageDescriptors[i]
+    );
+    bookRecord.langPointers.push({
+      __type: "Pointer",
+      className: "language",
+      objectId: languageId,
+    });
+  }
+
+  delete bookRecord.languageDescriptors;
+
   bookRecord.uploadPendingTimestamp = null;
   try {
     await BloomParseServer.modifyBookRecord(
