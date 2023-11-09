@@ -252,6 +252,54 @@ export default class BloomParseServer {
     );
   }
 
+  public static async createLanguage(langJson: any) {
+    const url = this.getParseTableUrl("language");
+    const result = await axios.post(url, langJson, {
+      headers: {
+        "X-Parse-Application-Id": BloomParseServer.getParseAppId(),
+        "Content-Type": "application/json",
+      },
+    });
+    if (result.status !== 201) {
+      throw new Error(`Failed to create language record`);
+    }
+    return result.data.objectId;
+  }
+
+  public static getLanguage(langJson: any): Promise<any> {
+    return new Promise<any[]>((resolve, reject) =>
+      axios
+        .get(BloomParseServer.getParseTableUrl("language"), {
+          headers: {
+            "X-Parse-Application-Id": BloomParseServer.getParseAppId(),
+          },
+          params: {
+            where: langJson,
+          },
+        })
+        .then((result) => {
+          if (result.data.results.length > 1) {
+            reject(
+              new Error("More than one language found matching language info")
+            );
+          }
+          resolve(result.data.results[0]);
+        })
+        .catch((err) => {
+          console.log("ERROR: caught axios.get error: " + err);
+          reject(err);
+        })
+    );
+  }
+
+  public static async getOrCreateLanguageObjectId(langJson: any) {
+    let lang = await this.getLanguage(langJson);
+    if (lang) {
+      return lang.objectId;
+    }
+    return await this.createLanguage(langJson);
+  }
+
   // Get all the books in circulation that fit the current parameters.
   // Further filtering may be needed, but those two filters should reduce the transfer considerably.
   public static async getBooksForCatalog(

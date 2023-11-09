@@ -34,6 +34,9 @@ const book: AzureFunction = async function (
     case "upload-finish":
       await handleUploadFinish(context, req, userInfo, env);
       return;
+    case "get-language-object-id":
+      await handleLanguageEntryRequest(context, req, env);
+      return;
     default:
       context.res = {
         status: 400,
@@ -42,6 +45,29 @@ const book: AzureFunction = async function (
       return;
   }
 };
+
+async function handleLanguageEntryRequest(
+  context: Context,
+  req: HttpRequest,
+  env: Environment
+) {
+  if (req.method !== "POST") {
+    context.res = {
+      status: 400,
+      body: "Unhandled HTTP method",
+    };
+    return;
+  }
+  BloomParseServer.setServer(env);
+  const langJson = req.body;
+  const languageId = await BloomParseServer.getOrCreateLanguageObjectId(
+    langJson
+  );
+  context.res = {
+    status: 200,
+    body: languageId,
+  };
+}
 
 // Validate the session token and return the user info
 async function getUserFromSession(req: HttpRequest) {
