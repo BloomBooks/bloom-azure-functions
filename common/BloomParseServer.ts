@@ -221,25 +221,54 @@ export default class BloomParseServer {
 
   // Get all of the languages recorded for all of the books.  Due to the messy data
   // we've accumulated, there may be duplicates in the list.
-  public getLanguages(): Promise<any[]> {
-    return new Promise<any[]>((resolve, reject) =>
-      axios
-        .get(this.getParseTableUrl("language"), {
-          headers: {
-            "X-Parse-Application-Id": this.getParseAppId(),
-          },
-          params: {
-            limit: 10000,
-            where: '{"usageCount":{"$ne":0}}',
-          },
-        })
-        .then((result) => {
-          resolve(result.data.results);
-        })
-        .catch((err) => {
-          reject(err);
-        })
-    );
+  public async getLanguages() {
+    const result = await axios.get(this.getParseTableUrl("language"), {
+      headers: {
+        "X-Parse-Application-Id": this.getParseAppId(),
+      },
+      params: {
+        limit: 10000,
+        where: '{"usageCount":{"$ne":0}}',
+      },
+    });
+    return result.data.results;
+  }
+
+  // returns the objectId of the language record just created
+  public async createLanguage(langJson: any): Promise<string> {
+    const url = this.getParseTableUrl("language");
+    const result = await axios.post(url, langJson, {
+      headers: {
+        "X-Parse-Application-Id": this.getParseAppId(),
+        "Content-Type": "application/json",
+      },
+    });
+    if (result.status !== 201) {
+      throw new Error(`Failed to create language record`);
+    }
+    return result.data.objectId;
+  }
+
+  // returns the language record from Parse
+  public async getLanguage(langJson: any): Promise<any> {
+    const result = await axios.get(this.getParseTableUrl("language"), {
+      headers: {
+        "X-Parse-Application-Id": this.getParseAppId(),
+      },
+      params: {
+        where: langJson,
+      },
+    });
+    return result.data.results[0];
+  }
+
+  // returns the objectId of the first language matching the specifications of langJson, creating the language if necessary
+  public async getOrCreateLanguage(langJson: any): Promise<string> {
+    let lang = await this.getLanguage(langJson);
+    if (lang) {
+      return lang.objectId;
+    }
+    return await this.createLanguage(langJson);
   }
 
   // Get all the books in circulation that fit the current parameters.

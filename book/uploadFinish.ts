@@ -87,6 +87,23 @@ export async function handleUploadFinish(
   }
 
   delete bookRecord.uploader; // don't modify uploader
+
+  if ("languageDescriptors" in bookRecord) {
+    bookRecord.langPointers = [];
+    for (let i = 0; i < bookRecord.languageDescriptors.length; i++) {
+      const languageId = await parseServer.getOrCreateLanguage(
+        bookRecord.languageDescriptors[i]
+      );
+      bookRecord.langPointers.push({
+        __type: "Pointer",
+        className: "language",
+        objectId: languageId,
+      });
+    }
+
+    delete bookRecord.languageDescriptors;
+  }
+
   bookRecord.uploadPendingTimestamp = null;
   try {
     await parseServer.modifyBookRecord(
