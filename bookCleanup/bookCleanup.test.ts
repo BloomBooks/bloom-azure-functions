@@ -80,7 +80,7 @@ describe("bookCleanup", () => {
   beforeAll(async function () {
     await cleanupParse();
 
-    BloomParseServer.Source = Environment.UNITTEST;
+    BloomParseServer.setServer(Environment.UNITTEST);
     token = await BloomParseServer.loginAsUser(
       "unittest@example.com",
       "unittest"
@@ -116,7 +116,7 @@ describe("bookCleanup", () => {
   });
 
   it("deletes parse records for old failed uploads of new books", async () => {
-    BloomParseServer.Source = Environment.UNITTEST;
+    BloomParseServer.setServer(Environment.UNITTEST);
     const bookAAfterCleaning = await BloomParseServer.getBookInfoByObjectId(
       testBookIds.A
     );

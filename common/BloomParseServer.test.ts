@@ -8,7 +8,7 @@ let token: string;
 let myUserId: string;
 describe("BloomParseServer", () => {
   beforeAll(async function () {
-    BloomParseServer.Source = Environment.UNITTEST;
+    BloomParseServer.setServer(Environment.UNITTEST);
     token = await BloomParseServer.loginAsUser(
       "unittest@example.com",
       "unittest"
@@ -19,7 +19,7 @@ describe("BloomParseServer", () => {
   beforeEach(() => {});
 
   afterAll(async function () {
-    BloomParseServer.Source = Environment.UNITTEST;
+    BloomParseServer.setServer(Environment.UNITTEST);
     const testBooks = await BloomParseServer.getBooks(
       `{"bookInstanceId":{"$eq":"${testBookInstanceId}"}}`
     );
@@ -29,13 +29,13 @@ describe("BloomParseServer", () => {
   });
 
   it("getLanguages() returns a reasonable number of languages", async () => {
-    BloomParseServer.Source = Environment.PRODUCTION;
+    BloomParseServer.setServer(Environment.PRODUCTION);
     const langs = await BloomParseServer.getLanguages();
     expect(langs.length).toBeGreaterThan(500);
   });
 
   it("succesfully creates, modifies, and deletes Book records", async () => {
-    BloomParseServer.Source = Environment.UNITTEST;
+    BloomParseServer.setServer(Environment.UNITTEST);
 
     const newBookRecord = {
       title: "test book",
@@ -84,7 +84,7 @@ describe("BloomParseServer", () => {
     to run it
 
   it("getBooksForCatalog() returns expected number of Hausa books, using embargo days", async () => {
-    BloomParseServer.Source = Environment.DEVELOPMENT;
+    BloomParseServer.setServer(Environment.DEVELOPMENT);
     const allFoobarBooks = await BloomParseServer.getBooksForCatalog("de", 0);
     expect(allFoobarBooks.length).toBe(4);
     const oldFoobarBooks = await BloomParseServer.getBooksForCatalog("de", 194);
