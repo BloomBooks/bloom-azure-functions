@@ -1,0 +1,11 @@
+{
+  "bindings": [
+    {
+      "name": "bookCleanup",
+      "type": "timerTrigger",
+      "direction": "in",
+      "schedule": "0 40 12 * * *"
+    }
+  ],
+  "scriptFile": "../dist/bookCleanup/index.js"
+}

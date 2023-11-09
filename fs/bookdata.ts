@@ -1,6 +1,5 @@
-import BloomParseServer, {
-  BloomParseServerMode,
-} from "../common/BloomParseServer";
+import BloomParseServer from "../common/BloomParseServer";
+import { Environment } from "../common/utils";
 
 export default class BookData {
   // Get the real URL for the content based on the input URL parameters.
@@ -16,29 +15,30 @@ export default class BookData {
     switch (params.bucket) {
       case "upload":
         bucket = "BloomLibraryBooks";
-        source = BloomParseServerMode.PRODUCTION;
+        source = Environment.PRODUCTION;
         break;
       case "dev-upload":
         bucket = "BloomLibraryBooks-Sandbox";
-        source = BloomParseServerMode.DEVELOPMENT;
+        source = Environment.DEVELOPMENT;
         break;
       case "harvest":
         bucket = "bloomharvest";
-        source = BloomParseServerMode.PRODUCTION;
+        source = Environment.PRODUCTION;
         break;
       case "dev-harvest":
         bucket = "bloomharvest-sandbox";
-        source = BloomParseServerMode.DEVELOPMENT;
+        source = Environment.DEVELOPMENT;
         break;
       default:
         return null;
     }
     BloomParseServer.setServer(source);
-    let infoArray: any[] = await BloomParseServer.getBookInfo(params.bookid);
-    if (!infoArray || infoArray.length == 0 || !infoArray[0].baseUrl) {
+    let bookInfo: any = await BloomParseServer.getBookInfoByObjectId(
+      params.bookid
+    );
+    if (!bookInfo || !bookInfo.baseUrl) {
       return null;
     }
-    const bookInfo = infoArray[0];
     let url = BloomParseServer.getS3LinkBase(bookInfo, bucket);
     if (params.part1 && params.part1.length > 0) {
       url = url + "/" + encodeUnicode(params.part1);

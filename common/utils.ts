@@ -6,3 +6,9 @@ export function isLocalEnvironment(): boolean {
   //    where `EnvironmentSettingNames.AzureWebsiteInstanceId = "WEBSITE_INSTANCE_ID"`
   return !process.env.WEBSITE_INSTANCE_ID;
 }
+
+export enum Environment {
+  UNITTEST = "unit-test",
+  DEVELOPMENT = "dev",
+  PRODUCTION = "prod",
+}

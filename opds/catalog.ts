@@ -1,8 +1,6 @@
 import BookEntry from "./bookentry";
-import BloomParseServer, {
-  ApiAccount,
-  BloomParseServerMode,
-} from "../common/BloomParseServer";
+import BloomParseServer, { ApiAccount } from "../common/BloomParseServer";
+import { Environment } from "../common/utils";
 
 const kOpdsNavigationTypeAttribute = `type="application/atom+xml;profile=opds-catalog;kind=navigation"`;
 
@@ -196,7 +194,7 @@ export default class Catalog {
       },
       {
         name: "src",
-        default: BloomParseServerMode.PRODUCTION,
+        default: Environment.PRODUCTION,
       },
       {
         name: "epub",
@@ -303,7 +301,7 @@ export default class Catalog {
     params: CatalogParams,
     embargoDays: number
   ): Promise<string> {
-    const books = await BloomParseServer.getBooks(
+    const books = await BloomParseServer.getBooksForCatalog(
       params.lang,
       params.tag,
       embargoDays

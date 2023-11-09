@@ -3,7 +3,8 @@ import { isLocalEnvironment } from "../common/utils";
 
 const runEvenIfLocal: boolean = false;
 
-const timerTrigger: AzureFunction = async function(
+// See README for schedule of time triggered tasks
+const timerTrigger: AzureFunction = async function (
   context: Context,
   dailyTimer: any
 ): Promise<void> {

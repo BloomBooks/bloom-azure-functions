@@ -38,10 +38,13 @@ The resulting production url for functions is then `api.bloomlibrary.org/v1/__FU
 
 # Environment Variables
 
-Two environment variables need to be set for the **opds** and **fs** functions to access the relevant parse tables.
+These environment variables need to be set for the **book**, **opds**, and **fs** functions to access the relevant parse tables.
 
-- _OpdsParseAppIdDev_ - the APP\*ID from the bloom-parse-server-develop configuration in Azure
-- _OpdsParseAppIdProd_ - the APP\*ID from the bloom-parse-server-production configuration in Azure
+- _ParseAppIdProd_ - the APP_ID from the bloom-parse-server-production configuration in Azure
+- _ParseAppIdDev_ - the APP_ID from the bloom-parse-server-develop configuration in Azure
+- _ParseAppIdUnitTest_ - the APP_ID from the bloom-parse-server-unittest configuration in Azure
+
+Some functions may also require function-specific environment variables. See the function-specific READMEs and sections below.
 
 ### postgreSQL connection variables
 
@@ -150,14 +153,38 @@ The **stats** function provides statistics about how and how much books are bein
 
 See `./stats/README.md`.
 
+# book Function
+
+The **book** function provides an API for uploading books to BloomLibrary.org.
+
+See `./book/README.md`.
+
+# bookCleanup Function
+
+The **bookCleanup** function is a timer function set to run once per day. See schedule below.
+
+It cleans up Parse and s3 artifacts from failed book uploads that were started over 24 hours ago but never completed.
+
+The server (or your machine if you are testing locally) must have the password for the `book-cleanup` user as an environment variable: `bloomParseServerProdBookCleanupPassword` for prod, `bloomParseServerDevBookCleanupPassword` for dev and `bloomParseServerUnitTestBookCleanupPassword` for unit tests.
+
 # dailyTimer Function
 
-The **dailyTimer** function is a timer function set to run once per day.
+The **dailyTimer** function is a timer function set to run once per day. See schedule below.
 
 Currently, it is used to refresh the materialized views in the postgresql analytics database.
 
 # contentfulToCrowdin Function
 
-The **contentfulToCrowdin** function provides tools for using Crowdin to localize strings in Contentful.
+The **contentfulToCrowdin** function provides tools for using Crowdin to localize strings in Contentful. See schedule below.
 
 See `./contentfulToCrowdin/README.md`.
+
+# Chron job schedule
+
+#### Daily jobs:
+
+10:40 - dailyTimer runs
+
+12:40 - bookCleanup runs
+
+22:30 - contentfulToCrowdin runs

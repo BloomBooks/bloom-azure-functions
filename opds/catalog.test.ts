@@ -1,8 +1,7 @@
 import Catalog, { CatalogParams, setNeglectXmlNamespaces } from "./catalog";
 import { setResultXml, xexpect as expect } from "../common/xmlUnitTestUtils";
-import BloomParseServer, {
-  BloomParseServerMode,
-} from "../common/BloomParseServer";
+import BloomParseServer from "../common/BloomParseServer";
+import { Environment } from "../common/utils";
 
 describe("OPDS Catalog Root", () => {
   beforeAll(async () => {
@@ -116,11 +115,11 @@ describe("OPDS By Language Root", () => {
   //   });
 
   //   it("hrefs in navigation links carry the src param", async () => {
-  //     await makeCatalog({ src: BloomParseServerMode.DEVELOPMENT });
+  //     await makeCatalog({ src: Environment.DEVELOPMENT });
   //     expect('feed/link[@rel="self"]/@href').toContainText("src=dev");
 
   //     // since production is the default, we don't want to list it when it is chosen
-  //     await makeCatalog({ src: BloomParseServerMode.PRODUCTION });
+  //     await makeCatalog({ src: Environment.PRODUCTION });
   //     expect('feed/link[@rel="self" and contains(@href,"src")]').toHaveCount(0);
 
   //     await makeCatalog({});
@@ -130,7 +129,7 @@ describe("OPDS By Language Root", () => {
   it("hrefs in navigation links carry the referrer tag", async () => {
     await makeCatalog(
       {
-        src: BloomParseServerMode.DEVELOPMENT,
+        src: Environment.DEVELOPMENT,
         ref: "example tag",
         organizeby: "language",
       },
@@ -196,7 +195,7 @@ describe("OPDS By Language Root", () => {
     await makeCatalog(
       {
         epub: true,
-        src: BloomParseServerMode.PRODUCTION,
+        src: Environment.PRODUCTION,
         lang: "fr",
         organizeby: "language",
       },
@@ -220,7 +219,7 @@ describe("OPDS Tibetan language page", () => {
   beforeAll(async () => {
     setNeglectXmlNamespaces();
     Catalog.DefaultEmbargoDays = 0; // otherwise the counts will change with time even if noone touches the books
-    BloomParseServer.Source = BloomParseServerMode.PRODUCTION;
+    BloomParseServer.Source = Environment.PRODUCTION;
     const xml = await Catalog.getCatalog("https://base-url-for-unit-test", {
       lang: "bo",
     });

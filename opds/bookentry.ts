@@ -1,7 +1,6 @@
 import { getNeglectXmlNamespaces } from "./catalog";
-import BloomParseServer, {
-  BloomParseServerMode,
-} from "../common/BloomParseServer";
+import BloomParseServer from "../common/BloomParseServer";
+import { Environment } from "../common/utils";
 import * as entities from "entities";
 
 // This static class wraps methods for getting OPDS entry XML text for books in Bloom Library.
@@ -171,7 +170,7 @@ export default class BookEntry {
 
   private static getLinkElements(book: any, referrerTag: string): string {
     const blorgRoot =
-      BloomParseServer.Source === BloomParseServerMode.DEVELOPMENT
+      BloomParseServer.Source === Environment.DEVELOPMENT
         ? "https://dev.bloomlibrary.org"
         : "https://bloomlibrary.org";
 

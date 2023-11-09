@@ -1,13 +1,12 @@
 import { xexpect as expect } from "../common/xmlUnitTestUtils";
 import { getApiAccount } from "./apiAccount";
-import BloomParseServer, {
-  BloomParseServerMode,
-} from "../common/BloomParseServer";
+import BloomParseServer from "../common/BloomParseServer";
+import { Environment } from "../common/utils";
 
 describe("OPDS API Key Handling using DEV database", () => {
   beforeAll(() => {
     jest.setTimeout(10 * 1000);
-    BloomParseServer.DefaultSource = BloomParseServerMode.DEVELOPMENT;
+    BloomParseServer.DefaultSource = Environment.DEVELOPMENT;
 
     if (!process.env["bloomParseServerCatalogServicePassword"]) {
       throw Error(

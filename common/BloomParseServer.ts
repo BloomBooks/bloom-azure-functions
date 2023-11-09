@@ -1,23 +1,20 @@
 import axios from "axios";
-
-// For testing and development, we prefer to use the parse table associated with the development Bloom Library.
-// For production, we need to use the parse table associated with the production Bloom Library.
-export enum BloomParseServerMode {
-  DEVELOPMENT = "dev",
-  PRODUCTION = "prod",
-}
+import { Environment } from "./utils";
 
 export default class BloomParseServer {
-  public static DefaultSource: string = BloomParseServerMode.PRODUCTION;
+  public static DefaultSource: string = Environment.PRODUCTION;
   public static Source: string;
 
   public static setServer(source: string) {
     switch (source ? source.toLowerCase() : null) {
-      case BloomParseServerMode.DEVELOPMENT:
-        BloomParseServer.Source = BloomParseServerMode.DEVELOPMENT;
+      case Environment.UNITTEST:
+        BloomParseServer.Source = Environment.UNITTEST;
         break;
-      case BloomParseServerMode.PRODUCTION:
-        BloomParseServer.Source = BloomParseServerMode.PRODUCTION;
+      case Environment.DEVELOPMENT:
+        BloomParseServer.Source = Environment.DEVELOPMENT;
+        break;
+      case Environment.PRODUCTION:
+        BloomParseServer.Source = Environment.PRODUCTION;
         break;
       default:
         BloomParseServer.Source = BloomParseServer.DefaultSource;
@@ -25,36 +22,49 @@ export default class BloomParseServer {
     }
   }
 
+  public static getParseUrlBase(): string {
+    switch (BloomParseServer.Source) {
+      case Environment.PRODUCTION:
+      default:
+        return "https://server.bloomlibrary.org/parse";
+      case Environment.DEVELOPMENT:
+        return "https://dev-server.bloomlibrary.org/parse";
+      case Environment.UNITTEST:
+        return "https://bloom-parse-server-unittest.azurewebsites.net/parse";
+    }
+  }
+
   public static getParseTableUrl(tableName: string): string {
-    switch (BloomParseServer.Source) {
-      case BloomParseServerMode.DEVELOPMENT:
-        return "https://dev-parse.bloomlibrary.org/classes/" + tableName;
-      case BloomParseServerMode.PRODUCTION:
-      default:
-        return "https://parse.bloomlibrary.org/classes/" + tableName;
-    }
+    return BloomParseServer.getParseUrlBase() + "/classes/" + tableName;
   }
+
   public static getParseLoginUrl(): string {
-    switch (BloomParseServer.Source) {
-      case BloomParseServerMode.DEVELOPMENT:
-        return "https://dev-parse.bloomlibrary.org/login";
-      case BloomParseServerMode.PRODUCTION:
-      default:
-        return "https://parse.bloomlibrary.org/login";
-    }
+    return BloomParseServer.getParseUrlBase() + "/login";
   }
+
+  public static getParseUserUrl(): string {
+    return BloomParseServer.getParseUrlBase() + "/users/me";
+  }
+
   public static getParseAppId(): string {
     switch (BloomParseServer.Source) {
-      case BloomParseServerMode.DEVELOPMENT:
-        return (
-          process.env["OpdsParseAppIdDev"] ||
-          "OpdsParseAppIdDev is missing from env!"
-        );
-      case BloomParseServerMode.PRODUCTION:
+      case Environment.PRODUCTION:
       default:
         return (
+          process.env["ParseAppIdProd"] ||
           process.env["OpdsParseAppIdProd"] ||
-          "OpdsParseAppIdProd is missing from env!"
+          "ParseAppIdProd is missing from env!"
+        );
+      case Environment.DEVELOPMENT:
+        return (
+          process.env["ParseAppIdDev"] ||
+          process.env["OpdsParseAppIdDev"] ||
+          "ParseAppIdDev is missing from env!"
+        );
+      case Environment.UNITTEST:
+        return (
+          process.env["ParseAppIdUnitTest"] ||
+          "ParseAppIdUnitTest is missing from env!"
         );
     }
   }
@@ -244,7 +254,7 @@ export default class BloomParseServer {
 
   // Get all the books in circulation that fit the current parameters.
   // Further filtering may be needed, but those two filters should reduce the transfer considerably.
-  public static async getBooks(
+  public static async getBooksForCatalog(
     desiredLang: string,
     tag: string | undefined,
     embargoDays: number
@@ -296,8 +306,11 @@ export default class BloomParseServer {
     return results.data.results;
   }
 
-  // Get the complete information for the single book identified by the objectId value.
-  public static getBookInfo(objectId: string): Promise<any> {
+  public static getBook(where: string): Promise<any> {
+    return this.getBooks(where, true);
+  }
+
+  public static getBooks(where: string, onlyOne = false): Promise<any> {
     return new Promise<any[]>((resolve, reject) =>
       axios
         .get(BloomParseServer.getParseTableUrl("books"), {
@@ -306,11 +319,18 @@ export default class BloomParseServer {
           },
           params: {
             include: "uploader,langPointers",
-            where: `{"objectId":{"$eq":"${objectId}"}}`,
+            where,
           },
         })
         .then((result) => {
-          resolve(result.data.results);
+          if (onlyOne) {
+            if (result.data.results.length > 1) {
+              reject(new Error("More than one book found for " + where));
+            }
+            resolve(result.data.results[0]);
+          } else {
+            resolve(result.data.results);
+          }
         })
         .catch((err) => {
           console.log("ERROR: caught axios.get error: " + err);
@@ -319,21 +339,61 @@ export default class BloomParseServer {
     );
   }
 
+  public static getBookInfoByObjectId(objectId: string): Promise<any> {
+    return this.getBook(`{"objectId":{"$eq":"${objectId}"}}`);
+  }
+
+  public static getBookInfoByInstanceIdAndUploaderObjectId(
+    bookInstanceId: string,
+    uploaderObjectId: string
+  ): Promise<any> {
+    return this.getBook(
+      `{"uploader":{"__type":"Pointer","className":"_User","objectId":"${uploaderObjectId}"}, "bookInstanceId":{"$eq":"${bookInstanceId}"}}`
+    );
+  }
+
   // This Azure function logs in to the Parse server, using a hard-coded user name ("catalog-service").
   // That account has a ParseServer "role" which is allowed to read the `apiAccount` and `user` tables.
   public static async loginAsCatalogService(): Promise<string> {
+    return await BloomParseServer.loginAsUser(
+      "catalog-service",
+      process.env["bloomParseServerCatalogServicePassword"] // should be the same for dev and production
+    );
+  }
+
+  // This Azure function logs in to the Parse server, using a hard-coded user name ("book-cleanup").
+  // That account has a ParseServer "role" which is allowed to delete the old unfinished uploads from the books table.
+  public static async loginAsBookCleanupUser(): Promise<string> {
+    let password;
+    switch (BloomParseServer.Source) {
+      case Environment.PRODUCTION:
+        password = process.env["bloomParseServerProdBookCleanupPassword"];
+        break;
+      case Environment.DEVELOPMENT:
+        password = process.env["bloomParseServerDevBookCleanupPassword"];
+        break;
+      case Environment.UNITTEST:
+        password = process.env["bloomParseServerUnitTestBookCleanupPassword"];
+        break;
+    }
+    return await BloomParseServer.loginAsUser("book-cleanup", password);
+  }
+
+  public static async loginAsUser(
+    username: string,
+    password: string
+  ): Promise<string> {
     const results = await axios.get(BloomParseServer.getParseLoginUrl(), {
       headers: {
         "X-Parse-Application-Id": BloomParseServer.getParseAppId(),
       },
       params: {
-        username: "catalog-service",
-        password: process.env["bloomParseServerCatalogServicePassword"], // should be the same for dev and production
+        username: username,
+        password: password,
       },
     });
     return results.data.sessionToken;
-
-    // don't catch errors, let the go up
+    // don't catch errors, let them go up
   }
 
   //Get an object containing the data from the apiAccount table row with the specified ID (not yet authenticated)
@@ -389,6 +449,76 @@ export default class BloomParseServer {
       );
     }
     return null;
+  }
+
+  public static async getLoggedInUserInfo(sessionToken) {
+    try {
+      const results = await axios.get(BloomParseServer.getParseUserUrl(), {
+        headers: {
+          "X-Parse-Application-Id": BloomParseServer.getParseAppId(),
+          "X-Parse-Session-Token": sessionToken,
+        },
+      });
+      return results.data;
+    } catch (error) {
+      return null; // not a valid session token; no user info to return
+    }
+  }
+
+  public static async createBookRecord(bookInfo: any, sessionToken: string) {
+    const url = this.getParseTableUrl("books");
+    const results = await axios.post(url, bookInfo, {
+      headers: {
+        "X-Parse-Application-Id": BloomParseServer.getParseAppId(),
+        "X-Parse-Session-Token": sessionToken,
+        "Content-Type": "application/json",
+      },
+    });
+    if (results.status !== 201) {
+      throw new Error(`Failed to create book record`);
+    }
+    return results.data.objectId;
+  }
+
+  public static async modifyBookRecord(
+    bookObjectId: string,
+    bookInfo: any,
+    sessionToken: string
+  ) {
+    const results = await axios.put(
+      BloomParseServer.getParseTableUrl("books") + "/" + bookObjectId,
+      bookInfo,
+      {
+        headers: {
+          "X-Parse-Application-Id": BloomParseServer.getParseAppId(),
+          "X-Parse-Session-Token": sessionToken,
+        },
+      }
+    );
+    return results.data;
+  }
+
+  // Check if user has permission to modify the book
+  public static canModifyBook(userInfo, bookInfo) {
+    return (
+      bookInfo !== undefined && bookInfo.uploader.objectId === userInfo.objectId
+    );
+  }
+
+  public static async deleteBookRecord(
+    bookObjectId: string,
+    sessionToken: string
+  ) {
+    const results = await axios.delete(
+      BloomParseServer.getParseTableUrl("books") + "/" + bookObjectId,
+      {
+        headers: {
+          "X-Parse-Application-Id": BloomParseServer.getParseAppId(),
+          "X-Parse-Session-Token": sessionToken,
+        },
+      }
+    );
+    return results;
   }
 }
 

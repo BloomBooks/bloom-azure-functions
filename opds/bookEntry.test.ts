@@ -143,7 +143,7 @@ describe("BookEntry", () => {
   // librarian needs to approve it first
   it("don't include if it has tag:incoming", () => {
     book.tags.push("system:Incoming");
-    expect(BookEntry.getOpdsEntryForBook(book, false, null, null)).toBe(
+    expect(BookEntry.getOpdsEntryForBook(book, false, "", "")).toBe(
       "<!-- omitting a book because it is awaiting site policy review -->"
     );
   });
