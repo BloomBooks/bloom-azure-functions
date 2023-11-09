@@ -34,6 +34,9 @@ const book: AzureFunction = async function (
     case "upload-finish":
       await handleUploadFinish(context, req, userInfo, env);
       return;
+    case "get-or-create-language":
+      await handleLanguageEntryRequest(context, req, env);
+      return;
     default:
       context.res = {
         status: 400,
@@ -42,6 +45,29 @@ const book: AzureFunction = async function (
       return;
   }
 };
+
+async function handleLanguageEntryRequest(
+  context: Context,
+  req: HttpRequest,
+  env: Environment
+) {
+  // method must be POST because we create the language record if it doesn't exist
+  if (req.method !== "POST") {
+    context.res = {
+      status: 400,
+      body: "Unhandled HTTP method",
+    };
+    return;
+  }
+  BloomParseServer.setServer(env);
+  const langJson = req.body; // parameters to query for language record in Parse db, e.g. {"isoCode":"en","name":"English","ethnologueCode":"eng"}.
+  // if multiple language entries match, we return the first one.
+  const language = await BloomParseServer.getOrCreateLanguage(langJson);
+  context.res = {
+    status: 200,
+    body: language, // currently just { objectId: language.objectId }
+  };
+}
 
 // Validate the session token and return the user info
 async function getUserFromSession(req: HttpRequest) {

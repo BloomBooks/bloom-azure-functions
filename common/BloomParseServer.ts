@@ -231,7 +231,37 @@ export default class BloomParseServer {
 
   // Get all of the languages recorded for all of the books.  Due to the messy data
   // we've accumulated, there may be duplicates in the list.
-  public static getLanguages(): Promise<any[]> {
+  public static async getLanguages() {
+    const result = await axios.get(
+      BloomParseServer.getParseTableUrl("language"),
+      {
+        headers: {
+          "X-Parse-Application-Id": BloomParseServer.getParseAppId(),
+        },
+        params: {
+          limit: 10000,
+          where: '{"usageCount":{"$ne":0}}',
+        },
+      }
+    );
+    return result.data.results;
+  }
+
+  public static async createLanguage(langJson: any) {
+    const url = this.getParseTableUrl("language");
+    const result = await axios.post(url, langJson, {
+      headers: {
+        "X-Parse-Application-Id": BloomParseServer.getParseAppId(),
+        "Content-Type": "application/json",
+      },
+    });
+    if (result.status !== 201) {
+      throw new Error(`Failed to create language record`);
+    }
+    return { objectId: result.data.objectId };
+  }
+
+  public static getLanguage(langJson: any): Promise<any> {
     return new Promise<any[]>((resolve, reject) =>
       axios
         .get(BloomParseServer.getParseTableUrl("language"), {
@@ -239,17 +269,25 @@ export default class BloomParseServer {
             "X-Parse-Application-Id": BloomParseServer.getParseAppId(),
           },
           params: {
-            limit: 10000,
-            where: '{"usageCount":{"$ne":0}}',
+            where: langJson,
           },
         })
         .then((result) => {
-          resolve(result.data.results);
+          resolve(result.data.results[0]);
         })
         .catch((err) => {
+          console.log("ERROR: caught axios.get error: " + err);
           reject(err);
         })
     );
+  }
+
+  public static async getOrCreateLanguage(langJson: any) {
+    let lang = await this.getLanguage(langJson);
+    if (lang) {
+      return { objectId: lang.objectId };
+    }
+    return await this.createLanguage(langJson);
   }
 
   // Get all the books in circulation that fit the current parameters.
