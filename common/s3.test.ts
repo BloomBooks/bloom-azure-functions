@@ -110,9 +110,9 @@ describe("s3", () => {
     );
 
     expect(creds).toBeDefined();
-    expect(creds.AccessKeyId).toBeDefined();
-    expect(creds.SecretAccessKey).toBeDefined();
-    expect(creds.SessionToken).toBeDefined();
+    expect(creds?.AccessKeyId).toBeDefined();
+    expect(creds?.SecretAccessKey).toBeDefined();
+    expect(creds?.SessionToken).toBeDefined();
 
     // to reassure typescript that all the credentials are defined
     if (!creds || !creds.AccessKeyId || !creds.SecretAccessKey) {

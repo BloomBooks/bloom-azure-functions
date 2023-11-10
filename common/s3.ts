@@ -41,7 +41,7 @@ function unencode(path: string) {
 }
 
 export async function listPrefixContentsKeys(prefix: string, env: Environment) {
-  const client = getS3Client();
+  const client = getS3Client(env);
 
   let continuationToken;
   let contentKeys = [];
@@ -66,7 +66,7 @@ export async function listPrefixContentsKeys(prefix: string, env: Environment) {
 
 export async function allowPublicRead(prefix: string, env: Environment) {
   const bookFileKeys = await listPrefixContentsKeys(prefix, env);
-  const client = getS3Client();
+  const client = getS3Client(env);
   if (!bookFileKeys) {
     throw new Error("ListObjectsV2Command returned no contents");
   }
@@ -87,7 +87,7 @@ export async function allowPublicRead(prefix: string, env: Environment) {
 }
 
 export async function deleteBook(bookPathPrefix: string, env: Environment) {
-  const client = getS3Client();
+  const client = getS3Client(env);
   let errorOcurred = false;
   let continuationToken;
   // S3 only allows 1000 keys per request, so we need to loop until we delete them all
@@ -116,8 +116,8 @@ export async function deleteBook(bookPathPrefix: string, env: Environment) {
   }
 }
 
-export async function deleteFiles(fileKeys, env) {
-  const client = getS3Client();
+export async function deleteFiles(fileKeys: string[], env: Environment) {
+  const client = getS3Client(env);
   const deleteCommandInput = {
     Bucket: getBucketName(env),
     Delete: {
@@ -135,7 +135,7 @@ export async function copyBook(
   destPath: string,
   env: Environment
 ) {
-  const client = getS3Client();
+  const client = getS3Client(env);
 
   const bookFileKeys = await listPrefixContentsKeys(srcPath, env);
   if (!bookFileKeys) {
@@ -162,7 +162,10 @@ export async function getTemporaryS3Credentials(
   prefix: string,
   env: Environment
 ) {
-  const client = new STSClient({ region: kS3Region });
+  const client = new STSClient({
+    region: kS3Region,
+    credentials: getS3Credentials(env),
+  });
   const bucket = getBucketName(env);
   // policy modified from https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_temp_control-access_getfederationtoken.html
   const policy = JSON.stringify({
@@ -201,8 +204,43 @@ export function getBucketName(env: Environment) {
   }
 }
 
-function getS3Client() {
-  return new S3Client({ region: kS3Region });
+let s3ClientProd;
+let s3ClientDev;
+let s3ClientUnitTest;
+function getS3Client(env: Environment) {
+  switch (env) {
+    case Environment.PRODUCTION:
+      return s3ClientProd || (s3ClientProd = createS3Client(env));
+    case Environment.DEVELOPMENT:
+      return s3ClientDev || (s3ClientDev = createS3Client(env));
+    case Environment.UNITTEST:
+      return s3ClientUnitTest || (s3ClientUnitTest = createS3Client(env));
+  }
+}
+function createS3Client(env: Environment) {
+  return new S3Client({
+    region: kS3Region,
+    credentials: getS3Credentials(env),
+  });
+}
+function getS3Credentials(env: Environment) {
+  let suffix = "";
+  switch (env) {
+    case Environment.PRODUCTION:
+      suffix = "Prod";
+      break;
+    case Environment.DEVELOPMENT:
+      suffix = "Dev";
+      break;
+    case Environment.UNITTEST:
+      suffix = "UnitTest";
+      break;
+  }
+  return {
+    accessKeyId: process.env[`BloomUploadPermissionManagerS3Key${suffix}`],
+    secretAccessKey:
+      process.env[`BloomUploadPermissionManagerS3SecretKey${suffix}`],
+  };
 }
 
 // for unit tests
@@ -212,7 +250,7 @@ export async function uploadTestFileToS3(
   client?: S3Client
 ) {
   if (!client) {
-    client = getS3Client();
+    client = getS3Client(env);
   }
   const uploadCommandInput = {
     Bucket: getBucketName(env),

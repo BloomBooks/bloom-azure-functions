@@ -34,13 +34,19 @@ describe("OPDS API Key Handling using DEV database", () => {
   });
 
   it("finds the unit-test-account on dev server", async () => {
-    if (!process.env["bloomParseSeverUnitTestApiAccountObjectId"]) {
+    if (
+      !process.env["bloomParseServerUnitTestApiAccountObjectId"] &&
+      !process.env["bloomParseSeverUnitTestApiAccountObjectId"] // original deployment had a typo
+    ) {
       throw Error(
-        "bloomParseSeverUnitTestApiAccountObjectId needs to be in the environment variables. See README for more info."
+        "bloomParseServerUnitTestApiAccountObjectId needs to be in the environment variables. See README for more info."
       );
     }
     const answer = await getApiAccount(
-      `unit-test@example.com:${process.env["bloomParseSeverUnitTestApiAccountObjectId"]}`
+      `unit-test@example.com:${
+        process.env["bloomParseServerUnitTestApiAccountObjectId"] ||
+        process.env["bloomParseSeverUnitTestApiAccountObjectId"] // original deployment had a typo
+      }`
     );
     // console.log(answer);
     expect(answer.errorMessage).toBeFalsy();
