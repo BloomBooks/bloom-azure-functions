@@ -58,4 +58,11 @@ Any failures result in
 
 ## Environment Variables
 
-See `../README.md`.
+See `../README.md` for some common environment variables needed for several functions.
+
+- _BloomUploadPermissionManagerS3Key{suffix}_ - the AWS Access Key ID for the user which has permission to manage the S3 bucket for the given suffix.
+- _BloomUploadPermissionManagerS3SecretKey{suffix}_ - the AWS Secret Access Key for the user.
+  - suffix
+    - Prod - bloom_upload_permission_manager
+    - Dev - bloom_upload_permission_manager_dev
+    - UnitTest - bloom_upload_permission_manager_unittest
