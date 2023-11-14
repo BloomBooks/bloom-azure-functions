@@ -219,7 +219,6 @@ describe("OPDS Tibetan language page", () => {
   beforeAll(async () => {
     setNeglectXmlNamespaces();
     Catalog.DefaultEmbargoDays = 0; // otherwise the counts will change with time even if noone touches the books
-    BloomParseServer.Source = Environment.PRODUCTION;
     const xml = await Catalog.getCatalog("https://base-url-for-unit-test", {
       lang: "bo",
     });

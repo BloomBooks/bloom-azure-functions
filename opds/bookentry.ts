@@ -18,7 +18,8 @@ export default class BookEntry {
     book: any,
     epubOnly: boolean,
     desiredLang: string,
-    referrerTag: string
+    referrerTag: string,
+    env?: Environment
   ): string {
     // these will be excluded by the query, so just being double safe
     if (book.draft) {
@@ -95,7 +96,7 @@ export default class BookEntry {
     entry += makeDCElementOrEmpty("license", book.license);
 
     entry = entry + BookEntry.getLanguageFields(book, epubOnly, desiredLang);
-    const links = BookEntry.getLinkElements(book, referrerTag);
+    const links = BookEntry.getLinkElements(book, referrerTag, env);
     if (!links || links.length == 0) {
       // An entry without any links is rather useless, and can mess up clients
       // (It's also probably not valid according to the OPDS standard.)
@@ -168,9 +169,13 @@ export default class BookEntry {
     return book?.show?.[artifactName]?.langTag;
   }
 
-  private static getLinkElements(book: any, referrerTag: string): string {
+  private static getLinkElements(
+    book: any,
+    referrerTag: string,
+    env: Environment
+  ): string {
     const blorgRoot =
-      BloomParseServer.Source === Environment.DEVELOPMENT
+      env === Environment.DEVELOPMENT
         ? "https://dev.bloomlibrary.org"
         : "https://bloomlibrary.org";
 

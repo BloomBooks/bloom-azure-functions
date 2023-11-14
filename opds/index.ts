@@ -31,7 +31,7 @@ const opds: AzureFunction = async function (
   if (params["key"]) {
     const accountResult = await getApiAccount(
       params["key"],
-      params["src"] as Environment
+      params["src"]?.toLowerCase() as Environment
     );
     if (accountResult.resultCode) {
       context.res = {
