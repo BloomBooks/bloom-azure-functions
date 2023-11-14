@@ -3,19 +3,20 @@ import { deleteBook } from "../common/s3";
 import { Environment } from "../common/utils";
 
 export async function bookCleanupInternal(env: Environment) {
-  BloomParseServer.setServer(env);
-  const sessionToken = await BloomParseServer.loginAsBookCleanupUser();
+  const parseServer = new BloomParseServer(env);
+
+  const sessionToken = await parseServer.loginAsBookCleanupUser();
   const cutoff = Date.now() - 24 * 60 * 60 * 1000; // 1 day ago
-  const booksToBeCleanedUp = await BloomParseServer.getBooks(
+  const booksToBeCleanedUp = await parseServer.getBooks(
     `{"uploadPendingTimestamp":{"$lt":${cutoff}}}`
   );
   for (const book of booksToBeCleanedUp) {
     const bookPrefixToDelete = `${book.objectId}/${book.uploadPendingTimestamp}`;
     await deleteBook(bookPrefixToDelete, env);
     if (book.baseUrl === undefined) {
-      await BloomParseServer.deleteBookRecord(book.objectId, sessionToken);
+      await parseServer.deleteBookRecord(book.objectId, sessionToken);
     } else {
-      await BloomParseServer.modifyBookRecord(
+      await parseServer.modifyBookRecord(
         book.objectId,
         {
           uploadPendingTimestamp: null,

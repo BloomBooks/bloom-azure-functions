@@ -1,5 +1,5 @@
 import BloomParseServer, { ApiAccount } from "../common/BloomParseServer";
-import { Environment } from "../common/utils";
+import { DefaultEnvironment, Environment } from "../common/utils";
 
 export async function getApiAccount(
   key: string,
@@ -17,8 +17,8 @@ export async function getApiAccount(
     };
   }
 
-  BloomParseServer.setServer(
-    devOrProductionServer || BloomParseServer.DefaultSource
+  const parseServer = new BloomParseServer(
+    devOrProductionServer || DefaultEnvironment
   );
 
   const keyParts = key.split(":");
@@ -35,7 +35,7 @@ export async function getApiAccount(
       throw new Error("pretend problem talking to Parse Server");
     }
 
-    const account = await BloomParseServer.getApiAccount(objectId);
+    const account = await parseServer.getApiAccount(objectId);
 
     /* [JH] I'm backing off this because frankly I'm having trouble finding what is wrong on prod, so
     I want this feedback there.

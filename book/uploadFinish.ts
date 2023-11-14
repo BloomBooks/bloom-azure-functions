@@ -11,6 +11,7 @@ import { Environment } from "../common/utils";
 export async function handleUploadFinish(
   context: Context,
   req: HttpRequest,
+  parseServer: BloomParseServer,
   userInfo: any,
   env: Environment
 ) {
@@ -31,7 +32,7 @@ export async function handleUploadFinish(
     };
     return;
   }
-  const bookInfo = await BloomParseServer.getBookInfoByObjectId(bookId);
+  const bookInfo = await parseServer.getBookInfoByObjectId(bookId);
   if (!BloomParseServer.canModifyBook(userInfo, bookInfo)) {
     context.res = {
       status: 400,
@@ -88,7 +89,7 @@ export async function handleUploadFinish(
   delete bookRecord.uploader; // don't modify uploader
   bookRecord.uploadPendingTimestamp = null;
   try {
-    await BloomParseServer.modifyBookRecord(
+    await parseServer.modifyBookRecord(
       bookId,
       bookRecord,
       userInfo.sessionToken

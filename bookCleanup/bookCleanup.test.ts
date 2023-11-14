@@ -11,7 +11,8 @@ const testBookInstanceId = "azureFunctionBookCleanupTests";
 const oldTimestamp = Date.now() - 2 * 24 * 60 * 60 * 1000; // 2 days ago
 const recentTimestamp = Date.now() - 2 * 60 * 60 * 1000; // 2 hours ago
 
-let token: string;
+let parseServer: BloomParseServer;
+let sessionToken: string;
 
 const testBookEntries = {
   A: {
@@ -59,11 +60,11 @@ let testBookIds = { A: "", B: "", C: "" };
 
 async function cleanupParse() {
   // delete the entries created as part of these tests
-  const remainingTestBookEntries = await BloomParseServer.getBooks(
+  const remainingTestBookEntries = await parseServer.getBooks(
     `{"bookInstanceId":{"$eq":"${testBookInstanceId}"}}`
   );
   for (const book of remainingTestBookEntries) {
-    await BloomParseServer.deleteBookRecord(book.objectId, token);
+    await parseServer.deleteBookRecord(book.objectId, sessionToken);
   }
 }
 
@@ -76,21 +77,21 @@ async function cleanupS3Files() {
   }
 }
 
-describe("bookCleanup", () => {
+fdescribe("bookCleanup", () => {
   beforeAll(async function () {
-    await cleanupParse();
-
-    BloomParseServer.setServer(Environment.UNITTEST);
-    token = await BloomParseServer.loginAsUser(
+    parseServer = new BloomParseServer(Environment.UNITTEST);
+    sessionToken = await parseServer.loginAsUser(
       "unittest@example.com",
       "unittest"
     );
 
+    await cleanupParse();
+
     for (const bookLabel of Object.keys(testBookEntries)) {
       const bookEntry = testBookEntries[bookLabel];
-      const bookId: string = await BloomParseServer.createBookRecord(
+      const bookId: string = await parseServer.createBookRecord(
         bookEntry,
-        token
+        sessionToken
       );
       expect(bookId).toBeTruthy(); // make sure book records were successfully created
       testBookIds[bookLabel] = bookId; // keep track of ids for the tests to use
@@ -116,22 +117,21 @@ describe("bookCleanup", () => {
   });
 
   it("deletes parse records for old failed uploads of new books", async () => {
-    BloomParseServer.setServer(Environment.UNITTEST);
-    const bookAAfterCleaning = await BloomParseServer.getBookInfoByObjectId(
+    const bookAAfterCleaning = await parseServer.getBookInfoByObjectId(
       testBookIds.A
     );
     expect(bookAAfterCleaning).toBeFalsy();
   });
 
   it("does not mess with recently created parse records of incomplete book uploads", async () => {
-    const bookBAfterCleaning = await BloomParseServer.getBookInfoByObjectId(
+    const bookBAfterCleaning = await parseServer.getBookInfoByObjectId(
       testBookIds.B
     );
     expect(bookBAfterCleaning).toBeTruthy();
     expect(bookBAfterCleaning.uploadPendingTimestamp).toBeTruthy();
   });
   it("removes the uploadPendingTimestamp but not the record for old failed updates of preexisting books", async () => {
-    const bookCAfterCleaning = await BloomParseServer.getBookInfoByObjectId(
+    const bookCAfterCleaning = await parseServer.getBookInfoByObjectId(
       testBookIds.C
     );
     expect(bookCAfterCleaning).toBeTruthy();

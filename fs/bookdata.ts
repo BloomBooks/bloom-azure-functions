@@ -9,33 +9,30 @@ export default class BookData {
     [key: string]: string;
   }): Promise<any> {
     let bucket: string;
-    let source: string;
-    // The bucket parameter determines both the parse table source and a section of
-    // the base URL.
+    let environment: Environment;
     switch (params.bucket) {
       case "upload":
         bucket = "BloomLibraryBooks";
-        source = Environment.PRODUCTION;
+        environment = Environment.PRODUCTION;
         break;
       case "dev-upload":
         bucket = "BloomLibraryBooks-Sandbox";
-        source = Environment.DEVELOPMENT;
+        environment = Environment.DEVELOPMENT;
         break;
       case "harvest":
         bucket = "bloomharvest";
-        source = Environment.PRODUCTION;
+        environment = Environment.PRODUCTION;
         break;
       case "dev-harvest":
         bucket = "bloomharvest-sandbox";
-        source = Environment.DEVELOPMENT;
+        environment = Environment.DEVELOPMENT;
         break;
       default:
         return null;
     }
-    BloomParseServer.setServer(source);
-    let bookInfo: any = await BloomParseServer.getBookInfoByObjectId(
-      params.bookid
-    );
+
+    const parseServer = new BloomParseServer(environment);
+    let bookInfo: any = await parseServer.getBookInfoByObjectId(params.bookid);
     if (!bookInfo || !bookInfo.baseUrl) {
       return null;
     }

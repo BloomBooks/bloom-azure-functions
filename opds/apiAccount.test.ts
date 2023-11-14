@@ -1,12 +1,19 @@
 import { xexpect as expect } from "../common/xmlUnitTestUtils";
 import { getApiAccount } from "./apiAccount";
 import BloomParseServer from "../common/BloomParseServer";
-import { Environment } from "../common/utils";
+import {
+  DefaultEnvironment,
+  Environment,
+  setDefaultEnvironment,
+} from "../common/utils";
+
+let parseServer: BloomParseServer;
 
 describe("OPDS API Key Handling using DEV database", () => {
   beforeAll(() => {
     jest.setTimeout(10 * 1000);
-    BloomParseServer.DefaultSource = Environment.DEVELOPMENT;
+    setDefaultEnvironment(Environment.DEVELOPMENT);
+    parseServer = new BloomParseServer(DefaultEnvironment);
 
     if (!process.env["bloomParseServerCatalogServicePassword"]) {
       throw Error(
@@ -28,7 +35,7 @@ describe("OPDS API Key Handling using DEV database", () => {
   });
   it("can login", async () => {
     jest.setTimeout(1000 * 10);
-    const answer = await BloomParseServer.loginAsCatalogService();
+    const answer = await parseServer.loginAsCatalogService();
     // console.log(answer);
     expect(answer).toBeTruthy();
   });
