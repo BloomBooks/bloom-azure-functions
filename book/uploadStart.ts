@@ -15,6 +15,7 @@ const kPendingString = "pending";
 export async function handleUploadStart(
   context: Context,
   req: HttpRequest,
+  parseServer: BloomParseServer,
   userInfo: any,
   env: Environment
 ) {
@@ -46,7 +47,7 @@ export async function handleUploadStart(
     };
 
     try {
-      bookObjectId = await BloomParseServer.createBookRecord(
+      bookObjectId = await parseServer.createBookRecord(
         newBookRecord,
         userInfo.sessionToken
       );
@@ -63,7 +64,7 @@ export async function handleUploadStart(
 
   if (!isNewBook) {
     // we are modifying an existing book. Check that we have permission, then copy old book to new folder for efficient syncing
-    const existingBookInfo = await BloomParseServer.getBookInfoByObjectId(
+    const existingBookInfo = await parseServer.getBookInfoByObjectId(
       bookObjectId
     );
     if (!BloomParseServer.canModifyBook(userInfo, existingBookInfo)) {
@@ -126,7 +127,7 @@ export async function handleUploadStart(
       return;
     }
     try {
-      BloomParseServer.modifyBookRecord(
+      parseServer.modifyBookRecord(
         bookObjectId,
         {
           uploadPendingTimestamp: currentTime,

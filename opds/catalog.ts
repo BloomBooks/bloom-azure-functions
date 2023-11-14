@@ -1,6 +1,6 @@
 import BookEntry from "./bookentry";
 import BloomParseServer, { ApiAccount } from "../common/BloomParseServer";
-import { Environment } from "../common/utils";
+import { DefaultEnvironment, Environment } from "../common/utils";
 
 const kOpdsNavigationTypeAttribute = `type="application/atom+xml;profile=opds-catalog;kind=navigation"`;
 
@@ -44,7 +44,11 @@ export default class Catalog {
     apiAccount?: ApiAccount,
     skipServerElementsForFastTesting?: boolean
   ): Promise<string> {
-    const header = this.makeHeaderElements(baseUrl, params, apiAccount);
+    const parseServer = new BloomParseServer(
+      (params["src"]?.toLowerCase() as Environment) || DefaultEnvironment
+    );
+
+    const header = this.makeHeaderElements(baseUrl, apiAccount);
 
     // if there are no filters (language or type of artifact), return our root navigation choices
     if (!params.lang && !params.organizeby && !params.tag)
@@ -64,12 +68,13 @@ export default class Catalog {
       // unit testing
       skipServerElementsForFastTesting
         ? ""
-        : await Catalog.getLanguageLinks(params);
+        : await Catalog.getLanguageLinks(parseServer, params);
 
     var bookEntries = "";
     // bookEntries will be null at the root, when they haven't selected a language yet (or if the unit tests don't want us to run the server query)
     if (!skipServerElementsForFastTesting && (params.lang || params.tag)) {
       bookEntries = await Catalog.getEntries(
+        parseServer,
         params,
         this.getEmbargoDays(apiAccount)
       );
@@ -95,7 +100,7 @@ export default class Catalog {
     params: CatalogParams,
     apiAccount?: ApiAccount
   ): string {
-    const header = this.makeHeaderElements(baseUrl, params, apiAccount);
+    const header = this.makeHeaderElements(baseUrl, apiAccount);
     return `<?xml version="1.0" encoding="UTF-8"?>
             <feed  ${this.getNamespaceDeclarations()}  >
               ${header}
@@ -153,13 +158,11 @@ export default class Catalog {
       : 'xmlns="http://www.w3.org/2005/Atom" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:bloom="https://bloomlibrary.org/opds" xmlns:opds="http://opds-spec.org/2010/catalog"';
   }
 
-  public static makeHeaderElements(
+  private static makeHeaderElements(
     baseUrl: string,
-    params: CatalogParams,
     apiAccount?: ApiAccount
   ): string {
     Catalog.RootUrl = baseUrl;
-    BloomParseServer.setServer(params["src"]);
 
     return `${this.getXmlCommentsAboutAccount(apiAccount)}
         <id>https://bloomlibrary.org</id>
@@ -194,7 +197,7 @@ export default class Catalog {
       },
       {
         name: "src",
-        default: Environment.PRODUCTION,
+        default: DefaultEnvironment,
       },
       {
         name: "epub",
@@ -230,9 +233,10 @@ export default class Catalog {
 
   // Get all the language links for the given type of catalog and desired language.
   private static async getLanguageLinks(
+    parseServer: BloomParseServer,
     params: CatalogParams
   ): Promise<string> {
-    const languages = await BloomParseServer.getLanguages();
+    const languages = await parseServer.getLanguages();
     const sortedByName = languages.sort((a, b) => {
       // enhance: need some way to sort by lang.usageCount and then below, when we drop all but
       // the 1st occurrence of the iso, choose the spelling that is most common
@@ -298,10 +302,11 @@ export default class Catalog {
 
   // Get all the entries for the given type of catalog and desired language.
   private static async getEntries(
+    parseServer: BloomParseServer,
     params: CatalogParams,
     embargoDays: number
   ): Promise<string> {
-    const books = await BloomParseServer.getBooksForCatalog(
+    const books = await parseServer.getBooksForCatalog(
       params.lang,
       params.tag,
       embargoDays
@@ -312,7 +317,8 @@ export default class Catalog {
           book,
           params.epub,
           params.lang,
-          params.ref
+          params.ref,
+          parseServer.getEnvironment()
         )
       )
       .join("");
