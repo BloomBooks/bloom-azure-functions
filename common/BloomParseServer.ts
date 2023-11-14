@@ -335,6 +335,20 @@ export default class BloomParseServer {
     return results.data.results;
   }
 
+  public async getBookCountByLanguage(languageIsoCode: string) {
+    const results = await axios.get(this.getParseTableUrl("books"), {
+      headers: {
+        "X-Parse-Application-Id": this.getParseAppId(),
+      },
+      params: {
+        count: 1,
+        limit: 0,
+        where: `{"langPointers":{"$inQuery":{"where":{"isoCode":"${languageIsoCode}"},"className":"language"}},"rebrand":{"$ne":true},"inCirculation":{"$ne":false},"draft":{"$ne":true}}`,
+      },
+    });
+    return results.data.count;
+  }
+
   public getBook(where: string): Promise<any> {
     return this.getBooks(where, true);
   }
