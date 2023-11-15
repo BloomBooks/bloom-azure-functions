@@ -39,6 +39,9 @@ const book: AzureFunction = async function (
       case "get-book-count-by-language":
         await getBookCountByLanguage(context, req, parseServer);
         return;
+      case "get-books-with-these-ids":
+        await getBooksWithTheseIds(context, req, parseServer);
+        return;
       default:
         context.res = {
           status: 400,
@@ -73,6 +76,38 @@ async function getBookCountByLanguage(
   context.res = {
     status: 200,
     body: count,
+  };
+}
+
+async function getBooksWithTheseIds(
+  context: Context,
+  req: HttpRequest,
+  parseServer: BloomParseServer
+) {
+  const bookIds = req.body;
+
+  var bookRecords = [];
+
+  const queryStringStart = '{"bookInstanceId":{"$in":["';
+  var booksQuery = queryStringStart;
+  for (var i = 0; i < bookIds.length; ++i) {
+    // More than 21 bookIds in a query causes a 400 error.
+    // Just to be safe, we'll limit it to 20.
+    booksQuery += '","' + bookIds[i];
+    if (i % 20 === 0 || i === bookIds.length - 1) {
+      booksQuery += '"]}}';
+      var result = await parseServer.getBooks(booksQuery);
+      if (result.status !== 200) continue;
+      if (result.data) {
+        bookRecords = bookRecords.concat(result.data.results);
+      }
+      booksQuery = queryStringStart;
+    }
+  }
+
+  context.res = {
+    status: 200,
+    body: bookRecords,
   };
 }
 
