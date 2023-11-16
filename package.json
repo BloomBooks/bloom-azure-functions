@@ -8,7 +8,8 @@
     "watch": "tsc -w",
     "prestart": "npm run build",
     "start": "func start",
-    "test": "jest --verbose"
+    "test": "jest --verbose",
+    "lint": "eslint -c .eslintrc.js --ext .ts ."
   },
   "//": "typescript and @azure/functions need to be here rather than devDependencies so the",
   "// ": "Azure deployment script can run the typescript transpilation using our local typescript",
@@ -26,15 +27,16 @@
   },
   "devDependencies": {
     "@types/jest": "^27.0.3",
+    "@typescript-eslint/eslint-plugin": "^6.11.0",
+    "@typescript-eslint/parser": "^6.11.0",
     "@xmldom/xmldom": "^0.7.5",
-    "eslint": "^8.3.0",
+    "eslint": "^8.53.0",
     "eslint-config-prettier": "^8.3.0",
     "eslint-plugin-prettier": "^4.0.0",
     "jest": "^27.3.1",
     "prettier": "^2.4.1",
     "stub-azure-function-context": "^2.0.0-alpha.6",
     "ts-jest": "^27.0.7",
-    "tslint-config-prettier": "^1.18.0",
     "xml-formatter": "^2.5.1",
     "xpath": "^0.0.32"
   }
