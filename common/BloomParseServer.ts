@@ -262,6 +262,19 @@ export default class BloomParseServer {
     return result.data.results[0];
   }
 
+  public async deleteLanguage(languageObjectId: string, sessionToken: string) {
+    const results = await axios.delete(
+      this.getParseTableUrl("language") + "/" + languageObjectId,
+      {
+        headers: {
+          "X-Parse-Application-Id": this.getParseAppId(),
+          "X-Parse-Session-Token": sessionToken,
+        },
+      }
+    );
+    return results;
+  }
+
   // returns the objectId of the first language matching the specifications of langJson, creating the language if necessary
   public async getOrCreateLanguage(langJson: any): Promise<string> {
     let lang = await this.getLanguage(langJson);
@@ -517,7 +530,6 @@ export default class BloomParseServer {
   }
 
   public async deleteBookRecord(bookObjectId: string, sessionToken: string) {
-    console.log("calling deleteBookRecord with sessionToken: " + sessionToken);
     const results = await axios.delete(
       this.getParseTableUrl("books") + "/" + bookObjectId,
       {
