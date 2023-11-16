@@ -76,6 +76,30 @@ describe("BloomParseServer", () => {
     expect(shouldBeDeletedBook).toBeFalsy();
   });
 
+  it("can get, create and delete languages", async () => {
+    const testLangParams = {
+      isoCode: "foo",
+      name: "bar",
+      ethnologueCode: "baz",
+    };
+    const testLangParamString = JSON.stringify(testLangParams);
+    const oldUnitTestLang = await parseServer.getLanguage(testLangParamString);
+    const oldUnitTestLangId = oldUnitTestLang?.objectId;
+    if (oldUnitTestLangId) {
+      await parseServer.deleteLanguage(oldUnitTestLangId, token);
+    }
+
+    const oldLangIsStillThere = await parseServer.getLanguage(
+      testLangParamString
+    );
+    expect(oldLangIsStillThere).toBeFalsy();
+
+    const langId = await parseServer.getOrCreateLanguage(testLangParamString);
+    expect(langId).toBeTruthy();
+    const langId2 = await parseServer.getOrCreateLanguage(testLangParamString);
+    expect(langId2).toBe(langId);
+  });
+
   /* This is extremely fragile, as it relies on certain books being there AND being a certain number of days old!
     I haven't thought of an affordable way to just keep it working.  Therefore you pretty much have to customize it
     to run it
