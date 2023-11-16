@@ -90,7 +90,7 @@ export async function handleUploadFinish(
 
   if ("languageDescriptors" in bookRecord) {
     bookRecord.langPointers = [];
-    for (let i = 0; i < bookRecord.languageDescriptors.length; i++) {
+    for (let i = 0; i < bookRecord.languageDescriptors?.length; i++) {
       const languageId = await parseServer.getOrCreateLanguage(
         bookRecord.languageDescriptors[i]
       );
