@@ -1,18 +1,18 @@
 import { Context, HttpRequest } from "@azure/functions";
-import BloomParseServer from "../common/BloomParseServer";
+import BloomParseServer, { User } from "../common/BloomParseServer";
 import {
   allowPublicRead,
   deleteBook,
   getS3PrefixFromEncodedPath,
   getS3UrlFromPrefix,
 } from "../common/s3";
-import { Environment } from "../common/utils";
+import { Environment, validateQueryParam } from "../common/utils";
 
 export async function handleUploadFinish(
   context: Context,
   req: HttpRequest,
   parseServer: BloomParseServer,
-  userInfo: any,
+  userInfo: User,
   env: Environment
 ) {
   if (req.method !== "POST") {
@@ -23,15 +23,7 @@ export async function handleUploadFinish(
     return;
   }
 
-  const queryParams = req.query;
-  const bookId = queryParams["transaction-id"];
-  if (bookId === undefined) {
-    context.res = {
-      status: 400,
-      body: "Please provide a valid transaction ID",
-    };
-    return;
-  }
+  const bookId = validateQueryParam(context, req, "transaction-id");
   const bookInfo = await parseServer.getBookInfoByObjectId(bookId);
   if (!(await BloomParseServer.canModifyBook(userInfo, bookInfo))) {
     context.res = {

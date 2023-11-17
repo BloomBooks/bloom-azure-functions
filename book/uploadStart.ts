@@ -1,5 +1,5 @@
 import { Context, HttpRequest } from "@azure/functions";
-import BloomParseServer from "../common/BloomParseServer";
+import BloomParseServer, { User } from "../common/BloomParseServer";
 import {
   copyBook,
   deleteFiles,
@@ -16,7 +16,7 @@ export async function handleUploadStart(
   context: Context,
   req: HttpRequest,
   parseServer: BloomParseServer,
-  userInfo: any,
+  userInfo: User,
   env: Environment
 ) {
   if (req.method !== "POST") {
@@ -27,10 +27,9 @@ export async function handleUploadStart(
     return;
   }
 
-  const queryParams = req.query;
   const currentTime = Date.now();
 
-  let bookObjectId = queryParams["existing-book-object-id"];
+  let bookObjectId = req.query["existing-book-object-id"];
   const isNewBook = bookObjectId === undefined;
   if (isNewBook) {
     const newBookRecord = {

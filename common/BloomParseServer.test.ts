@@ -13,7 +13,7 @@ describe("BloomParseServer", () => {
 
     token = await parseServer.loginAsUser("unittest@example.com", "unittest");
     const userInfo = await parseServer.getLoggedInUserInfo(token);
-    myUserId = userInfo.objectId;
+    myUserId = userInfo!.objectId;
   });
   beforeEach(() => {});
 
@@ -50,7 +50,7 @@ describe("BloomParseServer", () => {
       newBookRecord,
       token
     );
-    const book = await parseServer.getBookInfoByObjectId(bookObjectId);
+    const book: any = await parseServer.getBookInfoByObjectId(bookObjectId);
     expect(book.title).toBe(newBookRecord.title);
     expect(book.bookInstanceId).toBe(newBookRecord.bookInstanceId);
     expect(book.updateSource).toBe(newBookRecord.updateSource);
