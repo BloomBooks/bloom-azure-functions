@@ -3,6 +3,7 @@ import BloomParseServer from "../common/BloomParseServer";
 import { getEnvironment } from "../common/utils";
 import { handleUploadStart } from "./uploadStart";
 import { handleUploadFinish } from "./uploadFinish";
+import { handleDelete } from "./delete";
 
 const book: AzureFunction = async function (
   context: Context,
@@ -11,16 +12,24 @@ const book: AzureFunction = async function (
   const env = getEnvironment(req);
   const parseServer = new BloomParseServer(env);
 
+  let userInfo = null;
+
+  if (req.method === "DELETE") {
+    await handleDelete(parseServer, context, req, userInfo);
+    return;
+  }
+
   if (req.method === "POST") {
     const userInfo = await getUserFromSession(parseServer, req);
     // for actions for which we need to validate the authentication token
     if (!userInfo && req.params.action in ["upload-start", "upload-finish"]) {
       context.res = {
         status: 400,
-        body: "Unable to validate user. Did you include a valid authentication token header?",
+        body: "Unable to validate user. Did you include a valid Authentication-Token header?",
       };
       return;
     }
+
     switch (req.params.action) {
       case "upload-start":
         await handleUploadStart(context, req, parseServer, userInfo, env);

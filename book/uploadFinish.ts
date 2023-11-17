@@ -28,7 +28,7 @@ export async function handleUploadFinish(
   if (bookId === undefined) {
     context.res = {
       status: 400,
-      body: "Please provide a valid book ID",
+      body: "Please provide a valid transaction ID",
     };
     return;
   }
