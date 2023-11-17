@@ -625,7 +625,7 @@ export default class BloomParseServer {
 
   public async deleteBookRecord(bookObjectId: string, sessionToken: string) {
     const results = await axios.delete(
-      this.getParseTableUrl("books") + "/" + bookObjectId,
+      `${this.getParseTableUrl("books")}/${bookObjectId}`,
       {
         headers: {
           "X-Parse-Application-Id": this.getParseAppId(),
