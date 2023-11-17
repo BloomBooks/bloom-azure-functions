@@ -1,13 +1,14 @@
 import { Context, HttpRequest } from "@azure/functions";
-import BloomParseServer from "../common/BloomParseServer";
+import BloomParseServer, { User } from "../common/BloomParseServer";
+import { validateQueryParam } from "../common/utils";
 
 export async function handleDelete(
   parseServer: BloomParseServer,
   context: Context,
   req: HttpRequest,
-  userInfo
+  userInfo: User
 ) {
-  const actionType: string = req.params.actionType;
+  const actionType: string = req.params.action;
   if (actionType !== "delete-book") {
     context.res = {
       status: 400,
@@ -15,15 +16,11 @@ export async function handleDelete(
     };
     return;
   }
-  const bookObjectId = req.query["book-object-id"];
-  if (!bookObjectId) {
-    context.res = {
-      status: 400,
-      body: "Please provide a valid book object ID",
-    };
-    return;
-  }
+
+  const bookObjectId = validateQueryParam(context, req, "book-object-id");
   const bookInfo = await parseServer.getBookInfoByObjectId(bookObjectId);
+  // REVIEW: should alt users actually be able to delete? Maybe they can only update?
+  // Then we would need a strict param for canModifyBook or something.
   if (!(await BloomParseServer.canModifyBook(userInfo, bookInfo))) {
     context.res = {
       status: 400,

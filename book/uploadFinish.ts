@@ -1,11 +1,11 @@
 import { Context, HttpRequest } from "@azure/functions";
-import BloomParseServer from "../common/BloomParseServer";
+import BloomParseServer, { User } from "../common/BloomParseServer";
 import {
   deleteFilesByPrefix,
   getS3PrefixFromEncodedPath,
   getS3UrlFromPrefix,
 } from "../common/s3";
-import { Environment } from "../common/utils";
+import { Environment, validateQueryParam } from "../common/utils";
 import {
   createResponseWithAcceptedStatusAndStatusUrl,
   handleError,
@@ -20,7 +20,7 @@ import {
 export async function handleUploadFinish(
   context: Context,
   req: HttpRequest,
-  userInfo: any,
+  userInfo: User,
   env: Environment
 ) {
   if (req.method !== "POST") {
@@ -31,15 +31,7 @@ export async function handleUploadFinish(
     return context.res;
   }
 
-  const queryParams = req.query;
-  const bookId = queryParams["transaction-id"];
-  if (bookId === undefined) {
-    context.res = {
-      status: 400,
-      body: "Please provide a valid transaction-id",
-    };
-    return context.res;
-  }
+  const bookId = validateQueryParam(context, req, "transaction-id");
 
   const requestBody = req.body;
   const instanceId = await startLongRunningAction(
@@ -58,7 +50,7 @@ export async function handleUploadFinish(
 export async function longRunningUploadFinish(
   input: {
     requestBody: any;
-    userInfo: any;
+    userInfo: User;
     env: Environment;
     bookId: string;
   },

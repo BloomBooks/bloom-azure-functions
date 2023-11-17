@@ -1,4 +1,4 @@
-import { HttpRequest } from "@azure/functions";
+import { Context, HttpRequest } from "@azure/functions";
 
 export function isLocalEnvironment(): boolean {
   // This obscure environment variable is set on the cloud instance but (presumably) not on the local machine.
@@ -22,4 +22,19 @@ export function setDefaultEnvironment(env: Environment) {
 
 export function getEnvironment(req: HttpRequest): Environment {
   return (req.query["env"] as Environment) || DefaultEnvironment;
+}
+
+export function validateQueryParam(
+  context: Context,
+  req: HttpRequest,
+  paramName: string
+): string {
+  const paramValue = req.query[paramName];
+  if (!paramValue) {
+    context.res = {
+      status: 400,
+      body: `Please provide a valid ${paramName} query parameter`,
+    };
+  }
+  return paramValue;
 }

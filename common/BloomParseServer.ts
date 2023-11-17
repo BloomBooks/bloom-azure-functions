@@ -201,7 +201,7 @@ export default class BloomParseServer {
     if (!book) {
       return undefined;
     }
-    if (book.baseUrl == null) {
+    if (book.baseUrl === null) {
       return undefined;
     }
     if (!this.isHarvested(book)) {
@@ -389,7 +389,7 @@ export default class BloomParseServer {
     );
   }
 
-  public getBookInfoByObjectId(objectId: string): Promise<any> {
+  public getBookInfoByObjectId(objectId: string): Promise<Book> {
     return this.getBook(`{"objectId":{"$eq":"${objectId}"}}`);
   }
 
@@ -521,7 +521,7 @@ export default class BloomParseServer {
     return null;
   }
 
-  public async getLoggedInUserInfo(sessionToken) {
+  public async getLoggedInUserInfo(sessionToken: string): Promise<User | null> {
     try {
       const results = await axios.get(this.getParseUserUrl(), {
         headers: {
@@ -529,7 +529,7 @@ export default class BloomParseServer {
           "X-Parse-Session-Token": sessionToken,
         },
       });
-      return results.data;
+      return results.data as User;
     } catch (error) {
       return null; // not a valid session token; no user info to return
     }
@@ -569,7 +569,7 @@ export default class BloomParseServer {
   }
 
   public static bookMatchesAtLeastOneFilter(
-    bookInfo: any,
+    bookInfo: Book,
     filters: IContentfulCollectionFilter[]
   ): boolean {
     // In theory, we could write more generic code to handle more use cases.
@@ -602,11 +602,10 @@ export default class BloomParseServer {
   }
 
   // Check if user has permission to modify the book
-  public static async canModifyBook(userInfo, bookInfo) {
+  public static async canModifyBook(userInfo: User, bookInfo: Book) {
     if (!bookInfo?.uploader) return false;
 
     const userIsUploader = bookInfo.uploader.objectId === userInfo.objectId;
-
     if (userIsUploader) return true;
 
     if (!validateContentfulEnvironmentVariables()) {
@@ -649,4 +648,22 @@ export type ApiAccount = {
   };
   embargoDays?: number;
   referrerTag: string;
+};
+
+export type User = {
+  objectId: string;
+  email: string;
+  sessionToken: string;
+};
+
+export type Book = {
+  objectId: string;
+  uploader: User;
+  title: string;
+  bookInstanceId: string;
+  baseUrl: string;
+  tags: string[];
+  brandingProjectName: string;
+  updateSource: string;
+  uploadPendingTimestamp: number;
 };

@@ -1,5 +1,5 @@
 import { Context, HttpRequest } from "@azure/functions";
-import BloomParseServer from "../common/BloomParseServer";
+import BloomParseServer, { User } from "../common/BloomParseServer";
 import {
   IBookFileInfo,
   copyBook,
@@ -28,7 +28,7 @@ const kPendingString = "pending";
 export async function handleUploadStart(
   context: Context,
   req: HttpRequest,
-  userInfo: any,
+  userInfo: User,
   env: Environment
 ) {
   if (req.method !== "POST") {
