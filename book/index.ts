@@ -13,7 +13,8 @@ const book: AzureFunction = async function (
 
   if (req.method === "POST") {
     const userInfo = await getUserFromSession(parseServer, req);
-    if (!userInfo) {
+    // for actions for which we need to validate the authentication token
+    if (!userInfo && req.params.action in ["upload-start", "upload-finish"]) {
       context.res = {
         status: 400,
         body: "Unable to validate user. Did you include a valid authentication token header?",
@@ -27,6 +28,9 @@ const book: AzureFunction = async function (
       case "upload-finish":
         await handleUploadFinish(context, req, parseServer, userInfo, env);
         return;
+      case "get-books-with-these-ids":
+        await getBooksWithTheseIds(context, req, parseServer);
+        return;
       default:
         context.res = {
           status: 400,
@@ -38,9 +42,6 @@ const book: AzureFunction = async function (
     switch (req.params.action) {
       case "get-book-count-by-language":
         await getBookCountByLanguage(context, req, parseServer);
-        return;
-      case "get-books-with-these-ids":
-        await getBooksWithTheseIds(context, req, parseServer);
         return;
       default:
         context.res = {
@@ -85,29 +86,11 @@ async function getBooksWithTheseIds(
   parseServer: BloomParseServer
 ) {
   const bookIds = req.body;
-
-  var bookRecords = [];
-
-  const queryStringStart = '{"bookInstanceId":{"$in":["';
-  var booksQuery = queryStringStart;
-  for (var i = 0; i < bookIds.length; ++i) {
-    // More than 21 bookIds in a query causes a 400 error.
-    // Just to be safe, we'll limit it to 20.
-    booksQuery += '","' + bookIds[i];
-    if (i % 20 === 0 || i === bookIds.length - 1) {
-      booksQuery += '"]}}';
-      var result = await parseServer.getBooks(booksQuery);
-      if (result.status !== 200) continue;
-      if (result.data) {
-        bookRecords = bookRecords.concat(result.data.results);
-      }
-      booksQuery = queryStringStart;
-    }
-  }
+  const bookRecords = await parseServer.getBooksWithTheseIds(bookIds);
 
   context.res = {
     status: 200,
-    body: bookRecords,
+    body: { bookRecords },
   };
 }
 

@@ -395,6 +395,31 @@ export default class BloomParseServer {
     );
   }
 
+  public async getBooksWithTheseIds(bookIds) {
+    var bookRecords = [];
+
+    const queryStringStart = '{"bookInstanceId":{"$in":["';
+    var booksQuery = queryStringStart;
+    for (var i = 0; i < bookIds.length; ++i) {
+      // More than 21 bookIds in a query causes a 400 error.
+      // Just to be safe, we'll limit it to 20.
+      booksQuery += '","' + bookIds[i];
+      if (i % 20 === 0 || i === bookIds.length - 1) {
+        booksQuery += '"]}}';
+        try {
+          var batchOfBookRecords = await this.getBooks(booksQuery);
+        } catch (err) {
+          continue;
+        }
+        if (batchOfBookRecords) {
+          bookRecords = bookRecords.concat(batchOfBookRecords);
+        }
+        booksQuery = queryStringStart;
+      }
+    }
+    return bookRecords;
+  }
+
   // This Azure function logs in to the Parse server, using a hard-coded user name ("catalog-service").
   // That account has a ParseServer "role" which is allowed to read the `apiAccount` and `user` tables.
   public async loginAsCatalogService(): Promise<string> {
