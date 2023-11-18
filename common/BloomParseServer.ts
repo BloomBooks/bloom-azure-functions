@@ -335,7 +335,9 @@ export default class BloomParseServer {
     return results.data.results;
   }
 
-  public async getBookCountByLanguage(languageIsoCode: string) {
+  // Get the count of books with the given language tag where 'rebrand' is not true and 'inCirculation' is not false and 'draft' is not true.
+  // In the future, we may need to parameterize those filters, but for now, it fits our current use case (Bloom editor's count of books uploaded).
+  public async getBookCountByLanguage(languageTag: string) {
     const results = await axios.get(this.getParseTableUrl("books"), {
       headers: {
         "X-Parse-Application-Id": this.getParseAppId(),
@@ -343,7 +345,7 @@ export default class BloomParseServer {
       params: {
         count: 1,
         limit: 0,
-        where: `{"langPointers":{"$inQuery":{"where":{"isoCode":"${languageIsoCode}"},"className":"language"}},"rebrand":{"$ne":true},"inCirculation":{"$ne":false},"draft":{"$ne":true}}`,
+        where: `{"langPointers":{"$inQuery":{"where":{"isoCode":"${languageTag}"},"className":"language"}},"rebrand":{"$ne":true},"inCirculation":{"$ne":false},"draft":{"$ne":true}}`,
       },
     });
     return results.data.count;
@@ -393,6 +395,31 @@ export default class BloomParseServer {
     return this.getBook(
       `{"uploader":{"__type":"Pointer","className":"_User","objectId":"${uploaderObjectId}"}, "bookInstanceId":{"$eq":"${bookInstanceId}"}}`
     );
+  }
+
+  public async getBooksWithIds(bookInstanceIds: string[]): Promise<any> {
+    var bookRecords = [];
+
+    const queryStringStart = '{"bookInstanceId":{"$in":["';
+    var booksQuery = queryStringStart;
+    for (var i = 0; i < bookInstanceIds.length; ++i) {
+      // More than 21 bookInstanceIds in a query causes a 400 error.
+      // Just to be safe, we'll limit it to 20.
+      booksQuery += '","' + bookInstanceIds[i];
+      if (i % 20 === 0 || i === bookInstanceIds.length - 1) {
+        booksQuery += '"]}}';
+        try {
+          var batchOfBookRecords = await this.getBooks(booksQuery);
+        } catch (err) {
+          continue;
+        }
+        if (batchOfBookRecords) {
+          bookRecords = bookRecords.concat(batchOfBookRecords);
+        }
+        booksQuery = queryStringStart;
+      }
+    }
+    return bookRecords;
   }
 
   // This Azure function logs in to the Parse server, using a hard-coded user name ("catalog-service").
