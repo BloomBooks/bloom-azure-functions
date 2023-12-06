@@ -1,4 +1,5 @@
 import { Context, HttpRequest } from "@azure/functions";
+import * as df from "durable-functions";
 import BloomParseServer from "../common/BloomParseServer";
 import {
   copyBook,
@@ -9,13 +10,17 @@ import {
   listPrefixContentsKeys,
 } from "../common/s3";
 import { Environment } from "../common/utils";
+import {
+  createResponseWithAcceptedStatusAndStatusUrl,
+  handleError,
+  LongRunningAction,
+} from "../longRunningActions/utils";
 
 const kPendingString = "pending";
 
 export async function handleUploadStart(
   context: Context,
   req: HttpRequest,
-  parseServer: BloomParseServer,
   userInfo: any,
   env: Environment
 ) {
@@ -24,13 +29,39 @@ export async function handleUploadStart(
       status: 400,
       body: "Unhandled HTTP method",
     };
-    return;
+    return context.res;
   }
 
-  const queryParams = req.query;
+  const client = df.getClient(context);
+  const bookObjectId = req.query["existing-book-object-id"];
+  const instanceId = await client.startNew(
+    "longRunningActionOrchestrator",
+    undefined,
+    {
+      action: LongRunningAction.UploadStart,
+      params: { bookObjectId, userInfo, env },
+    }
+  );
+
+  context.res = createResponseWithAcceptedStatusAndStatusUrl(
+    instanceId,
+    req.url
+  );
+  return context.res;
+}
+
+export async function longRunningUploadStart(input: {
+  bookObjectId: string | undefined;
+  userInfo: any;
+  env: Environment;
+}) {
+  const userInfo = input.userInfo;
+  const env = input.env;
+  let bookObjectId = input.bookObjectId;
+  const parseServer = new BloomParseServer(env);
+
   const currentTime = Date.now();
 
-  let bookObjectId = queryParams["existing-book-object-id"];
   const isNewBook = bookObjectId === undefined;
   if (isNewBook) {
     const newBookRecord = {
@@ -52,11 +83,7 @@ export async function handleUploadStart(
         userInfo.sessionToken
       );
     } catch (err) {
-      context.res = {
-        status: 400,
-        body: "Unable to create book record",
-      };
-      return;
+      return handleError(400, "Unable to create book record");
     }
   }
 
@@ -68,11 +95,10 @@ export async function handleUploadStart(
       bookObjectId
     );
     if (!BloomParseServer.canModifyBook(userInfo, existingBookInfo)) {
-      context.res = {
-        status: 400,
-        body: "Please provide a valid Authentication-Token and existing-book-object-id (if book exists)",
-      };
-      return;
+      return handleError(
+        400,
+        "Please provide a valid Authentication-Token and existing-book-object-id (if book exists)"
+      );
     }
 
     let existingBookPath = getS3PrefixFromEncodedPath(
@@ -98,11 +124,7 @@ export async function handleUploadStart(
       try {
         await deleteFiles(filesToDelete, env);
       } catch (err) {
-        context.res = {
-          status: 500,
-          body: "Unable to delete files",
-        };
-        return;
+        return handleError(500, "Unable to delete files");
       }
     }
 
@@ -120,11 +142,7 @@ export async function handleUploadStart(
     try {
       await copyBook(existingBookPathBeforeTitle, prefix, env);
     } catch (err) {
-      context.res = {
-        status: 500,
-        body: "Unable to copy book",
-      };
-      return;
+      return handleError(500, "Unable to copy book");
     }
     try {
       parseServer.modifyBookRecord(
@@ -135,31 +153,21 @@ export async function handleUploadStart(
         userInfo.sessionToken
       );
     } catch (err) {
-      context.res = {
-        status: 500,
-        body: "Unable to modify book record",
-      };
-      return;
+      return handleError(500, "Unable to modify book record");
     }
   }
 
   try {
     var tempCredentials = await getTemporaryS3Credentials(prefix, env);
   } catch (err) {
-    context.res = {
-      status: 500,
-      body: "Error generating temporary credentials",
-    };
-    return;
+    return handleError(500, "Error generating temporary credentials");
   }
 
   const s3Path = getS3UrlFromPrefix(prefix, env);
-  context.res = {
-    status: 200,
-    body: {
-      url: s3Path,
-      "transaction-id": bookObjectId,
-      credentials: tempCredentials,
-    },
+  const body = {
+    url: s3Path,
+    "transaction-id": bookObjectId,
+    credentials: tempCredentials,
   };
+  return body;
 }
