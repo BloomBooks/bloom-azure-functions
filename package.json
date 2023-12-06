@@ -20,6 +20,7 @@
     "@types/node": "^13.13.52",
     "axios": "^0.21.1",
     "contentful": "^9.1.4",
+    "durable-functions": "^2.0.0",
     "entities": "^3.0.1",
     "moment": "^2.29.1",
     "pg": "^8.7.1",
@@ -39,5 +40,8 @@
     "ts-jest": "^27.0.7",
     "xml-formatter": "^2.5.1",
     "xpath": "^0.0.32"
+  },
+  "volta": {
+    "node": "20.10.0"
   }
 }
