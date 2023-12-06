@@ -151,13 +151,13 @@ also work) and %3F to encode question marks. Every character other than 'A' thro
 
 The **stats** function provides statistics about how and how much books are being used.
 
-See `./stats/README.md`.
+See [./stats/README.md](./stats/README.md).
 
 # book Function
 
 The **book** function provides an API for uploading books to BloomLibrary.org.
 
-See `./book/README.md`.
+See [./book/README.md](./book/README.md).
 
 # bookCleanup Function
 
@@ -177,7 +177,7 @@ Currently, it is used to refresh the materialized views in the postgresql analyt
 
 The **contentfulToCrowdin** function provides tools for using Crowdin to localize strings in Contentful. See schedule below.
 
-See `./contentfulToCrowdin/README.md`.
+See [./contentfulToCrowdin/README.md](./contentfulToCrowdin/README.md).
 
 # Chron job schedule
 
