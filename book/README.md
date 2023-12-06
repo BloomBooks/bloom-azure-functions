@@ -8,7 +8,19 @@ The URL used to access this function always contains `book` followed by an `acti
 
 `http://api.bloomlibrary.org/v1/book/{action}`
 
-## actions
+## Actions
+
+### get-books (POST -- because we have to send a body)
+
+TODO
+
+### get-book-count-by-language (GET)
+
+TODO
+
+## Long-running actions
+
+See [../status/README.md](../status/README.md) for details on how to call long-running actions and how they are implemented.
 
 ### upload-start (POST)
 
@@ -49,7 +61,7 @@ Finalizes the update after the client uploads the book files.
   - JSON representing the book record to be updated. Must include a baseUrl which begins with the `url` returned by `upload-start`.
     - `{"baseUrl": "https://my-base-url", "field": "value"}`
 
-### Failures
+## Failures
 
 Any failures result in
 
@@ -58,7 +70,7 @@ Any failures result in
 
 ## Environment Variables
 
-See `../README.md` for some common environment variables needed for several functions.
+See [../README.md](../README.md) for some common environment variables needed for several functions.
 
 - _BloomUploadPermissionManagerS3Key{suffix}_ - the AWS Access Key ID for the user which has permission to manage the S3 bucket for the given suffix.
 - _BloomUploadPermissionManagerS3SecretKey{suffix}_ - the AWS Secret Access Key for the user.
