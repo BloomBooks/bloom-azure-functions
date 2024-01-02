@@ -5,13 +5,13 @@
       "type": "httpTrigger",
       "direction": "in",
       "name": "req",
-      "methods": ["get", "post"],
-      "route": "book/{action}"
+      "methods": ["get"],
+      "route": "status/{operation-id}"
     },
     {
       "type": "http",
       "direction": "out",
-      "name": "$return"
+      "name": "res"
     },
     {
       "name": "starter",
@@ -19,5 +19,5 @@
       "direction": "in"
     }
   ],
-  "scriptFile": "../dist/book/index.js"
+  "scriptFile": "../dist/status/index.js"
 }

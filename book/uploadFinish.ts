@@ -1,4 +1,5 @@
 import { Context, HttpRequest } from "@azure/functions";
+import * as df from "durable-functions";
 import BloomParseServer from "../common/BloomParseServer";
 import {
   allowPublicRead,
@@ -7,11 +8,20 @@ import {
   getS3UrlFromPrefix,
 } from "../common/s3";
 import { Environment } from "../common/utils";
+import {
+  createResponseWithAcceptedStatusAndStatusUrl,
+  handleError,
+  LongRunningAction,
+  startLongRunningAction,
+} from "../longRunningActions/utils";
 
+// upload-finish is a long-running function (see status/README.md).
+// The client calls it to finalize the upload of a new or existing book.
+// On parse-server, it creates a language record if needed and modifies the book record.
+// The reason it is long-running is, for existing books, it deletes the previous copy of the book files on S3.
 export async function handleUploadFinish(
   context: Context,
   req: HttpRequest,
-  parseServer: BloomParseServer,
   userInfo: any,
   env: Environment
 ) {
@@ -20,7 +30,7 @@ export async function handleUploadFinish(
       status: 400,
       body: "Unhandled HTTP method",
     };
-    return;
+    return context.res;
   }
 
   const queryParams = req.query;
@@ -28,46 +38,66 @@ export async function handleUploadFinish(
   if (bookId === undefined) {
     context.res = {
       status: 400,
-      body: "Please provide a valid book ID",
+      body: "Please provide a valid transaction-id",
     };
-    return;
-  }
-  const bookInfo = await parseServer.getBookInfoByObjectId(bookId);
-  if (!BloomParseServer.canModifyBook(userInfo, bookInfo)) {
-    context.res = {
-      status: 400,
-      body: "Please provide a valid Authentication-Token and transaction-id",
-    };
-    return;
+    return context.res;
   }
 
-  const bookRecord = req.body;
-  const newBaseUrl = bookRecord.baseUrl;
+  const requestBody = req.body;
+  const instanceId = await startLongRunningAction(
+    context,
+    LongRunningAction.UploadFinish,
+    { requestBody, userInfo, env, bookId }
+  );
+
+  context.res = createResponseWithAcceptedStatusAndStatusUrl(
+    instanceId,
+    req.url
+  );
+  return context.res;
+}
+
+export async function longRunningUploadFinish(input: {
+  requestBody: any;
+  userInfo: any;
+  env: Environment;
+  bookId: string;
+}) {
+  const requestBody = input.requestBody;
+  const userInfo = input.userInfo;
+  const env = input.env;
+  const bookId = input.bookId;
+  const parseServer = new BloomParseServer(env);
+
+  const bookInfo = await parseServer.getBookInfoByObjectId(bookId);
+  if (!BloomParseServer.canModifyBook(userInfo, bookInfo)) {
+    return handleError(
+      400,
+      "Please provide a valid Authentication-Token and transaction-id"
+    );
+  }
+
+  const bookRecord = requestBody;
+  const newBaseUrl = bookRecord?.baseUrl;
   if (newBaseUrl === undefined) {
-    context.res = {
-      status: 400,
-      body: "Please provide valid book info, including a baseUrl, in the body",
-    };
-    return;
+    return handleError(
+      400,
+      "Please provide valid book info, including a baseUrl, in the body"
+    );
   }
 
   if (!newBaseUrl.startsWith(getS3UrlFromPrefix(bookId, env))) {
-    context.res = {
-      status: 400,
-      body: "Invalid book base URL. Please use the prefix provided by the upload-start function",
-    };
-    return;
+    return handleError(
+      400,
+      "Invalid book base URL. Please use the prefix provided by the upload-start function"
+    );
   }
 
   try {
     const newPrefix = getS3PrefixFromEncodedPath(newBaseUrl, env);
     await allowPublicRead(newPrefix, env);
   } catch (e) {
-    context.res = {
-      status: 500,
-      body: "Error setting book files to allow public read",
-    };
-    return;
+    return handleError(500, "Error setting book files to allow public read");
   }
 
   const oldBaseURl = bookInfo.baseUrl;
@@ -112,11 +142,7 @@ export async function handleUploadFinish(
       userInfo.sessionToken
     );
   } catch (e) {
-    context.res = {
-      status: 500,
-      body: "Error updating parse book record",
-    };
-    return;
+    return handleError(500, "Error updating parse book record");
   }
 
   try {
@@ -128,9 +154,5 @@ export async function handleUploadFinish(
     console.log(e);
     // TODO future work: we want this to somehow notify us of the now-orphan old book files
   }
-
-  context.res = {
-    status: 200,
-    body: "Successfully updated book",
-  };
+  return "Successfully updated book";
 }

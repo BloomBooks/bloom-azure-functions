@@ -101,3 +101,5 @@ __azurite*.*
 __blobstorage__/
 
 *.orig
+
+__queuestorage__/

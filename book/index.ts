@@ -7,7 +7,7 @@ import { handleUploadFinish } from "./uploadFinish";
 const book: AzureFunction = async function (
   context: Context,
   req: HttpRequest
-): Promise<void> {
+): Promise<any> {
   const env = getEnvironment(req);
   const parseServer = new BloomParseServer(env);
 
@@ -19,15 +19,13 @@ const book: AzureFunction = async function (
         status: 400,
         body: "Unable to validate user. Did you include a valid authentication token header?",
       };
-      return;
+      return context.res;
     }
     switch (req.params.action) {
       case "upload-start":
-        await handleUploadStart(context, req, parseServer, userInfo, env);
-        return;
+        return await handleUploadStart(context, req, userInfo, env);
       case "upload-finish":
-        await handleUploadFinish(context, req, parseServer, userInfo, env);
-        return;
+        return await handleUploadFinish(context, req, userInfo, env);
       case "get-books":
         if (req.body.bookInstanceIds !== undefined) {
           await getBooksWithIds(context, req.body.bookInstanceIds, parseServer);
@@ -37,25 +35,25 @@ const book: AzureFunction = async function (
             body: "Please provide bookInstanceIds in the body to get-books",
           };
         }
-        return;
+        return context.res;
       default:
         context.res = {
           status: 400,
           body: "Invalid action type",
         };
-        return;
+        return context.res;
     }
   } else {
     switch (req.params.action) {
       case "get-book-count-by-language":
         await getBookCountByLanguage(context, req, parseServer);
-        return;
+        return context.res;
       default:
         context.res = {
           status: 400,
           body: "Invalid action type",
         };
-        return;
+        return context.res;
     }
   }
 };
