@@ -1,4 +1,4 @@
-﻿import { AzureFunction, Context } from "@azure/functions";
+import { AzureFunction, Context } from "@azure/functions";
 import { longRunningUploadStart } from "../book/uploadStart";
 import { longRunningUploadFinish } from "../book/uploadFinish";
 import { LongRunningAction } from "./utils";
@@ -12,9 +12,9 @@ const longRunningActions: AzureFunction = async function (
 
   switch (action) {
     case LongRunningAction.UploadStart:
-      return await longRunningUploadStart(params);
+      return await longRunningUploadStart(params, context);
     case LongRunningAction.UploadFinish:
-      return await longRunningUploadFinish(params);
+      return await longRunningUploadFinish(params, context);
   }
 };
 

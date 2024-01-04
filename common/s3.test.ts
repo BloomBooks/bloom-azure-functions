@@ -22,6 +22,7 @@ async function deleteTestFiles() {
 async function resetTestBookFolders() {
   await deleteTestFiles();
   await uploadTestFileToS3("testBookId/12345678", Environment.UNITTEST);
+  await uploadTestFileToS3("testBookId/蔬.htm", Environment.UNITTEST); // special character which needs url encoding for copy
   await uploadTestFileToS3("testBookId/foo/bar", Environment.UNITTEST);
   await uploadTestFileToS3("test3BookId/toBeDeleted", Environment.UNITTEST);
   await uploadTestFileToS3(
@@ -46,8 +47,9 @@ describe("s3", () => {
   it("tests setup and list contents went correctly", async () => {
     await listPrefixContentsKeys("testBookId", Environment.UNITTEST).then(
       (keys) => {
-        expect(keys.length).toBe(2);
+        expect(keys.length).toBe(3);
         expect(keys).toContain("testBookId/12345678");
+        expect(keys).toContain("testBookId/蔬.htm");
         expect(keys).toContain("testBookId/foo/bar");
       }
     );
@@ -80,8 +82,9 @@ describe("s3", () => {
     await copyBook("testBookId", "test2BookId", Environment.UNITTEST);
     await listPrefixContentsKeys("test2BookId", Environment.UNITTEST).then(
       (keys) => {
-        expect(keys.length).toBe(2);
+        expect(keys.length).toBe(3);
         expect(keys).toContain("test2BookId/12345678");
+        expect(keys).toContain("test2BookId/蔬.htm");
         expect(keys).toContain("test2BookId/foo/bar");
       }
     );

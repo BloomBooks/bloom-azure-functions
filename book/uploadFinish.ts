@@ -57,12 +57,15 @@ export async function handleUploadFinish(
   return context.res;
 }
 
-export async function longRunningUploadFinish(input: {
-  requestBody: any;
-  userInfo: any;
-  env: Environment;
-  bookId: string;
-}) {
+export async function longRunningUploadFinish(
+  input: {
+    requestBody: any;
+    userInfo: any;
+    env: Environment;
+    bookId: string;
+  },
+  context: Context
+) {
   const requestBody = input.requestBody;
   const userInfo = input.userInfo;
   const env = input.env;
@@ -73,7 +76,9 @@ export async function longRunningUploadFinish(input: {
   if (!BloomParseServer.canModifyBook(userInfo, bookInfo)) {
     return handleError(
       400,
-      "Please provide a valid Authentication-Token and transaction-id"
+      "Please provide a valid Authentication-Token and transaction-id",
+      context,
+      null
     );
   }
 
@@ -82,14 +87,18 @@ export async function longRunningUploadFinish(input: {
   if (newBaseUrl === undefined) {
     return handleError(
       400,
-      "Please provide valid book info, including a baseUrl, in the body"
+      "Please provide valid book info, including a baseUrl, in the body",
+      context,
+      null
     );
   }
 
   if (!newBaseUrl.startsWith(getS3UrlFromPrefix(bookId, env))) {
     return handleError(
       400,
-      "Invalid book base URL. Please use the prefix provided by the upload-start function"
+      "Invalid book base URL. Please use the prefix provided by the upload-start function",
+      context,
+      null
     );
   }
 
@@ -97,7 +106,12 @@ export async function longRunningUploadFinish(input: {
     const newPrefix = getS3PrefixFromEncodedPath(newBaseUrl, env);
     await allowPublicRead(newPrefix, env);
   } catch (e) {
-    return handleError(500, "Error setting book files to allow public read");
+    return handleError(
+      500,
+      "Error setting book files to allow public read",
+      context,
+      e
+    );
   }
 
   const oldBaseURl = bookInfo.baseUrl;
@@ -142,7 +156,7 @@ export async function longRunningUploadFinish(input: {
       userInfo.sessionToken
     );
   } catch (e) {
-    return handleError(500, "Error updating parse book record");
+    return handleError(500, "Error updating parse book record", context, e);
   }
 
   try {

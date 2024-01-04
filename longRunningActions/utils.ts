@@ -44,8 +44,11 @@ export function createResponseWithAcceptedStatusAndStatusUrl(
 
 export function handleError(
   httpCode: 400 | 404 | 500, // More can be added if/when needed
-  message: string
+  message: string,
+  context: Context,
+  error: Error
 ) {
+  if (error && context) context.log.error(error);
   return {
     failed: true,
     // see https://github.com/microsoft/api-guidelines/blob/vNext/azure/Guidelines.md#post-or-delete-lro-pattern
