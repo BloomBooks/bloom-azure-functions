@@ -68,7 +68,9 @@ export async function allowPublicRead(prefix: string, env: Environment) {
   const bookFileKeys = await listPrefixContentsKeys(prefix, env);
   const client = getS3Client(env);
   if (!bookFileKeys) {
-    throw new Error("ListObjectsV2Command returned no contents");
+    throw new Error(
+      "s3 allowPublicRead - listPrefixContentsKeys returned no contents"
+    );
   }
   const bucket = getBucketName(env);
   //for each object in listResponse, copy it to the destination
@@ -81,7 +83,11 @@ export async function allowPublicRead(prefix: string, env: Environment) {
     const command = new PutObjectAclCommand(input);
     const response = await client.send(command);
     if (response.$metadata.httpStatusCode !== 200) {
-      throw new Error("Allow public read failed");
+      throw new Error(
+        `s3 allowPublicRead - PutObjectAclCommand failed:\n${JSON.stringify(
+          response.$metadata
+        )}`
+      );
     }
   }
 }
@@ -117,6 +123,8 @@ export async function deleteBook(bookPathPrefix: string, env: Environment) {
 }
 
 export async function deleteFiles(fileKeys: string[], env: Environment) {
+  if (fileKeys.length === 0) return;
+
   const client = getS3Client(env);
   const deleteCommandInput = {
     Bucket: getBucketName(env),
@@ -139,21 +147,27 @@ export async function copyBook(
 
   const bookFileKeys = await listPrefixContentsKeys(srcPath, env);
   if (!bookFileKeys) {
-    throw new Error("ListObjectsV2Command returned no contents");
+    // Unexpected; somehow the existing book has no files.
+    // However, we don't want to fail the upload.
+    return;
   }
   const bucket = getBucketName(env);
   //for each object in listResponse, copy it to the destination
   for (const key of bookFileKeys) {
     const copyCommandInput = {
       Bucket: bucket,
-      CopySource: `/${bucket}/${key}`,
+      CopySource: `/${bucket}/${encodeURI(key)}`,
       Key: key.replace(srcPath, destPath),
     };
 
     const copyCommand = new CopyObjectCommand(copyCommandInput);
     const response = await client.send(copyCommand);
     if (response.$metadata.httpStatusCode !== 200) {
-      throw new Error("CopyObjectCommand failed");
+      throw new Error(
+        `s3 copyBook - CopyObjectCommand failed:\n${JSON.stringify(
+          response.$metadata
+        )}`
+      );
     }
   }
 }

@@ -52,11 +52,14 @@ export async function handleUploadStart(
   return context.res;
 }
 
-export async function longRunningUploadStart(input: {
-  bookObjectId: string | undefined;
-  userInfo: any;
-  env: Environment;
-}) {
+export async function longRunningUploadStart(
+  input: {
+    bookObjectId: string | undefined;
+    userInfo: any;
+    env: Environment;
+  },
+  context: Context
+) {
   const userInfo = input.userInfo;
   const env = input.env;
   let bookObjectId = input.bookObjectId;
@@ -85,7 +88,7 @@ export async function longRunningUploadStart(input: {
         userInfo.sessionToken
       );
     } catch (err) {
-      return handleError(400, "Unable to create book record");
+      return handleError(400, "Unable to create book record", context, err);
     }
   }
 
@@ -99,11 +102,13 @@ export async function longRunningUploadStart(input: {
     if (!BloomParseServer.canModifyBook(userInfo, existingBookInfo)) {
       return handleError(
         400,
-        "Please provide a valid Authentication-Token and existing-book-object-id (if book exists)"
+        "Please provide a valid Authentication-Token and existing-book-object-id (if book exists)",
+        context,
+        null
       );
     }
 
-    let existingBookPath = getS3PrefixFromEncodedPath(
+    const existingBookPath = getS3PrefixFromEncodedPath(
       existingBookInfo.baseUrl,
       env
     );
@@ -126,7 +131,7 @@ export async function longRunningUploadStart(input: {
       try {
         await deleteFiles(filesToDelete, env);
       } catch (err) {
-        return handleError(500, "Unable to delete files");
+        return handleError(500, "Unable to delete files", context, err);
       }
     }
 
@@ -144,7 +149,7 @@ export async function longRunningUploadStart(input: {
     try {
       await copyBook(existingBookPathBeforeTitle, prefix, env);
     } catch (err) {
-      return handleError(500, "Unable to copy book");
+      return handleError(500, "Unable to copy book", context, err);
     }
     try {
       parseServer.modifyBookRecord(
@@ -155,14 +160,19 @@ export async function longRunningUploadStart(input: {
         userInfo.sessionToken
       );
     } catch (err) {
-      return handleError(500, "Unable to modify book record");
+      return handleError(500, "Unable to modify book record", context, err);
     }
   }
 
   try {
     var tempCredentials = await getTemporaryS3Credentials(prefix, env);
   } catch (err) {
-    return handleError(500, "Error generating temporary credentials");
+    return handleError(
+      500,
+      "Error generating temporary credentials",
+      context,
+      err
+    );
   }
 
   const s3Path = getS3UrlFromPrefix(prefix, env);
