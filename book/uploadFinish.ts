@@ -1,8 +1,6 @@
 import { Context, HttpRequest } from "@azure/functions";
-import * as df from "durable-functions";
 import BloomParseServer from "../common/BloomParseServer";
 import {
-  allowPublicRead,
   deleteBook,
   getS3PrefixFromEncodedPath,
   getS3UrlFromPrefix,
@@ -102,17 +100,18 @@ export async function longRunningUploadFinish(
     );
   }
 
-  try {
-    const newPrefix = getS3PrefixFromEncodedPath(newBaseUrl, env);
-    await allowPublicRead(newPrefix, env);
-  } catch (e) {
-    return handleError(
-      500,
-      "Error setting book files to allow public read",
-      context,
-      e
-    );
-  }
+  // For performance reasons, we are letting the client do this instead.
+  // try {
+  //   const newPrefix = getS3PrefixFromEncodedPath(newBaseUrl, env);
+  //   await allowPublicRead(newPrefix, env);
+  // } catch (e) {
+  //   return handleError(
+  //     500,
+  //     "Error setting book files to allow public read",
+  //     context,
+  //     e
+  //   );
+  // }
 
   const oldBaseURl = bookInfo.baseUrl;
   const isNewBook = !oldBaseURl;

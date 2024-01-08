@@ -154,6 +154,11 @@ export async function copyBook(
   const bucket = getBucketName(env);
   //for each object in listResponse, copy it to the destination
   for (const key of bookFileKeys) {
+    // We make a new PDF every time, so there is no need to copy the old one.
+    if (key.endsWith(".pdf")) {
+      continue;
+    }
+
     const copyCommandInput = {
       Bucket: bucket,
       CopySource: `/${bucket}/${encodeURI(key)}`,
@@ -194,6 +199,16 @@ export async function getTemporaryS3Credentials(
         Effect: "Allow",
         Action: ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"],
         Resource: [`arn:aws:s3:::${bucket}/${prefix}*`],
+      },
+      {
+        Effect: "Allow",
+        Action: ["s3:PutObjectAcl"],
+        Resource: [`arn:aws:s3:::${bucket}/${prefix}*`],
+        Condition: {
+          StringEquals: {
+            "s3:x-amz-acl": "public-read",
+          },
+        },
       },
     ],
   });
