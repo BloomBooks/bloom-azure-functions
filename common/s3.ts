@@ -163,6 +163,7 @@ export async function copyBook(
       Bucket: bucket,
       CopySource: `/${bucket}/${encodeURI(key)}`,
       Key: key.replace(srcPath, destPath),
+      ACL: "public-read",
     };
 
     const copyCommand = new CopyObjectCommand(copyCommandInput);
