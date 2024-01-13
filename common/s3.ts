@@ -6,13 +6,38 @@ import {
   PutObjectCommand,
   S3Client,
 } from "@aws-sdk/client-s3";
-import { STSClient, GetFederationTokenCommand } from "@aws-sdk/client-sts";
+import {
+  STSClient,
+  GetFederationTokenCommand,
+  Credentials,
+} from "@aws-sdk/client-sts";
 import { Environment } from "./utils";
 
 const kUnitTestS3BucketName = "BloomLibraryBooks-UnitTests";
 const kSandboxS3BucketName = "BloomLibraryBooks-Sandbox";
 const kProductionS3BucketName = "BloomLibraryBooks";
 export const kS3Region = "us-east-1";
+
+export interface IBookFileInfo {
+  path: string;
+  hash: string;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function isArrayOfIBookFileInfo(value: any): value is IBookFileInfo[] {
+  return (
+    Array.isArray(value) &&
+    value.every((item) => {
+      return (
+        typeof item === "object" &&
+        "path" in item &&
+        typeof item.path === "string" &&
+        "hash" in item &&
+        typeof item.hash === "string"
+      );
+    })
+  );
+}
 
 function getS3UrlBase(env) {
   return `https://s3.amazonaws.com/${getBucketName(env)}/`;
@@ -92,15 +117,19 @@ export async function allowPublicRead(prefix: string, env: Environment) {
   }
 }
 
-export async function deleteBook(bookPathPrefix: string, env: Environment) {
+export async function deleteFilesByPrefix(
+  prefixToDelete: string,
+  env: Environment,
+  prefixToExclude: string = null
+) {
   const client = getS3Client(env);
-  let errorOcurred = false;
+  let errorOccurred = false;
   let continuationToken;
   // S3 only allows 1000 keys per request, so we need to loop until we delete them all
   do {
     const listCommandInput = {
       Bucket: getBucketName(env),
-      Prefix: bookPathPrefix,
+      Prefix: prefixToDelete,
       continuationToken,
     };
     const listCommand = new ListObjectsV2Command(listCommandInput);
@@ -109,20 +138,31 @@ export async function deleteBook(bookPathPrefix: string, env: Environment) {
     if (!listResponse.Contents) {
       break;
     }
-    const keys = listResponse.Contents.map((file) => file.Key);
+    let keys = listResponse.Contents.map((file) => file.Key);
+
+    // Apparently, the API doesn't allow for getting a list with an exclusion.
+    // So we do it this less efficient way.
+    if (prefixToExclude) {
+      keys = keys.filter((key) => !key.startsWith(prefixToExclude));
+    }
+
+    if (keys.length === 0) continue;
+
     const deleteCommandResponse = await deleteFiles(keys, env);
     if (deleteCommandResponse.$metadata.httpStatusCode !== 200) {
-      errorOcurred = true;
+      errorOccurred = true;
     }
   } while (continuationToken);
 
-  if (errorOcurred) {
+  if (errorOccurred) {
     console.log("DeleteObjectsCommand failed");
     // TODO future work: we want this to somehow notify us of the now-orphan old book files
   }
 }
 
-export async function deleteFiles(fileKeys: string[], env: Environment) {
+// Assumes the array of fileKeys is no more than 1000 elements
+// since the DeleteObjectsCommand can only handle 1000.
+async function deleteFiles(fileKeys: string[], env: Environment) {
   if (fileKeys.length === 0) return;
 
   const client = getS3Client(env);
@@ -141,23 +181,20 @@ export async function deleteFiles(fileKeys: string[], env: Environment) {
 export async function copyBook(
   srcPath: string,
   destPath: string,
+  filesToCopy: string[],
   env: Environment
 ) {
   const client = getS3Client(env);
-
-  const bookFileKeys = await listPrefixContentsKeys(srcPath, env);
-  if (!bookFileKeys) {
-    // Unexpected; somehow the existing book has no files.
-    // However, we don't want to fail the upload.
-    return;
-  }
   const bucket = getBucketName(env);
-  //for each object in listResponse, copy it to the destination
-  for (const key of bookFileKeys) {
-    // We make a new PDF every time, so there is no need to copy the old one.
-    if (key.endsWith(".pdf")) {
-      continue;
-    }
+
+  // Though the AWS CLI allows for a copy by prefix, the API doesn't.
+  // So we have to copy each file individually.
+  // Possible future performance improvements:
+  // 1. Use durable functions to kick off the copies while returning to the client.
+  //    When upload-finish is called by the client, it would have to verify the copy is done.
+  // 2. s3 batch job - this would be similar to #1, but S3 would handle the status rather than a durable function.
+  for (const fileToCopy of filesToCopy) {
+    const key = `${srcPath}${fileToCopy}`;
 
     const copyCommandInput = {
       Bucket: bucket,
@@ -181,7 +218,7 @@ export async function copyBook(
 export async function getTemporaryS3Credentials(
   prefix: string,
   env: Environment
-) {
+): Promise<Credentials> {
   const client = new STSClient({
     region: kS3Region,
     credentials: getS3Credentials(env),
@@ -221,6 +258,50 @@ export async function getTemporaryS3Credentials(
   const command = new GetFederationTokenCommand(input);
   const response = await client.send(command);
   return response.Credentials;
+}
+
+// Given a list of files and their hashes, determine which
+// ones already exist unmodified on S3 at the given prefix.
+// Returns two arrays: filesNewOrModified and filesNotChanged.
+export async function processFileHashes(
+  clientFiles: IBookFileInfo[],
+  prefix: string,
+  env: Environment
+): Promise<[string[], string[]]> {
+  const client = getS3Client(env);
+  const bucket = getBucketName(env);
+
+  let filesNewOrModified = [];
+  const filesNotChanged = [];
+
+  const listCommandInput = {
+    Bucket: bucket,
+    Prefix: prefix,
+  };
+  const listCommand = new ListObjectsV2Command(listCommandInput);
+  const listResponse = await client.send(listCommand);
+  if (!listResponse.Contents) {
+    filesNewOrModified = clientFiles.map((file) => file.path);
+    return [filesNewOrModified, filesNotChanged];
+  }
+
+  const s3Files = new Map<string, { Key: string; ETag: string }>(
+    listResponse.Contents.map((s3File) => [
+      s3File.Key.substring(prefix.length),
+      s3File,
+    ])
+  );
+  clientFiles.forEach((bookFile) => {
+    const s3File = s3Files.get(bookFile.path);
+
+    if (s3File && s3File.ETag === bookFile.hash) {
+      filesNotChanged.push(bookFile.path);
+    } else {
+      filesNewOrModified.push(bookFile.path);
+    }
+  });
+
+  return [filesNewOrModified, filesNotChanged];
 }
 
 export function getBucketName(env: Environment) {

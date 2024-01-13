@@ -1,7 +1,7 @@
 import { Context, HttpRequest } from "@azure/functions";
 import BloomParseServer from "../common/BloomParseServer";
 import {
-  deleteBook,
+  deleteFilesByPrefix,
   getS3PrefixFromEncodedPath,
   getS3UrlFromPrefix,
 } from "../common/s3";
@@ -100,7 +100,8 @@ export async function longRunningUploadFinish(
     );
   }
 
-  // For performance reasons, we are letting the client do this instead.
+  // For performance reasons, we are letting uploadStart's copy process (for existing, unchanged files)
+  // and the client (for new and modified files) do this instead.
   // try {
   //   const newPrefix = getS3PrefixFromEncodedPath(newBaseUrl, env);
   //   await allowPublicRead(newPrefix, env);
@@ -161,7 +162,7 @@ export async function longRunningUploadFinish(
   try {
     if (oldBaseURl) {
       const bookPathPrefix = getS3PrefixFromEncodedPath(oldBaseURl, env);
-      await deleteBook(bookPathPrefix, env);
+      await deleteFilesByPrefix(bookPathPrefix, env);
     }
   } catch (e) {
     console.log(e);

@@ -1,6 +1,6 @@
 import BloomParseServer from "../common/BloomParseServer";
 import {
-  deleteBook,
+  deleteFilesByPrefix,
   listPrefixContentsKeys,
   uploadTestFileToS3,
 } from "../common/s3";
@@ -72,7 +72,7 @@ async function cleanupS3Files() {
   // delete the files created as part of these tests
   for (const bookId of Object.values<string>(testBookIds)) {
     if (bookId) {
-      await deleteBook(bookId.toString(), Environment.UNITTEST);
+      await deleteFilesByPrefix(bookId.toString(), Environment.UNITTEST);
     }
   }
 }
