@@ -1,13 +1,15 @@
 import { Context, HttpRequest } from "@azure/functions";
-import * as df from "durable-functions";
 import BloomParseServer from "../common/BloomParseServer";
 import {
+  IBookFileInfo,
   copyBook,
   deleteFiles,
   getS3PrefixFromEncodedPath,
   getS3UrlFromPrefix,
   getTemporaryS3Credentials,
+  isArrayOfIBookFileInfo,
   listPrefixContentsKeys,
+  processFileHashes,
 } from "../common/s3";
 import { Environment } from "../common/utils";
 import {
@@ -39,10 +41,33 @@ export async function handleUploadStart(
   }
 
   const bookObjectId = req.query["existing-book-object-id"];
+
+  const bookTitle: string = req.body["title"] || "";
+
+  let bookFiles: IBookFileInfo[];
+  try {
+    bookFiles = JSON.parse(req.body["files"]);
+    if (!bookFiles?.length || !isArrayOfIBookFileInfo(bookFiles))
+      throw new Error();
+  } catch (error) {
+    // Handle parsing/validation errors
+    context.res = {
+      status: 400,
+      body: '"files" must be an array of objects, each with a path and hash property',
+    };
+    return context.res;
+  }
+
   const instanceId = await startLongRunningAction(
     context,
     LongRunningAction.UploadStart,
-    { bookObjectId, userInfo, env }
+    {
+      bookObjectId,
+      bookTitle,
+      bookFiles,
+      userInfo,
+      env,
+    }
   );
 
   context.res = createResponseWithAcceptedStatusAndStatusUrl(
@@ -55,6 +80,8 @@ export async function handleUploadStart(
 export async function longRunningUploadStart(
   input: {
     bookObjectId: string | undefined;
+    bookTitle: string | undefined;
+    bookFiles: IBookFileInfo[] | undefined;
     userInfo: any;
     env: Environment;
   },
@@ -92,10 +119,22 @@ export async function longRunningUploadStart(
     }
   }
 
-  const prefix = `${bookObjectId}/${currentTime}/`;
+  let bookFilesParentDirectory = input.bookTitle;
+  if (bookFilesParentDirectory && !bookFilesParentDirectory.endsWith("/"))
+    bookFilesParentDirectory += "/";
 
-  if (!isNewBook) {
-    // we are modifying an existing book. Check that we have permission, then copy old book to new folder for efficient syncing
+  const s3Prefix = `${bookObjectId}/${currentTime}/`;
+
+  let filesToUpload: string[] = [];
+  if (isNewBook) {
+    // Some day we may have more complicated logic, including being able to restart a failed upload.
+    // But for now, this is a simple pass-through of the files the client sent.
+    filesToUpload = input.bookFiles.map((file) => file.path);
+  } else {
+    // We are modifying an existing book.
+    // Check that we have permission,
+    // then copy unmodified book files to the new folder for a more efficient upload.
+    // (So the client only has to upload new or modified files.)
     const existingBookInfo = await parseServer.getBookInfoByObjectId(
       bookObjectId
     );
@@ -113,9 +152,9 @@ export async function longRunningUploadStart(
       env
     );
 
-    // If another upload of this book has been started but not finished, delete its files
-    // This is safe because we copy the book files in uploadStart just for efficiency,
-    // Bloom Desktop will upload any files that are not there
+    // If another upload of this book has been started but not finished, delete its files.
+    // This is safe because we will create a new uploadPendingTimestamp below which will
+    // be used for the new set of files.
     if (existingBookInfo.uploadPendingTimestamp) {
       const allFilesForThisBook = await listPrefixContentsKeys(
         bookObjectId, // pass bookObjectId as the prefix; we want all files under the book object id
@@ -135,22 +174,6 @@ export async function longRunningUploadStart(
       }
     }
 
-    //book path is in the form of bookId/timestamp/title
-    //We want everything before the title; take everything up to the second slash in existingBookPath
-    const secondSlashIndex = existingBookPath.indexOf(
-      "/",
-      existingBookPath.indexOf("/") + 1
-    );
-    const existingBookPathBeforeTitle = existingBookPath.substring(
-      0,
-      secondSlashIndex + 1
-    );
-
-    try {
-      await copyBook(existingBookPathBeforeTitle, prefix, env);
-    } catch (err) {
-      return handleError(500, "Unable to copy book", context, err);
-    }
     try {
       parseServer.modifyBookRecord(
         bookObjectId,
@@ -162,10 +185,38 @@ export async function longRunningUploadStart(
     } catch (err) {
       return handleError(500, "Unable to modify book record", context, err);
     }
+
+    let filesToCopy: string[] = [];
+    try {
+      [filesToUpload, filesToCopy] = await processFileHashes(
+        input.bookFiles,
+        existingBookPath,
+        env
+      );
+    } catch (err) {
+      return handleError(500, "Unable to process file hashes", context, err);
+    }
+
+    if (filesToCopy.length) {
+      try {
+        // existingBookPath is in the form bookId/timestamp/title.
+        // s3Prefix only has bookId/timestamp.
+        // The client must provide the new title (bookFilesParentDirectory); it could have changed.
+        await copyBook(
+          existingBookPath,
+          s3Prefix + bookFilesParentDirectory,
+          filesToCopy,
+          env
+        );
+      } catch (err) {
+        return handleError(500, "Unable to copy book", context, err);
+      }
+    }
   }
 
+  let tempCredentials;
   try {
-    var tempCredentials = await getTemporaryS3Credentials(prefix, env);
+    tempCredentials = await getTemporaryS3Credentials(s3Prefix, env);
   } catch (err) {
     return handleError(
       500,
@@ -175,11 +226,12 @@ export async function longRunningUploadStart(
     );
   }
 
-  const s3Path = getS3UrlFromPrefix(prefix, env);
+  const s3Path = getS3UrlFromPrefix(s3Prefix, env);
   const body = {
-    url: s3Path,
     "transaction-id": bookObjectId,
     credentials: tempCredentials,
+    url: s3Path + bookFilesParentDirectory,
+    "files-to-upload": filesToUpload,
   };
   return body;
 }
