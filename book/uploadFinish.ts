@@ -100,7 +100,8 @@ export async function longRunningUploadFinish(
     );
   }
 
-  // For performance reasons, we are letting the client do this instead.
+  // For performance reasons, we are letting uploadStart's copy process (for existing, unchanged files)
+  // and the client (for new and modified files) do this instead.
   // try {
   //   const newPrefix = getS3PrefixFromEncodedPath(newBaseUrl, env);
   //   await allowPublicRead(newPrefix, env);
