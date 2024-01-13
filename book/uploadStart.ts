@@ -1,13 +1,15 @@
 import { Context, HttpRequest } from "@azure/functions";
-import * as df from "durable-functions";
 import BloomParseServer from "../common/BloomParseServer";
 import {
+  IBookFileInfo,
   copyBook,
   deleteFiles,
   getS3PrefixFromEncodedPath,
   getS3UrlFromPrefix,
   getTemporaryS3Credentials,
+  isArrayOfIBookFileInfo,
   listPrefixContentsKeys,
+  processFileHashes,
 } from "../common/s3";
 import { Environment } from "../common/utils";
 import {
@@ -39,10 +41,31 @@ export async function handleUploadStart(
   }
 
   const bookObjectId = req.query["existing-book-object-id"];
+
+  let bookFilesNewPrefix: string | undefined;
+  let bookFiles: IBookFileInfo[];
+  if (bookObjectId) {
+    const bookFilesRaw = req.body["files"];
+    try {
+      bookFiles = JSON.parse(bookFilesRaw);
+      if (!bookFiles?.length || !isArrayOfIBookFileInfo(bookFiles))
+        throw new Error();
+
+      bookFilesNewPrefix = req.body["files-prefix"];
+    } catch (error) {
+      // Handle parsing/validation errors
+      context.res = {
+        status: 400,
+        body: "files must be an array of objects, each with a path and hash property",
+      };
+      return context.res;
+    }
+  }
+
   const instanceId = await startLongRunningAction(
     context,
     LongRunningAction.UploadStart,
-    { bookObjectId, userInfo, env }
+    { bookObjectId, bookFilesNewPrefix, bookFiles, userInfo, env }
   );
 
   context.res = createResponseWithAcceptedStatusAndStatusUrl(
@@ -55,6 +78,8 @@ export async function handleUploadStart(
 export async function longRunningUploadStart(
   input: {
     bookObjectId: string | undefined;
+    bookFilesNewPrefix: string | undefined;
+    bookFiles: IBookFileInfo[] | undefined;
     userInfo: any;
     env: Environment;
   },
@@ -94,6 +119,7 @@ export async function longRunningUploadStart(
 
   const prefix = `${bookObjectId}/${currentTime}/`;
 
+  let filesToUpload: string[] = [];
   if (!isNewBook) {
     // we are modifying an existing book. Check that we have permission, then copy old book to new folder for efficient syncing
     const existingBookInfo = await parseServer.getBookInfoByObjectId(
@@ -135,22 +161,6 @@ export async function longRunningUploadStart(
       }
     }
 
-    //book path is in the form of bookId/timestamp/title
-    //We want everything before the title; take everything up to the second slash in existingBookPath
-    const secondSlashIndex = existingBookPath.indexOf(
-      "/",
-      existingBookPath.indexOf("/") + 1
-    );
-    const existingBookPathBeforeTitle = existingBookPath.substring(
-      0,
-      secondSlashIndex + 1
-    );
-
-    try {
-      await copyBook(existingBookPathBeforeTitle, prefix, env);
-    } catch (err) {
-      return handleError(500, "Unable to copy book", context, err);
-    }
     try {
       parseServer.modifyBookRecord(
         bookObjectId,
@@ -162,10 +172,37 @@ export async function longRunningUploadStart(
     } catch (err) {
       return handleError(500, "Unable to modify book record", context, err);
     }
+
+    let filesToCopy: string[] = [];
+    try {
+      [filesToUpload, filesToCopy] = await processFileHashes(
+        input.bookFiles,
+        existingBookPath,
+        env
+      );
+    } catch (err) {
+      return handleError(500, "Unable to process file hashes", context, err);
+    }
+
+    if (filesToCopy.length) {
+      try {
+        // existingBookPath is in the form bookId/timestamp/title.
+        // prefix only has bookId/timestamp. The client must provide the new title; it could have changed.
+        await copyBook(
+          existingBookPath,
+          prefix + input.bookFilesNewPrefix,
+          filesToCopy,
+          env
+        );
+      } catch (err) {
+        return handleError(500, "Unable to copy book", context, err);
+      }
+    }
   }
 
+  let tempCredentials;
   try {
-    var tempCredentials = await getTemporaryS3Credentials(prefix, env);
+    tempCredentials = await getTemporaryS3Credentials(prefix, env);
   } catch (err) {
     return handleError(
       500,
@@ -177,9 +214,10 @@ export async function longRunningUploadStart(
 
   const s3Path = getS3UrlFromPrefix(prefix, env);
   const body = {
-    url: s3Path,
     "transaction-id": bookObjectId,
     credentials: tempCredentials,
+    url: s3Path,
+    "files-to-upload": filesToUpload,
   };
   return body;
 }
