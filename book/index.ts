@@ -30,16 +30,13 @@ const book: AzureFunction = async function (
   }
 
   if (req.method === "GET") {
-    await handleGet(parseServer, context, req, userInfo);
-    return;
+    return await handleGet(parseServer, context, req, userInfo);
   }
   if (req.method === "POST") {
-    await handlePost(parseServer, context, req, userInfo, env);
-    return;
+    return await handlePost(parseServer, context, req, userInfo, env);
   }
   if (req.method === "DELETE") {
-    await handleDelete(parseServer, context, req, userInfo);
-    return;
+    return await handleDelete(parseServer, context, req, userInfo);
   }
 };
 

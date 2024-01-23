@@ -9,12 +9,12 @@ export async function handleDelete(
   userInfo: User
 ) {
   const actionType: string = req.params.action;
-  if (actionType !== "delete-book") {
+  if (actionType !== "delete") {
     context.res = {
       status: 400,
       body: "Invalid action type for DELETE method",
     };
-    return;
+    return context.res;
   }
 
   const bookObjectId = validateQueryParam(context, req, "book-object-id");
@@ -24,9 +24,9 @@ export async function handleDelete(
   if (!(await BloomParseServer.canModifyBook(userInfo, bookInfo))) {
     context.res = {
       status: 400,
-      body: "Please provide a valid book ID and Authentication-Token",
+      body: "Please provide a valid book-object-id and Authentication-Token",
     };
-    return;
+    return context.res;
   }
 
   try {
@@ -38,10 +38,12 @@ export async function handleDelete(
       status: deleteResult.status,
       body: deleteResult.data,
     };
+    return context.res;
   } catch (e) {
     context.res = {
       status: e.response.status,
       body: e.response.data,
     };
+    return context.res;
   }
 }

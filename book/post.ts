@@ -13,27 +13,29 @@ export async function handlePost(
 ) {
   switch (req.params.action) {
     case "upload-start":
-      await handleUploadStart(context, req, parseServer, userInfo, env);
-      return;
+      return await handleUploadStart(context, req, userInfo, env);
     case "upload-finish":
-      await handleUploadFinish(context, req, parseServer, userInfo, env);
-      return;
+      return await handleUploadFinish(context, req, userInfo, env);
     case "get-books":
       if (req.body.bookInstanceIds !== undefined) {
-        await getBooksWithIds(context, req.body.bookInstanceIds, parseServer);
+        return await getBooksWithIds(
+          context,
+          req.body.bookInstanceIds,
+          parseServer
+        );
       } else {
         context.res = {
           status: 400,
           body: "Please provide bookInstanceIds in the body to get-books",
         };
       }
-      return;
+      return context.res;
     default:
       context.res = {
         status: 400,
         body: "Invalid action type for POST method",
       };
-      return;
+      return context.res;
   }
 }
 
@@ -48,4 +50,5 @@ export async function getBooksWithIds(
     status: 200,
     body: { bookRecords },
   };
+  return context.res;
 }
