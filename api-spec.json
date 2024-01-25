@@ -1,0 +1,139 @@
+{
+  "openapi": "3.0.2",
+  "info": {
+    "title": "BloomLibrary API",
+    "version": "1.0"
+  },
+  "servers": [
+    {
+      "url": "https://api.bloomlibrary.org/v1"
+    }
+  ],
+  "components": {
+    "schemas": {
+      "book": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "languages": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "titles": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "lang": {
+                  "type": "string"
+                },
+                "title": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "lang",
+                "title"
+              ]
+            }
+          },
+          "links": {
+            "type": "string",
+            "format": "uri"
+          }
+        },
+        "required": [
+          "id",
+          "languages",
+          "titles",
+          "links"
+        ],
+        "example":{
+          "id": "123",
+          "languages": ["en","fr"],
+          "titles": [{"lang":"en", "title": "Moon & Cap"}, {"lang":"fr", "title": "La lune et le Cap"}],
+          "links": "https://api.bloomlibrary.org/books/123/links"
+       }
+      }
+    }
+  },
+  "paths": {
+    "/books": {
+      "get": {
+        "description": "returns an array with metadata and links",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Number of items to retrieve",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "description": "Number of items to skip",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/book"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/books/{id}": {
+      "get": {
+        "description": "",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Successful operation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/book"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "description": "",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    }
+  }
+}
