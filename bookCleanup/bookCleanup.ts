@@ -1,5 +1,5 @@
 import BloomParseServer from "../common/BloomParseServer";
-import { deleteBook } from "../common/s3";
+import { deleteFilesByPrefix } from "../common/s3";
 import { Environment } from "../common/utils";
 
 export async function bookCleanupInternal(env: Environment) {
@@ -12,7 +12,7 @@ export async function bookCleanupInternal(env: Environment) {
   );
   for (const book of booksToBeCleanedUp) {
     const bookPrefixToDelete = `${book.objectId}/${book.uploadPendingTimestamp}`;
-    await deleteBook(bookPrefixToDelete, env);
+    await deleteFilesByPrefix(bookPrefixToDelete, env);
     if (book.baseUrl === undefined) {
       await parseServer.deleteBookRecord(book.objectId, sessionToken);
     } else {

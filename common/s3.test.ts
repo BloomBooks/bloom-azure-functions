@@ -2,7 +2,7 @@ import { GetObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import {
   getS3PrefixFromEncodedPath,
   getS3UrlFromPrefix,
-  deleteBook,
+  deleteFilesByPrefix,
   listPrefixContentsKeys,
   copyBook,
   getTemporaryS3Credentials,
@@ -14,9 +14,9 @@ import {
 import { Environment } from "./utils";
 
 async function deleteTestFiles() {
-  await deleteBook("testBookId", Environment.UNITTEST);
-  await deleteBook("test2BookId", Environment.UNITTEST);
-  await deleteBook("test3BookId", Environment.UNITTEST);
+  await deleteFilesByPrefix("testBookId", Environment.UNITTEST);
+  await deleteFilesByPrefix("test2BookId", Environment.UNITTEST);
+  await deleteFilesByPrefix("test3BookId", Environment.UNITTEST);
 }
 
 async function resetTestBookFolders() {
@@ -79,7 +79,12 @@ describe("s3", () => {
   });
 
   it("copyBook() works", async () => {
-    await copyBook("testBookId", "test2BookId", Environment.UNITTEST);
+    await copyBook(
+      "testBookId/",
+      "test2BookId/",
+      ["12345678", "蔬.htm", "foo/bar"],
+      Environment.UNITTEST
+    );
     await listPrefixContentsKeys("test2BookId", Environment.UNITTEST).then(
       (keys) => {
         expect(keys.length).toBe(3);
@@ -90,8 +95,8 @@ describe("s3", () => {
     );
   });
 
-  it("deleteBook() works", async () => {
-    await deleteBook("test3BookId/toBeDeleted", Environment.UNITTEST);
+  it("deleteFilesByPrefix() works", async () => {
+    await deleteFilesByPrefix("test3BookId/toBeDeleted", Environment.UNITTEST);
     await listPrefixContentsKeys(
       "test3BookId/toBeDeleted",
       Environment.UNITTEST
@@ -103,6 +108,27 @@ describe("s3", () => {
         expect(keys.length).not.toBe(0);
       }
     );
+  });
+
+  it("deleteFilesByPrefix() with excludedPrefix works", async () => {
+    resetTestBookFolders();
+    await deleteFilesByPrefix(
+      "test3BookId/",
+      Environment.UNITTEST,
+      "test3BookId/toNotGetDeleted/"
+    );
+    await listPrefixContentsKeys(
+      "test3BookId/toBeDeleted",
+      Environment.UNITTEST
+    ).then((keys) => {
+      expect(keys.length).toBe(0);
+    });
+    await listPrefixContentsKeys(
+      "test3BookId/toNotGetDeleted",
+      Environment.UNITTEST
+    ).then((keys) => {
+      expect(keys.length).not.toBe(0);
+    });
   });
 
   it("getTemporaryS3Credentials() and allowPublicRead() work", async () => {
@@ -122,7 +148,7 @@ describe("s3", () => {
       throw new Error("getTemporaryS3Credentials error");
     }
 
-    let tempCredentialsClient = new S3Client({
+    const tempCredentialsClient = new S3Client({
       region: kS3Region,
       credentials: {
         accessKeyId: creds.AccessKeyId,
