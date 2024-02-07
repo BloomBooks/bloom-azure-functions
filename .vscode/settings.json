@@ -9,10 +9,12 @@
   "editor.defaultFormatter": "esbenp.prettier-vscode",
   "cSpell.words": [
     "bloomlibrary",
+    "blorg",
     "Contentful",
     "dcterms",
     "epub",
     "Localizable",
-    "OPDS"
+    "OPDS",
+    "openapi"
   ]
 }
