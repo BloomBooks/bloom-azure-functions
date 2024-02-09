@@ -13,7 +13,7 @@ describe("BloomParseServer", () => {
 
     token = await parseServer.loginAsUser("unittest@example.com", "unittest");
     const userInfo = await parseServer.getLoggedInUserInfo(token);
-    myUserId = userInfo.objectId;
+    myUserId = userInfo!.objectId;
   });
   beforeEach(() => {});
 
