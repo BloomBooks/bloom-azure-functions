@@ -1,6 +1,6 @@
 import { AzureFunction, Context } from "@azure/functions";
-import { longRunningUploadStart } from "../book/uploadStart";
-import { longRunningUploadFinish } from "../book/uploadFinish";
+import { longRunningUploadStart } from "../books/uploadStart";
+import { longRunningUploadFinish } from "../books/uploadFinish";
 import { LongRunningAction } from "./utils";
 
 const longRunningActions: AzureFunction = async function (

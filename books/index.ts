@@ -4,7 +4,7 @@ import { getEnvironment } from "../common/utils";
 import { handleUploadStart } from "./uploadStart";
 import { handleUploadFinish } from "./uploadFinish";
 
-const book: AzureFunction = async function (
+const books: AzureFunction = async function (
   context: Context,
   req: HttpRequest
 ): Promise<any> {
@@ -99,4 +99,4 @@ async function getBooksWithIds(
   };
 }
 
-export default book;
+export default books;

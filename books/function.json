@@ -6,7 +6,7 @@
       "direction": "in",
       "name": "req",
       "methods": ["get", "post"],
-      "route": "book/{action}"
+      "route": "books/action"
     },
     {
       "type": "http",
@@ -19,5 +19,5 @@
       "direction": "in"
     }
   ],
-  "scriptFile": "../dist/book/index.js"
+  "scriptFile": "../dist/books/index.js"
 }
