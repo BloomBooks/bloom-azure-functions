@@ -90,7 +90,7 @@ export default class BloomParseServer {
 
   public static MakeUrlSafe(text: string): string {
     // This needs to match whatever Harvester is using.  The first replace is probably enough.
-    var text1 = text.replace("@", "%40");
+    const text1 = text.replace("@", "%40");
     return text1.replace(/ /g, "+");
   }
 
@@ -134,7 +134,7 @@ export default class BloomParseServer {
       // Book, IBasicBookInfo, and the keys for BookGroup queries.)
       return undefined;
     }
-    let harvesterBaseUrl = this.getHarvesterBaseUrl(book);
+    const harvesterBaseUrl = this.getHarvesterBaseUrl(book);
     if (!harvesterBaseUrl) {
       return undefined;
     }
@@ -196,7 +196,7 @@ export default class BloomParseServer {
     if (!book) {
       return undefined;
     }
-    if (book.baseUrl == null) {
+    if (book.baseUrl === null) {
       return undefined;
     }
     if (!this.isHarvested(book)) {
@@ -277,7 +277,7 @@ export default class BloomParseServer {
 
   // returns the objectId of the first language matching the specifications of langJson, creating the language if necessary
   public async getOrCreateLanguage(langJson: any): Promise<string> {
-    let lang = await this.getLanguage(langJson);
+    const lang = await this.getLanguage(langJson);
     if (lang) {
       return lang.objectId;
     }
@@ -301,7 +301,7 @@ export default class BloomParseServer {
       throw "Problem with embargo date handling: " + err.toString();
     }
 
-    let whereParts = [
+    const whereParts = [
       `"inCirculation":{"$in":[true,null]}`,
       `"draft":{"$in":[false,null]}`,
       `"createdAt":{"$lte":{"__type": "Date", "iso":"${newestDateString}"}}`,
@@ -351,7 +351,7 @@ export default class BloomParseServer {
     return results.data.count;
   }
 
-  public getBook(where: string): Promise<any> {
+  public getBook(where: string): Promise<Book> {
     return this.getBooks(where, true);
   }
 
@@ -384,7 +384,7 @@ export default class BloomParseServer {
     );
   }
 
-  public getBookInfoByObjectId(objectId: string): Promise<any> {
+  public getBookInfoByObjectId(objectId: string): Promise<Book> {
     return this.getBook(`{"objectId":{"$eq":"${objectId}"}}`);
   }
 
@@ -397,12 +397,12 @@ export default class BloomParseServer {
     );
   }
 
-  public async getBooksWithIds(bookInstanceIds: string[]): Promise<any> {
-    var bookRecords = [];
+  public async getBooksWithIds(bookInstanceIds: string[]): Promise<Book[]> {
+    let bookRecords = [];
 
     const queryStringStart = '{"bookInstanceId":{"$in":["';
-    var booksQuery = queryStringStart;
-    for (var i = 0; i < bookInstanceIds.length; ++i) {
+    let booksQuery = queryStringStart;
+    for (let i = 0; i < bookInstanceIds.length; ++i) {
       // More than 21 bookInstanceIds in a query causes a 400 error.
       // Just to be safe, we'll limit it to 20.
       booksQuery += '","' + bookInstanceIds[i];
@@ -468,7 +468,7 @@ export default class BloomParseServer {
 
   //Get an object containing the data from the apiAccount table row with the specified ID (not yet authenticated)
   public async getApiAccount(objectId: string): Promise<ApiAccount | null> {
-    var sessionToken;
+    let sessionToken;
     try {
       sessionToken = await this.loginAsCatalogService(); /* ? */
       if (!sessionToken) {
@@ -516,7 +516,7 @@ export default class BloomParseServer {
     return null;
   }
 
-  public async getLoggedInUserInfo(sessionToken) {
+  public async getLoggedInUserInfo(sessionToken: string): Promise<User | null> {
     try {
       const results = await axios.get(this.getParseUserUrl(), {
         headers: {
@@ -524,7 +524,7 @@ export default class BloomParseServer {
           "X-Parse-Session-Token": sessionToken,
         },
       });
-      return results.data;
+      return results.data as User;
     } catch (error) {
       return null; // not a valid session token; no user info to return
     }
@@ -564,7 +564,7 @@ export default class BloomParseServer {
   }
 
   // Check if user has permission to modify the book
-  public static canModifyBook(userInfo, bookInfo) {
+  public static canModifyBook(userInfo: User, bookInfo: Book) {
     return (
       bookInfo !== undefined && bookInfo.uploader.objectId === userInfo.objectId
     );
@@ -596,4 +596,23 @@ export type ApiAccount = {
   };
   embargoDays?: number;
   referrerTag: string;
+};
+
+export type User = {
+  objectId: string;
+  email: string;
+  sessionToken: string;
+};
+
+export type Book = {
+  objectId: string;
+  uploader: User;
+  title: string;
+  bookInstanceId: string;
+  baseUrl: string;
+  tags: string[];
+  brandingProjectName: string;
+  updateSource: string;
+  uploadPendingTimestamp: number;
+  inCirculation: boolean;
 };

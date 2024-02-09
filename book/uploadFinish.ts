@@ -1,5 +1,5 @@
 import { Context, HttpRequest } from "@azure/functions";
-import BloomParseServer from "../common/BloomParseServer";
+import BloomParseServer, { User } from "../common/BloomParseServer";
 import {
   deleteFilesByPrefix,
   getS3PrefixFromEncodedPath,
@@ -20,7 +20,7 @@ import {
 export async function handleUploadFinish(
   context: Context,
   req: HttpRequest,
-  userInfo: any,
+  userInfo: User,
   env: Environment
 ) {
   if (req.method !== "POST") {
@@ -58,7 +58,7 @@ export async function handleUploadFinish(
 export async function longRunningUploadFinish(
   input: {
     requestBody: any;
-    userInfo: any;
+    userInfo: User;
     env: Environment;
     bookId: string;
   },

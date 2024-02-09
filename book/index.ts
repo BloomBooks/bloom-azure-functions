@@ -1,5 +1,5 @@
 import { AzureFunction, Context, HttpRequest } from "@azure/functions";
-import BloomParseServer from "../common/BloomParseServer";
+import BloomParseServer, { User } from "../common/BloomParseServer";
 import { getEnvironment } from "../common/utils";
 import { handleUploadStart } from "./uploadStart";
 import { handleUploadFinish } from "./uploadFinish";
@@ -62,7 +62,7 @@ const book: AzureFunction = async function (
 async function getUserFromSession(
   parseServer: BloomParseServer,
   req: HttpRequest
-) {
+): Promise<User | null> {
   // Note that req.headers' keys are all lower case.
   const authenticationToken = req.headers["authentication-token"];
   return await parseServer.getLoggedInUserInfo(authenticationToken);
