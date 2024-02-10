@@ -31,21 +31,39 @@ export async function handleUploadFinish(
     return context.res;
   }
 
-  const queryParams = req.query;
-  const bookId = queryParams["transaction-id"];
-  if (bookId === undefined) {
+  const bookId = req.params.id;
+  if (!bookId) {
     context.res = {
       status: 400,
-      body: "Please provide a valid transaction-id",
+      body: "book ID is required: /books/{id}:upload-finish",
     };
     return context.res;
   }
 
-  const requestBody = req.body;
+  const metadata = req.body.metadata;
+  if (!metadata) {
+    context.res = {
+      status: 400,
+      body: "Please provide a valid metadata object in the body",
+    };
+    return context.res;
+  }
+
+  const transactionId = req.body.transactionId;
+  if (!transactionId || transactionId !== bookId) {
+    // With this initial implementation, transaction ID is always the book ID.
+    // But the API allows for them to be different some day.
+    context.res = {
+      status: 400,
+      body: "Please provide a valid transactionId in the body",
+    };
+    return context.res;
+  }
+
   const instanceId = await startLongRunningAction(
     context,
     LongRunningAction.UploadFinish,
-    { requestBody, userInfo, env, bookId }
+    { bookRecord: metadata, userInfo, env, bookId }
   );
 
   context.res = createResponseWithAcceptedStatusAndStatusUrl(
@@ -57,14 +75,14 @@ export async function handleUploadFinish(
 
 export async function longRunningUploadFinish(
   input: {
-    requestBody: any;
+    bookRecord: any;
     userInfo: User;
     env: Environment;
     bookId: string;
   },
   context: Context
 ) {
-  const requestBody = input.requestBody;
+  const bookRecord = input.bookRecord;
   const userInfo = input.userInfo;
   const env = input.env;
   const bookId = input.bookId;
@@ -74,13 +92,12 @@ export async function longRunningUploadFinish(
   if (!BloomParseServer.canModifyBook(userInfo, bookInfo)) {
     return handleError(
       400,
-      "Please provide a valid Authentication-Token and transaction-id",
+      "Please provide a valid Authentication-Token and book ID",
       context,
       null
     );
   }
 
-  const bookRecord = requestBody;
   const newBaseUrl = bookRecord?.baseUrl;
   if (newBaseUrl === undefined) {
     return handleError(
@@ -149,6 +166,10 @@ export async function longRunningUploadFinish(
   }
 
   bookRecord.uploadPendingTimestamp = null;
+  bookRecord.lastUploaded = {
+    __type: "Date",
+    iso: new Date().toISOString(),
+  };
   try {
     await parseServer.modifyBookRecord(
       bookId,
@@ -168,5 +189,5 @@ export async function longRunningUploadFinish(
     console.log(e);
     // TODO future work: we want this to somehow notify us of the now-orphan old book files
   }
-  return "Successfully updated book";
+  return {};
 }

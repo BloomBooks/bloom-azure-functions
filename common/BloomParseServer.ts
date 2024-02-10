@@ -397,7 +397,9 @@ export default class BloomParseServer {
     );
   }
 
-  public async getBooksWithIds(bookInstanceIds: string[]): Promise<Book[]> {
+  public async getBooksWithInstanceIds(
+    bookInstanceIds: string[]
+  ): Promise<Book[]> {
     let bookRecords = [];
 
     const queryStringStart = '{"bookInstanceId":{"$in":["';
