@@ -21,7 +21,7 @@ In that case, the function code validates the initial input and then starts the 
 
 The initial request returns a 202 Accepted response with an `Operation-Location` header which contains the URL to use to check on the status of the action. This URL will be for the `status` endpoint (see below).
 
-Current examples are `book/upload-start` and `book/upload-finish`.
+Current examples are `book/{id}:upload-start` and `book/{id}:upload-finish`.
 
 ## status function
 

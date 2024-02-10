@@ -397,7 +397,9 @@ export default class BloomParseServer {
     );
   }
 
-  public async getBooksWithIds(bookInstanceIds: string[]): Promise<Book[]> {
+  public async getBooksWithInstanceIds(
+    bookInstanceIds: string[]
+  ): Promise<Book[]> {
     let bookRecords = [];
 
     const queryStringStart = '{"bookInstanceId":{"$in":["';
@@ -408,8 +410,9 @@ export default class BloomParseServer {
       booksQuery += '","' + bookInstanceIds[i];
       if (i % 20 === 0 || i === bookInstanceIds.length - 1) {
         booksQuery += '"]}}';
+        let batchOfBookRecords;
         try {
-          var batchOfBookRecords = await this.getBooks(booksQuery);
+          batchOfBookRecords = await this.getBooks(booksQuery);
         } catch (err) {
           continue;
         }

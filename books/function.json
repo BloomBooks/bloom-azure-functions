@@ -6,7 +6,7 @@
       "direction": "in",
       "name": "req",
       "methods": ["get", "post"],
-      "route": "books/action"
+      "route": "books/{id-and-action?}"
     },
     {
       "type": "http",
