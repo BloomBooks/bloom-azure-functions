@@ -21,6 +21,7 @@ module.exports = {
     "prefer-const": "warn",
     "no-useless-escape": "off",
     "no-warning-comments": [1, { terms: ["nocommit"], location: "anywhere" }],
+    "consistent-return": "warn",
     // Downgraded from error to warnings
     "@typescript-eslint/no-empty-function": "warn",
     "@typescript-eslint/no-empty-interface": "warn",

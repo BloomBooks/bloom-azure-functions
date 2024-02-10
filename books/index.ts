@@ -3,6 +3,7 @@ import BloomParseServer, { User } from "../common/BloomParseServer";
 import { getEnvironment } from "../common/utils";
 import { handleUploadStart } from "./uploadStart";
 import { handleUploadFinish } from "./uploadFinish";
+import { getIdAndAction } from "./utils";
 
 const books: AzureFunction = async function (
   context: Context,
@@ -11,43 +12,48 @@ const books: AzureFunction = async function (
   const env = getEnvironment(req);
   const parseServer = new BloomParseServer(env);
 
-  if (req.method === "POST") {
-    const userInfo = await getUserFromSession(parseServer, req);
+  const [bookId, action] = getIdAndAction(req.params["id-and-action"]);
+  req.params.id = bookId;
+  req.params.action = action;
+
+  let userInfo: User | null = null;
+  if (requiresAuthentication(req.method, action)) {
+    userInfo = await getUserFromSession(parseServer, req);
     // for actions for which we need to validate the authentication token
-    if (!userInfo && req.params.action in ["upload-start", "upload-finish"]) {
+    if (!userInfo) {
       context.res = {
         status: 400,
-        body: "Unable to validate user. Did you include a valid authentication token header?",
+        body: "Unable to validate user. Did you include a valid Authentication-Token header?",
       };
       return context.res;
     }
-    switch (req.params.action) {
+  }
+
+  if (bookId) {
+    if (!isValidBookId(bookId)) {
+      context.res = {
+        status: 400,
+        body: "Invalid book ID",
+      };
+      return context.res;
+    }
+
+    if (!action) {
+      // Query for a specific book
+      // TODO: implement
+      context.res = {
+        status: 500,
+        body: "Not yet implemented.",
+      };
+      return context.res;
+    }
+
+    switch (action) {
       case "upload-start":
         return await handleUploadStart(context, req, userInfo, env);
       case "upload-finish":
         return await handleUploadFinish(context, req, userInfo, env);
-      case "get-books":
-        if (req.body.bookInstanceIds !== undefined) {
-          await getBooksWithIds(context, req.body.bookInstanceIds, parseServer);
-        } else {
-          context.res = {
-            status: 400,
-            body: "Please provide bookInstanceIds in the body to get-books",
-          };
-        }
-        return context.res;
-      default:
-        context.res = {
-          status: 400,
-          body: "Invalid action type",
-        };
-        return context.res;
-    }
-  } else {
-    switch (req.params.action) {
-      case "get-book-count-by-language":
-        await getBookCountByLanguage(context, req, parseServer);
-        return context.res;
+
       default:
         context.res = {
           status: 400,
@@ -56,7 +62,63 @@ const books: AzureFunction = async function (
         return context.res;
     }
   }
+
+  // Endpoint is /books
+  // i.e. no book ID, no action
+  // We are querying for a collection of books.
+  return await findBooks(context, req, parseServer);
 };
+
+async function findBooks(
+  context: Context,
+  req: HttpRequest,
+  parseServer: BloomParseServer
+) {
+  let bookRecords = [];
+
+  // POST to /books is a special case.
+  // We treat it basically the same as a GET, but know we have to look
+  // for something (so far, just instanceIds) in the body to tell us which books to return
+  // (rather than the query parameters).
+  // We use a POST because the list of instanceIds might be too long for a GET request.
+  // This is used by the editor to get a set of books by bookInstanceIds for the blorg status badges.
+  if (req.method === "POST" && req.body?.instanceIds?.length) {
+    bookRecords = await parseServer.getBooksWithInstanceIds(
+      req.body.instanceIds
+    );
+    context.res = {
+      status: 200,
+      body: { results: bookRecords },
+    };
+    return context.res;
+  }
+
+  // Hacking in this specific use case for now.
+  // This is used by the editor to get the count of books in a language.
+  if (
+    req.query.lang &&
+    req.query.limit &&
+    req.query.limit === "0" &&
+    req.query.count &&
+    req.query.count === "true"
+  ) {
+    const count = await parseServer.getBookCountByLanguage(req.query.lang);
+    context.res = {
+      status: 200,
+      // A GET/POST to /books always returns an array of books, even if it's empty.
+      // In this temporary, hacked use case, it is always empty.
+      body: { results: bookRecords, count },
+    };
+    return context.res;
+  }
+
+  // General query for books... not implemented yet
+  context.res = {
+    status: 500,
+    body: "Not yet implemented.",
+  };
+  return context.res;
+}
 
 // Validate the session token and return the user info
 async function getUserFromSession(
@@ -68,35 +130,28 @@ async function getUserFromSession(
   return await parseServer.getLoggedInUserInfo(authenticationToken);
 }
 
-// Get the number of books on bloomlibrary.org that are in the given language. Query should get all books where the isoCode matches the given languageCode
-// and 'rebrand' is not true and 'inCirculation' is not false and 'draft' is not true.
-// In the future, we may need to parameterize those filters, but for now, it fits our current use case (Bloom editor's count of books uploaded).
-async function getBookCountByLanguage(
-  context: Context,
-  req: HttpRequest,
-  parseServer: BloomParseServer
-) {
-  const queryParams = req.query;
-  const languageTag = queryParams["language-tag"];
-  const count = await parseServer.getBookCountByLanguage(languageTag);
+// We want this written in such a way that new actions require authentication by default.
+function requiresAuthentication(
+  method: string,
+  action: string | null
+): boolean {
+  if (method === "DELETE") return true;
 
-  context.res = {
-    status: 200,
-    body: count,
-  };
+  // Usually any POST request would need authentication,
+  // but we use POST when the url might be too long for a GET request.
+
+  if (action) return true;
+
+  return false;
 }
 
-async function getBooksWithIds(
-  context: Context,
-  bookInstanceIds: string[],
-  parseServer: BloomParseServer
-) {
-  const bookRecords = await parseServer.getBooksWithIds(bookInstanceIds);
+function isValidBookId(bookId: string): boolean {
+  // Special case
+  if (bookId === "new") return true;
 
-  context.res = {
-    status: 200,
-    body: { bookRecords },
-  };
+  // Check that it's a valid objectId; 10-character alphanumeric string
+  return /^[0-9a-z]{10}$/i.test(bookId);
+}
 }
 
 export default books;

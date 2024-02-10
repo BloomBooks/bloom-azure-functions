@@ -77,7 +77,7 @@ async function cleanupS3Files() {
   }
 }
 
-fdescribe("bookCleanup", () => {
+describe("bookCleanup", () => {
   beforeAll(async function () {
     parseServer = new BloomParseServer(Environment.UNITTEST);
     sessionToken = await parseServer.loginAsUser(

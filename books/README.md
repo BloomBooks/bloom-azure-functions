@@ -1,22 +1,16 @@
-# book Function
+# books Function
 
-The **book** function provides an API for uploading books to BloomLibrary.org.
+The **books** function provides an API for working with books on BloomLibrary.org.
 
 ## URL format
 
-The URL used to access this function always contains `book` followed by an `action`.
+The URL used to access this function always contains `books`.
+It may be followed by a book ID: `books/id`.
+The book ID may have an action: `books/id:action`.
 
-`http://api.bloomlibrary.org/v1/book/{action}`
+`http://api.bloomlibrary.org/v1/books/id:action`
 
 ## Actions
-
-### get-books (POST -- because we have to send a body)
-
-TODO
-
-### get-book-count-by-language (GET)
-
-TODO
 
 ## Long-running actions
 
@@ -26,40 +20,13 @@ See [../status/README.md](../status/README.md) for details on how to call long-r
 
 Gets everything ready for a client to begin uploading book files.
 
-#### Request:
-
-- Header:
-  - `Authentication-Token`
-    - parse server session token for the user uploading the book.
-- Query parameter:
-  - `existing-book-object-id` (optional)
-    - `books` record ID of an existing book to be updated. If not provided, a new book will be created.
-
-#### Response:
-
-```
-{
-    url: <S3 parent "folder" where book files will be uploaded; does not include book title>,
-    transaction-id: <`books` record ID of the book to be uploaded; will equal `existing-book-object-id` if provided>,
-    credentials: <temporary credentials which will be used to upload the book files to S3>
-}
-```
+See the API documentation for details.
 
 ### upload-finish (POST)
 
 Finalizes the update after the client uploads the book files.
 
-#### Request:
-
-- Header:
-  - `Authentication-Token`
-    - parse server session token for the user uploading the book.
-- Query parameter:
-  - `transaction-id` (required)
-    - Same transaction ID returned by `upload-start`.
-- Body:
-  - JSON representing the book record to be updated. Must include a baseUrl which begins with the `url` returned by `upload-start`.
-    - `{"baseUrl": "https://my-base-url", "field": "value"}`
+See the API documentation for details.
 
 ## Failures
 
