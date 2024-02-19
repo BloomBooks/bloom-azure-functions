@@ -1,4 +1,4 @@
-import BloomParseServer from "../common/BloomParseServer";
+import BloomParseServer, { Book } from "../common/BloomParseServer";
 import { Environment } from "./utils";
 
 // give all the books we create here this bookInstanceId by which to delete them all after
@@ -154,20 +154,20 @@ describe("BloomParseServer", () => {
 
   */
 
-  it("tests getBooksWithIds()", async () => {
-    var bookInstanceIds: string[] = [];
+  it("tests getBooksWithInstanceIds()", async () => {
+    const bookInstanceIds: string[] = [];
     const testBook =
       await parseServer.getBookInfoByInstanceIdAndUploaderObjectId(
         "testBookInstanceId22",
         myUserId
       );
-    var testBookId = "";
+    let testBookId = "";
     if (testBook) {
       testBookId = testBook.objectId;
     } else {
       testBookId = await parseServer.createBookRecord(
         {
-          title: "test getBooksWithIds",
+          title: "test getBooksWithInstanceIds",
           bookInstanceId: "testBookInstanceId22",
           updateSource: "AzureFunctionsUnitTest",
           uploader: {
@@ -183,8 +183,8 @@ describe("BloomParseServer", () => {
     for (let i = 0; i < 23; i++) {
       bookInstanceIds.push("testBookInstanceId" + i);
     }
-    const books = await parseServer.getBooksWithIds(bookInstanceIds);
-    const bookIds = books.map((book: any) => book.objectId);
+    const books = await parseServer.getBooksWithInstanceIds(bookInstanceIds);
+    const bookIds = books.map((book: Book) => book.objectId);
     expect(bookIds).toContain(testBookId);
   });
 });

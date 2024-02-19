@@ -39,7 +39,14 @@ export async function handleUploadStart(
     return context.res;
   }
 
-  const bookObjectId = req.query["existing-book-object-id"];
+  const bookIdOrNew = req.params.id;
+  if (!bookIdOrNew) {
+    context.res = {
+      status: 400,
+      body: 'book ID is required: /books/{id}:upload-start (id is "new" for a new book)',
+    };
+    return context.res;
+  }
 
   const bookTitle: string = req.body["title"] || "";
 
@@ -61,7 +68,7 @@ export async function handleUploadStart(
     context,
     LongRunningAction.UploadStart,
     {
-      bookObjectId,
+      bookIdOrNew,
       bookTitle,
       bookFiles,
       userInfo,
@@ -78,7 +85,7 @@ export async function handleUploadStart(
 
 export async function longRunningUploadStart(
   input: {
-    bookObjectId: string | undefined;
+    bookIdOrNew: string;
     bookTitle: string | undefined;
     bookFiles: IBookFileInfo[] | undefined;
     userInfo: User;
@@ -88,12 +95,13 @@ export async function longRunningUploadStart(
 ) {
   const userInfo = input.userInfo;
   const env = input.env;
-  let bookObjectId = input.bookObjectId;
+  const bookIdOrNew = input.bookIdOrNew;
   const parseServer = new BloomParseServer(env);
 
   const currentTime = Date.now();
 
-  const isNewBook = bookObjectId === undefined;
+  const isNewBook = bookIdOrNew === "new";
+  let bookId: string;
   if (isNewBook) {
     const newBookRecord = {
       title: kPendingString,
@@ -109,20 +117,23 @@ export async function longRunningUploadStart(
     };
 
     try {
-      bookObjectId = await parseServer.createBookRecord(
+      bookId = await parseServer.createBookRecord(
         newBookRecord,
         userInfo.sessionToken
       );
     } catch (err) {
       return handleError(400, "Unable to create book record", context, err);
     }
+  } else {
+    // We'll look it up below which will serve to validate it as a real, single, book ID.
+    bookId = bookIdOrNew;
   }
 
   let bookFilesParentDirectory = input.bookTitle;
   if (bookFilesParentDirectory && !bookFilesParentDirectory.endsWith("/"))
     bookFilesParentDirectory += "/";
 
-  const newS3Prefix = `${bookObjectId}/${currentTime}/`;
+  const newS3Prefix = `${bookId}/${currentTime}/`;
 
   let filesToUpload: string[] = [];
   if (isNewBook) {
@@ -134,9 +145,7 @@ export async function longRunningUploadStart(
     // Check that we have permission,
     // then copy unmodified book files to the new folder for a more efficient upload.
     // (So the client only has to upload new or modified files.)
-    const existingBookInfo = await parseServer.getBookInfoByObjectId(
-      bookObjectId
-    );
+    const existingBookInfo = await parseServer.getBookInfoByObjectId(bookId);
     if (!BloomParseServer.canModifyBook(userInfo, existingBookInfo)) {
       return handleError(
         400,
@@ -157,7 +166,7 @@ export async function longRunningUploadStart(
     // We will set a new uploadPendingTimestamp below which will be used for the new set of files.
     if (existingBookInfo.uploadPendingTimestamp) {
       try {
-        const prefixToDelete = bookObjectId;
+        const prefixToDelete = bookId;
         const prefixToExclude = existingS3Prefix;
         await deleteFilesByPrefix(prefixToDelete, env, prefixToExclude);
       } catch (err) {
@@ -172,7 +181,7 @@ export async function longRunningUploadStart(
 
     try {
       parseServer.modifyBookRecord(
-        bookObjectId,
+        bookId,
         {
           uploadPendingTimestamp: currentTime,
         },
@@ -224,10 +233,10 @@ export async function longRunningUploadStart(
 
   const s3Path = getS3UrlFromPrefix(newS3Prefix, env);
   const body = {
-    "transaction-id": bookObjectId,
+    transactionId: bookId,
     credentials: tempCredentials,
     url: s3Path + bookFilesParentDirectory,
-    "files-to-upload": filesToUpload,
+    filesToUpload,
   };
   return body;
 }

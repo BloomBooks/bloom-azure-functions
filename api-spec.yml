@@ -1,0 +1,431 @@
+openapi: 3.0.3
+info:
+  title: BloomLibrary API
+  version: "1.0"
+servers:
+  - url: https://api.bloomlibrary.org/v1
+components:
+  parameters:
+    PathId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+    PathTag:
+      name: tag
+      in: path
+      required: true
+      schema:
+        type: string
+    HeaderAuthToken:
+      name: Authentication-Token
+      in: header
+      required: true
+      schema:
+        type: string
+    Lang:
+      description: comma-separated list of BCP 47 language tags
+      name: lang
+      in: query
+      required: false
+      schema:
+        type: string
+    Environment:
+      name: env
+      in: query
+      required: false
+      schema:
+        type: string
+        enum:
+          - dev
+          - prod
+          - unittest
+    Limit:
+      name: limit
+      in: query
+      description: Number of items to retrieve
+      required: false
+      schema:
+        type: integer
+        minimum: 0 # set to 0, for example, if you only want the count
+        maximum: 100 #REVIEW: is this a good max?
+    Offset: # not implemented yet
+      name: offset
+      in: query
+      description: Number of items to skip
+      required: false
+      schema:
+        type: integer
+        minimum: 0
+    Count:
+      name: count
+      in: query
+      description: If true, the result will also contain the count of items
+      required: false
+      schema:
+        type: boolean
+    Expand:
+      name: expand
+      in: query
+      description: A comma-separated list of fields for which to include the full record
+      required: false
+      schema:
+        type: string
+
+  schemas:
+    Book:
+      type: object
+      properties:
+        id:
+          type: string
+        languages:
+          type: array
+          items:
+            $ref: "#/components/schemas/Language"
+        titles:
+          type: array
+          items:
+            type: object
+            properties:
+              lang:
+                type: string
+              title:
+                type: string
+            required: [lang, title]
+
+        baseUrl: # editor collision dialog uses this
+          type: string
+          format: uri
+        updatedAt: # editor collision dialog uses this
+          type: string
+          format: date-time
+        createdAt: # editor collision dialog uses this
+          type: string
+          format: date-time
+        draft: # editor status badges use this
+          type: boolean
+          nullable: true
+        harvestState: # editor status badges use this
+          type: string
+        inCirculation: # editor status badges use this
+          type: boolean
+          nullable: true
+        # links:
+        #   type: string
+        #   format: uri
+      required: [id]
+      example:
+        id: 123
+        languages: [{ "tag": "en" }, { "tag": "fr" }]
+        titles:
+          - lang: en
+            title: Moon & Cap
+          - lang: fr
+            title: La lune et le Cap
+        # links: https://api.bloomlibrary.org/books/123/links
+
+    Language:
+      type: object
+      properties:
+        id:
+          description: Unique ID for the language record. Unfortunately, tag is not unique.
+          type: string
+        tag:
+          description: BCP 47 language tag
+          type: string
+        name:
+          type: string
+        englishName:
+          type: string
+        usageCount:
+          type: integer
+      required: [tag]
+
+    LongRunningOperationCommonResult:
+      type: object
+      properties:
+        id: # the operation ID; used to query for status
+          type: string
+        status:
+          type: string
+          enum:
+            - Succeeded
+            - Running
+            - Failed
+            - NotStarted
+    LongRunningOperationSucceededResult:
+      allOf:
+        - $ref: "#/components/schemas/LongRunningOperationCommonResult"
+        - type: object
+          properties:
+            result:
+              oneOf:
+                - $ref: "#/components/schemas/UploadStartResult"
+                - $ref: "#/components/schemas/UploadFinishResult"
+    LongRunningOperationFailedResult:
+      allOf:
+        - $ref: "#/components/schemas/LongRunningOperationCommonResult"
+        - type: object
+          properties:
+            error:
+              type: object
+              properties:
+                code:
+                  type: string
+                message:
+                  type: string
+    LongRunningOperationOtherResult:
+      $ref: "#/components/schemas/LongRunningOperationCommonResult"
+
+    UploadStartResult:
+      type: object
+      properties:
+        transactionId:
+          type: string
+        credentials:
+          type: object
+          properties:
+            AccessKeyId:
+              type: string
+            SecretAccessKey:
+              type: string
+            SessionToken:
+              type: string
+        url:
+          type: string
+          format: uri
+        filesToUpload:
+          type: array
+          items:
+            type: string
+    UploadFinishResult:
+      type: object
+
+  responses:
+    BookArray:
+      description: OK
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              results:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Book"
+              count:
+                type: integer
+    AcceptedWithOperationLocation:
+      description: Accepted
+      headers:
+        Operation-Location:
+          description: URL to check the status of the operation
+          schema:
+            type: string
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/LongRunningOperationCommonResult"
+
+paths:
+  /books:
+    get: # 5.7 editor uses to get book count in language: /books?lang=xyz&limit=0&count=true
+      description: returns an array of books with metadata (and links?)
+      parameters:
+        - $ref: "#/components/parameters/Lang"
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Offset"
+        - $ref: "#/components/parameters/Count"
+        - $ref: "#/components/parameters/Expand"
+        - $ref: "#/components/parameters/Environment"
+      responses:
+        200:
+          $ref: "#/components/responses/BookArray"
+
+    # When we get a POST rather than a GET,
+    #  it indicates we must look in the body for
+    #  which books to return.
+    #  Reasoning: the url has a length limit which we avoid by using the body.
+    # Currently, we need this for bookInstanceIds.
+    post: # 5.7 editor uses to get blorg badge statuses
+      description: returns an array of books with metadata
+      parameters:
+        - $ref: "#/components/parameters/Environment"
+      requestBody:
+        description: array of book instance IDs
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                instanceIds:
+                  description: A book "instance ID" is a guid found in meta.json; it was designed to be unique but we couldn't keep people from copying using file explorer, so it is not actually unique. It serves as a unique identifier for a book in a particular collection within the editor. In contrast, the "book ID" is the database ID and it is unique.
+                  type: array
+                  items:
+                    type: string
+      responses:
+        200:
+          $ref: "#/components/responses/BookArray"
+  /books/{id}: # needed by 5.7 editor conflict dialog and SP App team
+    get:
+      description: Get metadata for a specific book
+      parameters:
+        - $ref: "#/components/parameters/PathId"
+        - $ref: "#/components/parameters/Expand"
+        - $ref: "#/components/parameters/Environment"
+
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Book"
+    delete: # needed for next round of blorg changes
+      description: Delete a book
+      parameters:
+        - $ref: "#/components/parameters/HeaderAuthToken"
+        - $ref: "#/components/parameters/PathId"
+      responses:
+        204:
+          description: No Content
+
+  # Gets its own endpoint because it is expensive.
+  #  i.e. we don't want to just return it with each book record.
+  # Some day, we may have a /books:permissions for collection-level permissions.
+  #  But in Feb 2024, I could not figure out how to define the route in functions.json
+  #   to achieve that along with handling /books /books/{id}.
+  #   To do this, we may have to define a new function with /books{collection-action}.
+  /books/{id}:permissions: # needed for next round of changes
+    get:
+      description: returns whether the user may edit the book
+      parameters:
+        - $ref: "#/components/parameters/HeaderAuthToken"
+        - $ref: "#/components/parameters/PathId"
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  reupload:
+                    type: boolean
+                  delete:
+                    type: boolean
+                  editSurfaceMetadata:
+                    type: boolean
+                  editAllMetadata:
+                    type: boolean
+                  becomeUploader:
+                    type: boolean
+
+  # not needed yet (since we have the expanded form from /books)
+  /languages/{tag}:
+    get:
+      description: returns the language name
+      parameters:
+        - $ref: "#/components/parameters/PathTag"
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Language"
+
+  /books/{id}:upload-start: # 5.7 editor uses
+    post:
+      description: Initiate upload or reupload of a book. id is "new" if creating a new book. Otherwise, it is the existing book ID.
+      parameters:
+        - $ref: "#/components/parameters/HeaderAuthToken"
+        - $ref: "#/components/parameters/PathId"
+      requestBody:
+        description: Array of relative file paths and their corresponding hashes
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                files:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      path:
+                        type: string
+                      hash:
+                        type: string
+                name:
+                  description: Any file-system-safe name. Bloom editor uses the folder name. This may become part of the S3 key (and currently does).
+                  type: string
+                clientName:
+                  description: Name of the client. For Bloom editor, this includes the channel. This may be used to disallow certain channels from uploading, etc.
+                  type: string
+                clientVersion:
+                  description: Version of the client. This may be used to disallow certain versions from uploading, etc.
+                  type: string
+      responses:
+        202:
+          $ref: "#/components/responses/AcceptedWithOperationLocation"
+
+  /books/{id}:upload-finish: # 5.7 editor uses
+    post:
+      description: Finalize uploading a book
+      parameters:
+        - $ref: "#/components/parameters/HeaderAuthToken"
+        - $ref: "#/components/parameters/PathId"
+      requestBody:
+        description: The transaction ID
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                transactionId:
+                  type: string
+                metadata:
+                  type: object
+      responses:
+        202:
+          $ref: "#/components/responses/AcceptedWithOperationLocation"
+
+  # status is used for long-running operations to check their progress.
+  #  When the job is complete, it returns status:Succeeded and the actual result.
+  /status/{operation-id}: # 5.7 editor uses
+    get:
+      description: returns the status (and result if complete) of a long-running operation
+      parameters:
+        - name: operation-id
+          in: path
+          description: The operation ID
+          required: true
+          schema:
+            type: string
+      responses:
+        200:
+          description: OK
+          headers:
+            Retry-After:
+              description: Seconds to wait before retrying
+              schema:
+                type: integer
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/LongRunningOperationSucceededResult"
+                  - $ref: "#/components/schemas/LongRunningOperationFailedResult"
+                  - $ref: "#/components/schemas/LongRunningOperationOtherResult"
+                discriminator:
+                  propertyName: status
+                  mapping:
+                    Succeeded: "#/components/schemas/LongRunningOperationSucceededResult"
+                    Failed: "#/components/schemas/LongRunningOperationFailedResult"
+                    Running: "#/components/schemas/LongRunningOperationOtherResult"
+                    NotStarted: "#/components/schemas/LongRunningOperationOtherResult"
