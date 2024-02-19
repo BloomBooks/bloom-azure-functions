@@ -152,6 +152,5 @@ function isValidBookId(bookId: string): boolean {
   // Check that it's a valid objectId; 10-character alphanumeric string
   return /^[0-9a-z]{10}$/i.test(bookId);
 }
-}
 
 export default books;
