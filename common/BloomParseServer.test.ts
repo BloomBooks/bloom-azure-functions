@@ -1,4 +1,4 @@
-import BloomParseServer, { Book } from "../common/BloomParseServer";
+import BloomParseServer from "../common/BloomParseServer";
 import { Environment } from "./utils";
 
 // give all the books we create here this bookInstanceId by which to delete them all after
@@ -18,9 +18,11 @@ describe("BloomParseServer", () => {
   beforeEach(() => {});
 
   afterAll(async function () {
-    const testBooks = await parseServer.getBooks(
-      `{"bookInstanceId":{"$eq":"${testBookInstanceId}"}}`
-    );
+    const testBooks = (
+      await parseServer.getBooks(
+        `{"bookInstanceId":{"$eq":"${testBookInstanceId}"}}`
+      )
+    ).books;
     for (const book of testBooks) {
       await parseServer.deleteBookRecord(book.objectId, token);
     }
@@ -50,7 +52,7 @@ describe("BloomParseServer", () => {
       newBookRecord,
       token
     );
-    const book = await parseServer.getBookInfoByObjectId(bookObjectId);
+    const book = await parseServer.getBookByDatabaseId(bookObjectId);
     expect(book.title).toBe(newBookRecord.title);
     expect(book.bookInstanceId).toBe(newBookRecord.bookInstanceId);
     expect(book.updateSource).toBe(newBookRecord.updateSource);
@@ -65,12 +67,12 @@ describe("BloomParseServer", () => {
       { title: "new title", uploadPendingTimestamp: null },
       token
     );
-    const book2 = await parseServer.getBookInfoByObjectId(bookObjectId);
+    const book2 = await parseServer.getBookByDatabaseId(bookObjectId);
     expect(book2.title).toBe("new title");
     expect(book2.uploadPendingTimestamp).toBeFalsy();
 
     await parseServer.deleteBookRecord(bookObjectId, token);
-    const shouldBeDeletedBook = await parseServer.getBookInfoByObjectId(
+    const shouldBeDeletedBook = await parseServer.getBookByDatabaseId(
       bookObjectId
     );
     expect(shouldBeDeletedBook).toBeFalsy();
@@ -105,9 +107,11 @@ describe("BloomParseServer", () => {
     const testLanguageId = await parseServer.getOrCreateLanguage(
       testLangParams
     );
-    const oldBooksWithTestLang = await parseServer.getBooks(
-      `{"langPointers":{"$in":[{"__type":"Pointer","className":"language","objectId":"${testLangParams.isoCode}"}]}}`
-    );
+    const oldBooksWithTestLang = (
+      await parseServer.getBooks(
+        `{"langPointers":{"$in":[{"__type":"Pointer","className":"language","objectId":"${testLangParams.isoCode}"}]}}`
+      )
+    ).books;
     for (const book of oldBooksWithTestLang) {
       await parseServer.deleteBookRecord(book.objectId, token);
     }
@@ -150,41 +154,5 @@ describe("BloomParseServer", () => {
     const oldFoobarBooks = await BloomParseServer.getBooksForCatalog("de", 194);
     expect(oldFoobarBooks.length).toBe(3);
   });
-
-
   */
-
-  it("tests getBooksWithInstanceIds()", async () => {
-    const bookInstanceIds: string[] = [];
-    const testBook =
-      await parseServer.getBookInfoByInstanceIdAndUploaderObjectId(
-        "testBookInstanceId22",
-        myUserId
-      );
-    let testBookId = "";
-    if (testBook) {
-      testBookId = testBook.objectId;
-    } else {
-      testBookId = await parseServer.createBookRecord(
-        {
-          title: "test getBooksWithInstanceIds",
-          bookInstanceId: "testBookInstanceId22",
-          updateSource: "AzureFunctionsUnitTest",
-          uploader: {
-            __type: "Pointer",
-            className: "_User",
-            objectId: myUserId,
-          },
-        },
-        token
-      );
-    }
-
-    for (let i = 0; i < 23; i++) {
-      bookInstanceIds.push("testBookInstanceId" + i);
-    }
-    const books = await parseServer.getBooksWithInstanceIds(bookInstanceIds);
-    const bookIds = books.map((book: Book) => book.objectId);
-    expect(bookIds).toContain(testBookId);
-  });
 });
