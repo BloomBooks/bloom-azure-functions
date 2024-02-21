@@ -56,13 +56,15 @@ const testBookEntries = {
   },
 };
 
-let testBookIds = { A: "", B: "", C: "" };
+const testBookIds = { A: "", B: "", C: "" };
 
 async function cleanupParse() {
   // delete the entries created as part of these tests
-  const remainingTestBookEntries = await parseServer.getBooks(
-    `{"bookInstanceId":{"$eq":"${testBookInstanceId}"}}`
-  );
+  const remainingTestBookEntries = (
+    await parseServer.getBooks(
+      `{"bookInstanceId":{"$eq":"${testBookInstanceId}"}}`
+    )
+  ).books;
   for (const book of remainingTestBookEntries) {
     await parseServer.deleteBookRecord(book.objectId, sessionToken);
   }
@@ -117,21 +119,21 @@ describe("bookCleanup", () => {
   });
 
   it("deletes parse records for old failed uploads of new books", async () => {
-    const bookAAfterCleaning = await parseServer.getBookInfoByObjectId(
+    const bookAAfterCleaning = await parseServer.getBookByDatabaseId(
       testBookIds.A
     );
     expect(bookAAfterCleaning).toBeFalsy();
   });
 
   it("does not mess with recently created parse records of incomplete book uploads", async () => {
-    const bookBAfterCleaning = await parseServer.getBookInfoByObjectId(
+    const bookBAfterCleaning = await parseServer.getBookByDatabaseId(
       testBookIds.B
     );
     expect(bookBAfterCleaning).toBeTruthy();
     expect(bookBAfterCleaning.uploadPendingTimestamp).toBeTruthy();
   });
   it("removes the uploadPendingTimestamp but not the record for old failed updates of preexisting books", async () => {
-    const bookCAfterCleaning = await parseServer.getBookInfoByObjectId(
+    const bookCAfterCleaning = await parseServer.getBookByDatabaseId(
       testBookIds.C
     );
     expect(bookCAfterCleaning).toBeTruthy();

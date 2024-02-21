@@ -41,7 +41,13 @@ See [../README.md](../README.md) for some common environment variables needed fo
 
 - _BloomUploadPermissionManagerS3Key{suffix}_ - the AWS Access Key ID for the user which has permission to manage the S3 bucket for the given suffix.
 - _BloomUploadPermissionManagerS3SecretKey{suffix}_ - the AWS Secret Access Key for the user.
+
   - suffix
     - Prod - bloom_upload_permission_manager
     - Dev - bloom_upload_permission_manager_dev
     - UnitTest - bloom_upload_permission_manager_unittest
+
+- _bloomParseServerDevApiSuperUserPassword_ - the password for the "api-super-user" parse user in the development db.
+- _bloomParseServerProdApiSuperUserPassword_ - the password for the "api-super-user" parse user in the production db.
+
+- _bloomContentfulReadOnlyToken_ - the read-only token for the Contentful API - also used by the contentfulToCrowdin function.

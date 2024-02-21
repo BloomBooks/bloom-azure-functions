@@ -92,7 +92,7 @@ export async function longRunningUploadFinish(
   const becomeUploader = input.becomeUploader;
   const parseServer = new BloomParseServer(env);
 
-  const bookInfo = await parseServer.getBookInfoByObjectId(bookId);
+  const bookInfo = await parseServer.getBookByDatabaseId(bookId);
   if (
     !(await BloomParseServer.isUploaderOrCollectionEditor(userInfo, bookInfo))
   ) {
