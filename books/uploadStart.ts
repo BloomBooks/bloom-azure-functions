@@ -146,7 +146,12 @@ export async function longRunningUploadStart(
     // then copy unmodified book files to the new folder for a more efficient upload.
     // (So the client only has to upload new or modified files.)
     const existingBookInfo = await parseServer.getBookInfoByObjectId(bookId);
-    if (!(await BloomParseServer.canModifyBook(userInfo, existingBookInfo))) {
+    if (
+      !(await BloomParseServer.isUploaderOrCollectionEditor(
+        userInfo,
+        existingBookInfo
+      ))
+    ) {
       return handleError(
         400,
         "Please provide a valid Authentication-Token and book ID",
