@@ -56,13 +56,15 @@ const testBookEntries = {
   },
 };
 
-let testBookIds = { A: "", B: "", C: "" };
+const testBookIds = { A: "", B: "", C: "" };
 
 async function cleanupParse() {
   // delete the entries created as part of these tests
-  const remainingTestBookEntries = await parseServer.getBooks(
-    `{"bookInstanceId":{"$eq":"${testBookInstanceId}"}}`
-  );
+  const remainingTestBookEntries = (
+    await parseServer.getBooks(
+      `{"bookInstanceId":{"$eq":"${testBookInstanceId}"}}`
+    )
+  ).books;
   for (const book of remainingTestBookEntries) {
     await parseServer.deleteBookRecord(book.objectId, sessionToken);
   }

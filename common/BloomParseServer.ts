@@ -69,8 +69,8 @@ export default class BloomParseServer {
   // The base URL will look like one of the following:
   // https://s3.amazonaws.com/BloomLibraryBooks/<uploader-email>/<book-instance-guid>/<book-title>
   // https://s3.amazonaws.com/bloomharvest/<uploader-email>/<book-instance-guid>
-  public static getS3LinkBase(book: any, bucket: string): string {
-    const baseUrl: string = book.baseUrl.replace(/%2f/g, "/"); // I don't know why anyone thinks / needs to be url-encoded.
+  public static getS3LinkBase(rawBaseUrl: string, bucket: string): string {
+    const baseUrl: string = rawBaseUrl.replace(/%2f/g, "/"); // I don't know why anyone thinks / needs to be url-encoded.
     const urlWithoutFinalSlash = baseUrl.replace(/\/$/, "");
     let url: string;
     if (bucket.startsWith("BloomLibraryBooks")) {
@@ -357,78 +357,74 @@ export default class BloomParseServer {
     return results.data.count;
   }
 
-  public getBook(where: string): Promise<Book> {
-    return this.getBooks(where, true);
-  }
-
-  public getBooks(where: string, onlyOne = false): Promise<any> {
-    return new Promise<any[]>((resolve, reject) =>
-      axios
-        .get(this.getParseTableUrl("books"), {
-          headers: {
-            "X-Parse-Application-Id": this.getParseAppId(),
-          },
-          params: {
-            include: "uploader,langPointers",
-            where,
-          },
-        })
-        .then((result) => {
-          if (onlyOne) {
-            if (result.data.results.length > 1) {
-              reject(new Error("More than one book found for " + where));
-            }
-            resolve(result.data.results[0]);
-          } else {
-            resolve(result.data.results);
-          }
-        })
-        .catch((err) => {
-          console.log("ERROR: caught axios.get error: " + err);
-          reject(err);
-        })
-    );
-  }
-
-  public getBookInfoByObjectId(objectId: string): Promise<Book> {
-    return this.getBook(`{"objectId":{"$eq":"${objectId}"}}`);
-  }
-
-  public getBookInfoByInstanceIdAndUploaderObjectId(
-    bookInstanceId: string,
-    uploaderObjectId: string
-  ): Promise<any> {
-    return this.getBook(
-      `{"uploader":{"__type":"Pointer","className":"_User","objectId":"${uploaderObjectId}"}, "bookInstanceId":{"$eq":"${bookInstanceId}"}}`
-    );
-  }
-
-  public async getBooksWithInstanceIds(
-    bookInstanceIds: string[]
-  ): Promise<Book[]> {
-    let bookRecords = [];
-
-    const queryStringStart = '{"bookInstanceId":{"$in":["';
-    let booksQuery = queryStringStart;
-    for (let i = 0; i < bookInstanceIds.length; ++i) {
-      // More than 21 bookInstanceIds in a query causes a 400 error.
-      // Just to be safe, we'll limit it to 20.
-      booksQuery += '","' + bookInstanceIds[i];
-      if (i % 20 === 0 || i === bookInstanceIds.length - 1) {
-        booksQuery += '"]}}';
-        let batchOfBookRecords;
-        try {
-          batchOfBookRecords = await this.getBooks(booksQuery);
-        } catch (err) {
-          continue;
-        }
-        if (batchOfBookRecords) {
-          bookRecords = bookRecords.concat(batchOfBookRecords);
-        }
-        booksQuery = queryStringStart;
+  public async getBook(
+    where: string,
+    fieldsToExpand: string[] = []
+  ): Promise<Book> {
+    try {
+      const result = await this.doBookQuery(where, fieldsToExpand, []);
+      if (result.data.results.length > 1) {
+        throw new Error("More than one book found for " + where);
       }
+      return result.data.results[0];
+    } catch (err) {
+      console.log("ERROR: caught axios.get error: " + err);
+      throw err;
     }
-    return bookRecords;
+  }
+
+  public async getBooks(
+    where: string,
+    fieldsToExpand: string[] = [],
+    additionalParams: {}[] = []
+  ): Promise<{ books: Book[]; count: number }> {
+    try {
+      const result = await this.doBookQuery(
+        where,
+        fieldsToExpand,
+        additionalParams
+      );
+      return { books: result.data.results, count: result.data.count };
+    } catch (err) {
+      console.log("ERROR: caught axios.get error: " + err);
+      throw err;
+    }
+  }
+
+  private doBookQuery(
+    where: string,
+    fieldsToExpand: string[],
+    additionalParams: {}[]
+  ) {
+    return axios.post(
+      this.getParseTableUrl("books"),
+      // Copied this approach (and comment) from blorg:
+      // The filter may be too complex to pass in the URL (ie, GET params).  So we use POST with data that
+      // specifies that the underlying operation is actually a GET.  (This doesn't seem to be documented, but
+      // Andrew discovered that it works, and I got a confirming message on the parse-server slack channel.)
+      // See BL-10187.
+      {
+        _method: "GET",
+        where,
+        include: fieldsToExpand.join(","),
+        ...additionalParams.reduce((acc, cur) => ({ ...acc, ...cur }), {}),
+      },
+      {
+        headers: {
+          "X-Parse-Application-Id": this.getParseAppId(),
+        },
+      }
+    );
+  }
+
+  public async getBookInfoByObjectId(
+    objectId: string,
+    fieldsToExpand: string[] = []
+  ): Promise<Book> {
+    return await this.getBook(
+      `{"objectId":{"$eq":"${objectId}"}}`,
+      fieldsToExpand
+    );
   }
 
   // This Azure function logs in to the Parse server, using a hard-coded user name ("catalog-service").
@@ -706,6 +702,7 @@ export type ApiAccount = {
 export type User = {
   objectId: string;
   email: string;
+  username: string;
   sessionToken: string;
 };
 

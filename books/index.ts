@@ -4,6 +4,12 @@ import { getEnvironment } from "../common/utils";
 import { handleUploadStart } from "./uploadStart";
 import { handleUploadFinish } from "./uploadFinish";
 import { getIdAndAction } from "./utils";
+import {
+  convertApiQueryParamsIntoParseAdditionalParams,
+  convertApiQueryParamsIntoParseWhere,
+  convertExpandParamToParseFields,
+  reshapeBookRecord,
+} from "./parseAdapters";
 
 const books: AzureFunction = async function (
   context: Context,
@@ -40,12 +46,12 @@ const books: AzureFunction = async function (
 
     if (!action) {
       // Query for a specific book
-      // TODO: implement
-      context.res = {
-        status: 500,
-        body: "Not yet implemented",
-      };
-      return context.res;
+      return await handleGetOneBook(
+        context,
+        bookId,
+        req.query.expand,
+        parseServer
+      );
     }
 
     switch (action) {
@@ -76,25 +82,6 @@ async function findBooks(
   req: HttpRequest,
   parseServer: BloomParseServer
 ) {
-  let bookRecords = [];
-
-  // POST to /books is a special case.
-  // We treat it basically the same as a GET, but know we have to look
-  // for something (so far, just instanceIds) in the body to tell us which books to return
-  // (rather than the query parameters).
-  // We use a POST because the list of instanceIds might be too long for a GET request.
-  // This is used by the editor to get a set of books by bookInstanceIds for the blorg status badges.
-  if (req.method === "POST" && req.body?.instanceIds?.length) {
-    bookRecords = await parseServer.getBooksWithInstanceIds(
-      req.body.instanceIds
-    );
-    context.res = {
-      status: 200,
-      body: { results: bookRecords },
-    };
-    return context.res;
-  }
-
   // Hacking in this specific use case for now.
   // This is used by the editor to get the count of books in a language.
   if (
@@ -109,15 +96,34 @@ async function findBooks(
       status: 200,
       // A GET/POST to /books always returns an array of books, even if it's empty.
       // In this temporary, hacked use case, it is always empty.
-      body: { results: bookRecords, count },
+      body: { results: [], count },
     };
     return context.res;
   }
 
-  // General query for books... not implemented yet
+  const query = { ...req.query };
+  if (req.method === "POST" && req.body?.instanceIds?.length) {
+    // POST to /books is a special case.
+    // We treat it basically the same as a GET, but know we have to look
+    // for something (so far, just instanceIds) in the body to tell us which books to return
+    // (rather than just the query parameters).
+    // We use a POST because the list of instanceIds might be too long for a GET request.
+    // This is used by the editor to get a set of books by bookInstanceIds for the blorg status badges.
+    query.instanceIds = req.body.instanceIds.join(",");
+  }
+  const where = convertApiQueryParamsIntoParseWhere(query);
+  const rawBookRecordsAndCount = await parseServer.getBooks(
+    where,
+    convertExpandParamToParseFields(query.expand),
+    convertApiQueryParamsIntoParseAdditionalParams(query)
+  );
+  const bookRecords = rawBookRecordsAndCount.books.map((book) =>
+    reshapeBookRecord(book, query.expand)
+  );
   context.res = {
-    status: 500,
-    body: "Not yet implemented",
+    status: 200,
+    // Count isn't included if it is undefined (meaning the user didn't ask for it).
+    body: { results: bookRecords, count: rawBookRecordsAndCount.count },
   };
   return context.res;
 }
@@ -156,6 +162,33 @@ async function handlePermissions(
       // Must be moderator
       editAllMetadata: isModerator,
     },
+  };
+  return context.res;
+}
+
+async function handleGetOneBook(
+  context: Context,
+  bookId: string,
+  expandParam: string,
+  parseServer: BloomParseServer
+) {
+  const parseFieldsToExpand = convertExpandParamToParseFields(expandParam);
+
+  const rawParseBook = await parseServer.getBookInfoByObjectId(
+    bookId,
+    parseFieldsToExpand
+  );
+  if (!rawParseBook) {
+    context.res = {
+      status: 404,
+      body: "Book not found",
+    };
+    return context.res;
+  }
+  const bookRecord = reshapeBookRecord(rawParseBook, expandParam);
+  context.res = {
+    status: 200,
+    body: bookRecord,
   };
   return context.res;
 }
