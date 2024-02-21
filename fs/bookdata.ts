@@ -1,4 +1,4 @@
-import BloomParseServer from "../common/BloomParseServer";
+import BloomParseServer, { Book } from "../common/BloomParseServer";
 import { Environment } from "../common/utils";
 
 export default class BookData {
@@ -32,11 +32,11 @@ export default class BookData {
     }
 
     const parseServer = new BloomParseServer(environment);
-    let bookInfo: any = await parseServer.getBookInfoByObjectId(params.bookid);
+    const bookInfo: Book = await parseServer.getBookByDatabaseId(params.bookid);
     if (!bookInfo || !bookInfo.baseUrl) {
       return null;
     }
-    let url = BloomParseServer.getS3LinkBase(bookInfo, bucket);
+    let url = BloomParseServer.getS3LinkBase(bookInfo.baseUrl, bucket);
     if (params.part1 && params.part1.length > 0) {
       url = url + "/" + encodeUnicode(params.part1);
     }

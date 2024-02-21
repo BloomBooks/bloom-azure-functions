@@ -15,6 +15,12 @@
     "epub",
     "Localizable",
     "OPDS",
-    "openapi"
-  ]
+    "openapi",
+    "phash",
+    "uploaders"
+  ],
+  "markdownlint.config": {
+    "default": true,
+    "MD024": { "siblings_only": true }
+  }
 }
