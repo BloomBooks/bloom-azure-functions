@@ -43,7 +43,7 @@ const books: AzureFunction = async function (
       // TODO: implement
       context.res = {
         status: 500,
-        body: "Not yet implemented.",
+        body: "Not yet implemented",
       };
       return context.res;
     }
@@ -53,6 +53,8 @@ const books: AzureFunction = async function (
         return await handleUploadStart(context, req, userInfo, env);
       case "upload-finish":
         return await handleUploadFinish(context, req, userInfo, env);
+      case "permissions":
+        return await handlePermissions(context, userInfo, bookId, parseServer);
 
       default:
         context.res = {
@@ -115,7 +117,44 @@ async function findBooks(
   // General query for books... not implemented yet
   context.res = {
     status: 500,
-    body: "Not yet implemented.",
+    body: "Not yet implemented",
+  };
+  return context.res;
+}
+
+async function handlePermissions(
+  context: Context,
+  userInfo: User,
+  bookId: string,
+  parseServer: BloomParseServer
+) {
+  const bookInfo = await parseServer.getBookInfoByObjectId(bookId);
+
+  if (!bookInfo) {
+    context.res = {
+      status: 400,
+      body: "Invalid book ID",
+    };
+    return context.res;
+  }
+
+  const hasModifyPermission = await BloomParseServer.canModifyBook(
+    userInfo,
+    bookInfo
+  );
+
+  context.res = {
+    status: 200,
+    body: {
+      // Fow now, a user either has all permissions or none.
+      reupload: hasModifyPermission,
+      delete: hasModifyPermission,
+      editSurfaceMetadata: hasModifyPermission,
+      becomeUploader: hasModifyPermission,
+
+      // When implemented, this will be true for moderators only
+      //editAllMetadata: isModerator
+    },
   };
   return context.res;
 }

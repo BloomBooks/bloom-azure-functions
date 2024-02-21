@@ -4,14 +4,16 @@ if you want to get an auto run on each save (like watch),
 2) install `npm add -g ts-node-dev` and then `ts-node-dev --respawn index.ts`. */
 
 import { AzureFunction, Context } from "@azure/functions";
-import { createClient as createContentfulClient } from "contentful";
 import crowdin from "@crowdin/crowdin-api-client";
 import { isLocalEnvironment } from "../common/utils";
+import {
+  getContentfulCollectionAndBannerEntries,
+  validateContentfulEnvironmentVariables,
+} from "../common/contentful";
 
 const runEvenIfLocal = false;
 
 const crowdinApiToken = process.env.bloomCrowdinApiToken;
-const contentfulReadOnlyToken = process.env.bloomContentfulReadOnlyToken;
 const kCrowdinProjectId = 261564;
 
 // uncomment this listCrowdinFiles(); and do ts-node index.ts to get a file list
@@ -42,7 +44,8 @@ async function readTransformUpload() {
 
   if (!validateEnvironmentVariables()) return;
 
-  const contentfulEntries = await getContentfulEntries();
+  console.log("Querying Contentful...");
+  const contentfulEntries = await getContentfulCollectionAndBannerEntries();
   const highPriorityJson = transformContentfulEntriesToL10nJson(
     contentfulEntries,
     includeInHighPriorityFile
@@ -74,49 +77,19 @@ async function readTransformUpload() {
 }
 
 function validateEnvironmentVariables() {
-  if (!contentfulReadOnlyToken) {
-    console.error(
-      "env.bloomContentfulReadOnlyToken is not set; unable to run contentfulToCrowdin."
-    );
-    return false;
+  let valid = true;
+  if (!validateContentfulEnvironmentVariables()) {
+    console.error("unable to run contentfulToCrowdin.");
+    valid = false;
   }
 
   if (!crowdinApiToken) {
     console.error(
       "env.bloomCrowdinApiToken is not set; unable to run contentfulToCrowdin."
     );
-    return false;
+    valid = false;
   }
-  return true;
-}
-
-async function getContentfulEntries() {
-  console.log("Querying Contentful...");
-  const client = createContentfulClient({
-    space: "72i7e2mqidxz",
-    accessToken: contentfulReadOnlyToken,
-  });
-  const collectionResponse = await client.getEntries({
-    content_type: "collection",
-    "fields.localization[ne]": "No",
-    limit: 1000, // 1000 is the max we are allowed; beyond that, we will have to page.
-  });
-  //console.log(`got ${collectionResponse.items.length} collection entries`);
-  if (collectionResponse.items.length >= 1000)
-    throw Error(
-      "More than 1000 collection entries; don't update Crowdin until code is enhanced lest we delete strings."
-    );
-  const bannerResponse = await client.getEntries({
-    content_type: "pageBanner",
-    "fields.localization[ne]": "No",
-    limit: 1000, // 1000 is the max we are allowed; beyond that, we will have to page.
-  });
-  //console.log(`got ${bannerResponse.items.length} banner entries`);
-  if (bannerResponse.items.length >= 1000)
-    throw Error(
-      "More than 1000 banner entries; don't update Crowdin until code is enhanced lest we delete strings."
-    );
-  return [...collectionResponse.items, ...bannerResponse.items];
+  return valid;
 }
 
 function doNotLocalizeFilter(e: any) {

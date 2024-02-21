@@ -1,5 +1,11 @@
 import axios from "axios";
 import { Environment } from "./utils";
+import {
+  IContentfulCollectionFilter,
+  getAllContentfulCollectionFiltersForUser,
+  validateContentfulEnvironmentVariables,
+  kAllBooksFilter,
+} from "./contentful";
 
 export default class BloomParseServer {
   private environment: Environment;
@@ -127,7 +133,7 @@ export default class BloomParseServer {
     const harvestTime = book.harvestStartedAt;
     if (!harvestTime || new Date(harvestTime.iso) < new Date(2020, 1, 11, 11)) {
       // That data above is FEBRUARY 12! at 11am. If the harvest time is before that,
-      // the book was not havested recently enough to have a useful harvester thumbnail.
+      // the book was not harvested recently enough to have a useful harvester thumbnail.
       // (We'd prefer to do this with harvester version, or even to just be
       // able to assume that any harvested book has this, but it's not yet so.
       // When it is, we can use harvestState === "Done" and remove harvestStartedAt from
@@ -566,11 +572,62 @@ export default class BloomParseServer {
     return results.data;
   }
 
+  public static bookMatchesAtLeastOneFilter(
+    bookInfo: Book,
+    filters: IContentfulCollectionFilter[]
+  ): boolean {
+    if (filters.includes(kAllBooksFilter)) return true;
+
+    // In theory, we could write more generic code to handle more (or all potential) use cases.
+    // (And basically duplicate much of the logic in BloomLibrary2's LibraryQueryHooks.ts.)
+    // But we expect the collections we list super-users for will always be defined using one of these two
+    // filters (tag or brandingProjectName).
+    // If we put a super-user on some other collection it will fail immediately and be easy to debug.
+    // Another advantage of this approach is that by just doing these two simple checks, we avoid
+    // another parse query because we're just taking a simple look at the information we already have
+    // in the bookInfo object.
+    for (let i = 0; i < filters.length; i++) {
+      const filter = filters[i];
+      // By far, the most common filters are {tag: "bookshelf:someBookshelf"} or {tag: "list:someList"}
+      const tag = filter["tag"];
+      if (tag) {
+        if (bookInfo.tags && bookInfo.tags.includes(tag)) {
+          return true;
+        } else {
+          continue; // We didn't match the given tag, so we don't match the filter.
+        }
+      }
+      const brandingProjectName = filter["brandingProjectName"];
+      if (brandingProjectName) {
+        if (
+          bookInfo.brandingProjectName &&
+          bookInfo.brandingProjectName === brandingProjectName
+        ) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
   // Check if user has permission to modify the book
-  public static canModifyBook(userInfo: User, bookInfo: Book) {
-    return (
-      bookInfo !== undefined && bookInfo.uploader.objectId === userInfo.objectId
+  public static async canModifyBook(userInfo: User, bookInfo: Book) {
+    if (!bookInfo?.uploader) return false;
+
+    const userIsUploader = bookInfo.uploader.objectId === userInfo.objectId;
+
+    if (userIsUploader) return true;
+
+    if (!validateContentfulEnvironmentVariables()) {
+      // This will result in a 500 error, which is appropriate.
+      throw Error("Contentful environment variables are not set");
+    }
+
+    const filters = await getAllContentfulCollectionFiltersForUser(
+      userInfo.email
     );
+
+    return BloomParseServer.bookMatchesAtLeastOneFilter(bookInfo, [...filters]);
   }
 
   public async deleteBookRecord(bookObjectId: string, sessionToken: string) {
