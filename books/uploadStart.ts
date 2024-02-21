@@ -147,7 +147,7 @@ export async function longRunningUploadStart(
     // Check that we have permission,
     // then copy unmodified book files to the new folder for a more efficient upload.
     // (So the client only has to upload new or modified files.)
-    const existingBookInfo = await parseServer.getBookInfoByObjectId(bookId);
+    const existingBookInfo = await parseServer.getBookByDatabaseId(bookId);
     if (
       !(await BloomParseServer.isUploaderOrCollectionEditor(
         userInfo,
