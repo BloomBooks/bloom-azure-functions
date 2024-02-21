@@ -611,7 +611,11 @@ export default class BloomParseServer {
   }
 
   // Check if user has permission to modify the book
-  public static async canModifyBook(userInfo: User, bookInfo: Book) {
+  // either due to being the uploader or having collection editor permission.
+  public static async isUploaderOrCollectionEditor(
+    userInfo: User,
+    bookInfo: Book
+  ) {
     if (!bookInfo?.uploader) return false;
 
     const userIsUploader = bookInfo.uploader.objectId === userInfo.objectId;
@@ -641,6 +645,25 @@ export default class BloomParseServer {
       }
     );
     return results;
+  }
+
+  public async isModerator(userInfo: User) {
+    const result = await axios.get(`${this.getParseUrlBase()}/roles`, {
+      headers: {
+        "X-Parse-Application-Id": this.getParseAppId(),
+      },
+      params: {
+        where: {
+          name: "moderator",
+          users: {
+            __type: "Pointer",
+            className: "_User",
+            objectId: userInfo.objectId,
+          },
+        },
+      },
+    });
+    return result?.data?.results?.length > 0;
   }
 }
 
