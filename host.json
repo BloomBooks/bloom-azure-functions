@@ -3,6 +3,9 @@
   "extensions": {
     "http": {
       "routePrefix": "v1"
+    },
+    "durableTask": {
+      "hubName": "DurableFunctionsHub"
     }
   },
   "extensionBundle": {
