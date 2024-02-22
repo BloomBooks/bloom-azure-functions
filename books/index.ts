@@ -138,22 +138,23 @@ async function handlePermissions(
     return context.res;
   }
 
-  const hasModifyPermission = await BloomParseServer.canModifyBook(
-    userInfo,
-    bookInfo
-  );
+  const isUploaderOrCollectionEditor =
+    await BloomParseServer.isUploaderOrCollectionEditor(userInfo, bookInfo);
+  const isModerator = await parseServer.isModerator(userInfo);
 
   context.res = {
     status: 200,
     body: {
-      // Fow now, a user either has all permissions or none.
-      reupload: hasModifyPermission,
-      delete: hasModifyPermission,
-      editSurfaceMetadata: hasModifyPermission,
-      becomeUploader: hasModifyPermission,
+      // Must be uploader or collection editor
+      reupload: isUploaderOrCollectionEditor,
+      becomeUploader: isUploaderOrCollectionEditor,
 
-      // When implemented, this will be true for moderators only
-      //editAllMetadata: isModerator
+      // Must be uploader, collection editor, or moderator
+      delete: isUploaderOrCollectionEditor || isModerator,
+      editSurfaceMetadata: isUploaderOrCollectionEditor || isModerator,
+
+      // Must be moderator
+      editAllMetadata: isModerator,
     },
   };
   return context.res;

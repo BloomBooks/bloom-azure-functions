@@ -89,7 +89,9 @@ export async function longRunningUploadFinish(
   const parseServer = new BloomParseServer(env);
 
   const bookInfo = await parseServer.getBookInfoByObjectId(bookId);
-  if (!(await BloomParseServer.canModifyBook(userInfo, bookInfo))) {
+  if (
+    !(await BloomParseServer.isUploaderOrCollectionEditor(userInfo, bookInfo))
+  ) {
     return handleError(
       400,
       "Please provide a valid Authentication-Token and book ID",
