@@ -344,7 +344,6 @@ paths:
         - $ref: "#/components/parameters/HeaderAuthToken"
         - $ref: "#/components/parameters/PathId"
       requestBody:
-        description: Array of relative file paths and their corresponding hashes
         required: true
         content:
           application/json:
@@ -352,6 +351,7 @@ paths:
               type: object
               properties:
                 files:
+                  description: Array of relative file paths and their corresponding hashes
                   type: array
                   items:
                     type: object
@@ -369,6 +369,10 @@ paths:
                 clientVersion:
                   description: Version of the client. This may be used to disallow certain versions from uploading, etc.
                   type: string
+              required:
+                - files
+                - clientName
+                - clientVersion
       responses:
         202:
           $ref: "#/components/responses/AcceptedWithOperationLocation"
@@ -391,6 +395,12 @@ paths:
                   type: string
                 metadata:
                   type: object
+                becomeUploader:
+                  description: If true, the book record will be updated to show that the user is now the uploader.
+                  type: boolean
+              required:
+                - transactionId
+                - metadata
       responses:
         202:
           $ref: "#/components/responses/AcceptedWithOperationLocation"

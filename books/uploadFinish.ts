@@ -60,10 +60,12 @@ export async function handleUploadFinish(
     return context.res;
   }
 
+  const becomeUploader: boolean = req.body.becomeUploader === true;
+
   const instanceId = await startLongRunningAction(
     context,
     LongRunningAction.UploadFinish,
-    { bookRecord: metadata, userInfo, env, bookId }
+    { bookRecord: metadata, userInfo, env, bookId, becomeUploader }
   );
 
   context.res = createResponseWithAcceptedStatusAndStatusUrl(
@@ -79,6 +81,7 @@ export async function longRunningUploadFinish(
     userInfo: User;
     env: Environment;
     bookId: string;
+    becomeUploader: boolean;
   },
   context: Context
 ) {
@@ -86,6 +89,7 @@ export async function longRunningUploadFinish(
   const userInfo = input.userInfo;
   const env = input.env;
   const bookId = input.bookId;
+  const becomeUploader = input.becomeUploader;
   const parseServer = new BloomParseServer(env);
 
   const bookInfo = await parseServer.getBookInfoByObjectId(bookId);
@@ -167,16 +171,30 @@ export async function longRunningUploadFinish(
     delete bookRecord.languageDescriptors;
   }
 
+  let needsSuperUser = false;
+  let apiSuperUserSessionToken;
+  if (!BloomParseServer.isUploader(userInfo, bookInfo)) {
+    needsSuperUser = true;
+    apiSuperUserSessionToken = await parseServer.loginAsApiSuperUser();
+  }
+
   bookRecord.uploadPendingTimestamp = null;
   bookRecord.lastUploaded = {
     __type: "Date",
     iso: new Date().toISOString(),
   };
+  if (becomeUploader) {
+    bookRecord.uploader = {
+      __type: "Pointer",
+      className: "_User",
+      objectId: userInfo.objectId,
+    };
+  }
   try {
     await parseServer.modifyBookRecord(
       bookId,
       bookRecord,
-      userInfo.sessionToken
+      needsSuperUser ? apiSuperUserSessionToken : userInfo.sessionToken
     );
   } catch (e) {
     return handleError(500, "Error updating parse book record", context, e);

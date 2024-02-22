@@ -458,6 +458,23 @@ export default class BloomParseServer {
     return await this.loginAsUser("book-cleanup", password);
   }
 
+  // This Azure function logs in to the Parse server, using a hard-coded user name ("api-super-user").
+  // That account has a ParseServer "role" which is allowed to modify all book records.
+  // We use it when a user has permission to upload a book by being a collection editor
+  // (as opposed to being the book uploader).
+  public async loginAsApiSuperUser(): Promise<string> {
+    let password;
+    switch (this.environment) {
+      case Environment.PRODUCTION:
+        password = process.env["bloomParseServerProdApiSuperUserPassword"];
+        break;
+      case Environment.DEVELOPMENT:
+        password = process.env["bloomParseServerDevApiSuperUserPassword"];
+        break;
+    }
+    return await this.loginAsUser("api-super-user", password);
+  }
+
   public async loginAsUser(
     username: string,
     password: string
@@ -610,6 +627,13 @@ export default class BloomParseServer {
     return false;
   }
 
+  public static isUploader(userInfo: User, bookInfo: Book) {
+    if (!bookInfo?.uploader?.objectId) return false;
+    if (!userInfo?.objectId) return false;
+
+    return bookInfo.uploader.objectId === userInfo.objectId;
+  }
+
   // Check if user has permission to modify the book
   // either due to being the uploader or having collection editor permission.
   public static async isUploaderOrCollectionEditor(
@@ -618,9 +642,7 @@ export default class BloomParseServer {
   ) {
     if (!bookInfo?.uploader) return false;
 
-    const userIsUploader = bookInfo.uploader.objectId === userInfo.objectId;
-
-    if (userIsUploader) return true;
+    if (this.isUploader(userInfo, bookInfo)) return true;
 
     if (!validateContentfulEnvironmentVariables()) {
       // This will result in a 500 error, which is appropriate.
