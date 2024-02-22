@@ -48,7 +48,9 @@ export async function handleUploadStart(
     return context.res;
   }
 
-  const bookTitle: string = req.body["title"] || "";
+  // The new API design is for "name", but we first implemented it with "title".
+  // So we accept either for now. With the next breaking change, we can remove "title".
+  const bookTitle: string = req.body["name"] || req.body["title"] || "";
 
   let bookFiles: IBookFileInfo[];
   try {
