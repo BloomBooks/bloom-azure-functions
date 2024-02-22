@@ -274,23 +274,33 @@ export async function processFileHashes(
   let filesNewOrModified = [];
   const filesNotChanged = [];
 
-  const listCommandInput = {
-    Bucket: bucket,
-    Prefix: prefix,
-  };
-  const listCommand = new ListObjectsV2Command(listCommandInput);
-  const listResponse = await client.send(listCommand);
-  if (!listResponse.Contents) {
+  let continuationToken;
+  const s3Files = new Map<string, { Key: string; ETag: string }>();
+
+  do {
+    const listCommandInput = {
+      Bucket: bucket,
+      Prefix: prefix,
+      ContinuationToken: continuationToken,
+    };
+
+    const listCommand = new ListObjectsV2Command(listCommandInput);
+    const listResponse = await client.send(listCommand);
+
+    if (listResponse.Contents) {
+      listResponse.Contents.forEach((s3File) => {
+        s3Files.set(s3File.Key.substring(prefix.length), s3File);
+      });
+    }
+
+    continuationToken = listResponse.NextContinuationToken;
+  } while (continuationToken);
+
+  if (s3Files.size === 0) {
     filesNewOrModified = clientFiles.map((file) => file.path);
     return [filesNewOrModified, filesNotChanged];
   }
 
-  const s3Files = new Map<string, { Key: string; ETag: string }>(
-    listResponse.Contents.map((s3File) => [
-      s3File.Key.substring(prefix.length),
-      s3File,
-    ])
-  );
   clientFiles.forEach((bookFile) => {
     const s3File = s3Files.get(bookFile.path);
 
