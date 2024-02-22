@@ -184,13 +184,20 @@ export async function longRunningUploadStart(
       }
     }
 
+    let needsSuperUser = false;
+    let apiSuperUserSessionToken;
+    if (!BloomParseServer.isUploader(userInfo, existingBookInfo)) {
+      needsSuperUser = true;
+      apiSuperUserSessionToken = await parseServer.loginAsApiSuperUser();
+    }
+
     try {
-      parseServer.modifyBookRecord(
+      await parseServer.modifyBookRecord(
         bookId,
         {
           uploadPendingTimestamp: currentTime,
         },
-        userInfo.sessionToken
+        needsSuperUser ? apiSuperUserSessionToken : userInfo.sessionToken
       );
     } catch (err) {
       return handleError(500, "Unable to modify book record", context, err);
