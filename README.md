@@ -1,4 +1,6 @@
-# Development
+# Bloom Library Azure Functions
+
+## Development
 
 Where possible, develop using unit tests (e.g., `npm test`) and then just do a sanity check using the actual http server. `WallabyJS` is highly recommended for instant feedback.
 
@@ -10,10 +12,11 @@ Careful! In July 2023, running via F5 caused a download and install of Azure Fun
 When you run, the log will display the Function Runtime version. Ensure it is 4.
 (If you get an error about unsupported node version, it is likely using Function Runtime version 3.)
 
+Due to the "books" endpoint needing durable functions, you will need to set up local storage emulation. Use the Azurite extension (in the recommended list). Once installed, you can start it from the command palette with `Azurite: Start`.
+
 Now you can use your favorite REST client to run each function. Or you can connect your local BloomLibrary2 to point to this (see ApiConnection.ts there).
 
-By default, the timer functions are set to not do anything when running locally. Each one has a `runEvenIfLocal` const which can be set to true if desired.
-Note that without a local storage emulator, you will see errors for the timer functions (which can be ignored). If you want to set up local storage, see https://docs.microsoft.com/en-us/azure/storage/common/storage-use-azurite?tabs=visual-studio. Apparently, there is a VSCode extension useful for this as well.
+By default, the timer functions (see "Chron job schedule" below) are set to not do anything when running locally. Each one has a `runEvenIfLocal` const which can be set to true if desired.
 
 ## Package manager
 
@@ -23,7 +26,11 @@ The auto-deploy from github feature on Azure uses npm.
 
 ## Deployment
 
-Once the code is committed to master, deployment to production is automated. Currently we have only one deployment: production. So all the testing you need to do, you need to do locally.
+When the code is pushed to master, there is an automated deployment to a staging server.
+
+Some sanity checks can be done against the staging server, then the Azure portal is used to perform a swap from staging to production.
+
+Currently we have only one deployment: production. So all the testing you need to do, you need to do locally.
 
 ## Adding a new function
 
@@ -36,9 +43,9 @@ The actual URL is influenced by
 
 The resulting production url for functions is then `api.bloomlibrary.org/v1/__FUNCTION__`
 
-# Environment Variables
+## Environment Variables
 
-These environment variables need to be set for the **book**, **opds**, and **fs** functions to access the relevant parse tables.
+These environment variables need to be set for the **books**, **opds**, and **fs** functions to access the relevant parse tables.
 
 - _ParseAppIdProd_ - the APP_ID from the bloom-parse-server-production configuration in Azure
 - _ParseAppIdDev_ - the APP_ID from the bloom-parse-server-develop configuration in Azure
@@ -70,16 +77,16 @@ Some functions may also require function-specific environment variables. See the
 See [Azure documentation](https://docs.microsoft.com/en-us/azure/azure-functions/functions-reference-node#environment-variables)
 for a discussion of how these environment variables can be set.
 
-# opds Function
+## opds Function
 
 See the README in that folder.
 
-# fs Function
+## fs Function
 
 The **fs** function provides "file system" style access to the file content stored in the
 Bloom Library S3 buckets, but hiding the fact in the URL that Amazon S3 storage is used.
 
-## URL format
+### URL format
 
 The URL used to access this function always contains _fs_ followed by a keyword for the S3
 bucket, the parse books table id for the desired book, and then either one, two, or three
@@ -104,11 +111,11 @@ The available S3 bucket keywords are interpreted as follows:
 Either the content of the specified file is returned to the caller, or an error message (usually
 404 "webpage not found") is returned.
 
-## Caching
+### Caching
 
 For just the `harvest/` path, if the path begins with "thumbnails", we return a Cache-Control of 1 year.
 
-# social Function
+## social Function
 
 The **social** function provides HTML marked up with OpenGraph metadata and javascript reload to the real
 HTML for a book or bookshelf in Bloom Library. This is needed for links in Facebook and other social
@@ -117,7 +124,7 @@ returned HTML is displayed in a browser, it automatically reloads the actual boo
 is all that the user will ever see. The returned HTML is seen by the caller only if the caller does not
 attempt to display it.
 
-## URL format
+### URL format
 
 The URL used to access this function always contains _social_ followed by multiple query parameters. The
 first query parameter is separated from the URL by a ? (question mark). Other query parameters are separated
@@ -147,19 +154,19 @@ Note that the query parameter values must be URL encoded. The examples use + to 
 also work) and %3F to encode question marks. Every character other than 'A' through 'Z', 'a' through 'z',
 '0' through '9', '.', '-', '\*', and '\_' must be URL encoded.
 
-# stats Function
+## stats Function
 
 The **stats** function provides statistics about how and how much books are being used.
 
 See [./stats/README.md](./stats/README.md).
 
-# book Function
+## books Function
 
-The **book** function provides an API for uploading books to BloomLibrary.org.
+The **books** function provides an API for uploading books to BloomLibrary.org.
 
-See [./book/README.md](./book/README.md).
+See [./books/README.md](./books/README.md).
 
-# bookCleanup Function
+## bookCleanup Function
 
 The **bookCleanup** function is a timer function set to run once per day. See schedule below.
 
@@ -167,21 +174,21 @@ It cleans up Parse and s3 artifacts from failed book uploads that were started o
 
 The server (or your machine if you are testing locally) must have the password for the `book-cleanup` user as an environment variable: `bloomParseServerProdBookCleanupPassword` for prod, `bloomParseServerDevBookCleanupPassword` for dev and `bloomParseServerUnitTestBookCleanupPassword` for unit tests.
 
-# dailyTimer Function
+## dailyTimer Function
 
 The **dailyTimer** function is a timer function set to run once per day. See schedule below.
 
 Currently, it is used to refresh the materialized views in the postgresql analytics database.
 
-# contentfulToCrowdin Function
+## contentfulToCrowdin Function
 
 The **contentfulToCrowdin** function provides tools for using Crowdin to localize strings in Contentful. See schedule below.
 
 See [./contentfulToCrowdin/README.md](./contentfulToCrowdin/README.md).
 
-# Chron job schedule
+## Chron job schedule
 
-#### Daily jobs:
+### Daily jobs
 
 10:40 - dailyTimer runs
 

@@ -7,9 +7,9 @@ export async function bookCleanupInternal(env: Environment) {
 
   const sessionToken = await parseServer.loginAsBookCleanupUser();
   const cutoff = Date.now() - 24 * 60 * 60 * 1000; // 1 day ago
-  const booksToBeCleanedUp = await parseServer.getBooks(
-    `{"uploadPendingTimestamp":{"$lt":${cutoff}}}`
-  );
+  const booksToBeCleanedUp = (
+    await parseServer.getBooks(`{"uploadPendingTimestamp":{"$lt":${cutoff}}}`)
+  ).books;
   for (const book of booksToBeCleanedUp) {
     const bookPrefixToDelete = `${book.objectId}/${book.uploadPendingTimestamp}`;
     await deleteFilesByPrefix(bookPrefixToDelete, env);

@@ -31,6 +31,13 @@ components:
       required: false
       schema:
         type: string
+    Uploader:
+      description: comma-separated list of email addresses
+      name: uploader
+      in: query
+      required: false
+      schema:
+        type: string
     Environment:
       name: env
       in: query
@@ -93,24 +100,42 @@ components:
               title:
                 type: string
             required: [lang, title]
+        uploader:
+          type: object
+          properties:
+            email:
+              type: string
+            id:
+              type: string
+          required: [email]
 
-        baseUrl: # editor collision dialog uses this
+        # editor uses these, but we don't necessarily want them as part of the public shape
+        instanceId:
+          type: string
+          format: uuid
+        titleFromUpload:
+          type: string
+        baseUrl:
           type: string
           format: uri
-        updatedAt: # editor collision dialog uses this
+        updatedAt:
           type: string
           format: date-time
-        createdAt: # editor collision dialog uses this
+        createdAt:
           type: string
           format: date-time
-        draft: # editor status badges use this
+        draft:
           type: boolean
           nullable: true
-        harvestState: # editor status badges use this
+        harvestState:
           type: string
-        inCirculation: # editor status badges use this
+        inCirculation:
           type: boolean
           nullable: true
+        phashOfFirstContentImage:
+          type: string
+        bookLineage:
+          type: string
         # links:
         #   type: string
         #   format: uri
@@ -123,6 +148,8 @@ components:
             title: Moon & Cap
           - lang: fr
             title: La lune et le Cap
+        uploader:
+          email: bob@example.com
         # links: https://api.bloomlibrary.org/books/123/links
 
     Language:
@@ -234,6 +261,7 @@ paths:
       description: returns an array of books with metadata (and links?)
       parameters:
         - $ref: "#/components/parameters/Lang"
+        - $ref: "#/components/parameters/Uploader"
         - $ref: "#/components/parameters/Limit"
         - $ref: "#/components/parameters/Offset"
         - $ref: "#/components/parameters/Count"
@@ -251,6 +279,8 @@ paths:
     post: # 5.7 editor uses to get blorg badge statuses
       description: returns an array of books with metadata
       parameters:
+        - $ref: "#/components/parameters/Lang"
+        - $ref: "#/components/parameters/Uploader"
         - $ref: "#/components/parameters/Environment"
       requestBody:
         description: array of book instance IDs
