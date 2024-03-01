@@ -14,6 +14,7 @@ import {
 const books: AzureFunction = async function (
   context: Context,
   req: HttpRequest
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
 ): Promise<any> {
   const env = getEnvironment(req);
   const parseServer = new BloomParseServer(env);
@@ -36,6 +37,10 @@ const books: AzureFunction = async function (
   }
 
   if (bookDatabaseId) {
+    // Do this before validating the book ID; see comment about 204/404 in handleDelete.
+    if (req.method === "DELETE")
+      return await handleDelete(context, userInfo, bookDatabaseId, parseServer);
+
     if (!isValidBookId(bookDatabaseId)) {
       context.res = {
         status: 400,
@@ -207,6 +212,75 @@ async function handleGetOneBook(
     body: bookRecord,
   };
   return context.res;
+}
+
+async function handleDelete(
+  context: Context,
+  userInfo: User,
+  bookDatabaseId: string,
+  parseServer: BloomParseServer
+) {
+  try {
+    const bookInfo = await parseServer.getBookByDatabaseId(bookDatabaseId, [
+      "uploader",
+    ]);
+
+    if (bookInfo) {
+      const isUploaderOrCollectionEditor =
+        await BloomParseServer.isUploaderOrCollectionEditor(userInfo, bookInfo);
+
+      let isModerator = false;
+      if (!isUploaderOrCollectionEditor) {
+        // We haven't been able to fully switch away from using the moderator role yet.
+        // 1. We haven't fully set up Users in Contentful yet.
+        // 2. We still have to work out how things like bulk edit and staff panel will work.
+        // So for now, we need to continue to check for the moderator role here.
+        isModerator = await parseServer.isModerator(userInfo);
+      }
+
+      if (isUploaderOrCollectionEditor || isModerator) {
+        let superUserSessionToken = null;
+        if (!isModerator) {
+          // Moderators and the book uploader have row-level permission to modify or delete
+          // the book record in the database. Users who have permission to modify the book because they are
+          // collection editors must make use of the super user to gain that permission in the database.
+          superUserSessionToken = await parseServer.loginAsApiSuperUserIfNeeded(
+            userInfo,
+            bookInfo
+          );
+        }
+
+        await parseServer.deleteBookRecord(
+          bookDatabaseId,
+          superUserSessionToken ?? userInfo.sessionToken
+        );
+      }
+    }
+
+    // Always return 204, even if the book wasn't found or the user didn't have permission.
+    // That's on the recommendation of https://github.com/microsoft/api-guidelines/blob/vNext/azure/Guidelines.md
+    // which we've generally been trying to follow.
+    context.res = {
+      status: 204,
+    };
+    return context.res;
+  } catch (e) {
+    // If parse gives us a 404, still return a 204.
+    // That's on the recommendation of https://github.com/microsoft/api-guidelines/blob/vNext/azure/Guidelines.md
+    // which we've generally been trying to follow.
+    if (e.response.status === 404) {
+      context.res = {
+        status: 204,
+      };
+      return context.res;
+    }
+
+    context.res = {
+      status: 500,
+      body: "Unable to delete book",
+    };
+    return context.res;
+  }
 }
 
 // Validate the session token and return the user info
