@@ -722,4 +722,5 @@ export type Book = {
   updateSource: string;
   uploadPendingTimestamp: number;
   inCirculation: boolean;
+  ACL: {};
 };
