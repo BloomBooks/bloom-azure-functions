@@ -171,13 +171,6 @@ export async function longRunningUploadFinish(
     delete bookRecord.languageDescriptors;
   }
 
-  let needsSuperUser = false;
-  let apiSuperUserSessionToken;
-  if (!BloomParseServer.isUploader(userInfo, bookInfo)) {
-    needsSuperUser = true;
-    apiSuperUserSessionToken = await parseServer.loginAsApiSuperUser();
-  }
-
   bookRecord.uploadPendingTimestamp = null;
   bookRecord.lastUploaded = {
     __type: "Date",
@@ -196,10 +189,12 @@ export async function longRunningUploadFinish(
     delete bookRecord.ACL[bookInfo.uploader.objectId];
   }
   try {
+    const apiSuperUserSessionToken =
+      await parseServer.loginAsApiSuperUserIfNeeded(userInfo, bookInfo);
     await parseServer.modifyBookRecord(
       bookId,
       bookRecord,
-      needsSuperUser ? apiSuperUserSessionToken : userInfo.sessionToken
+      apiSuperUserSessionToken ?? userInfo.sessionToken
     );
   } catch (e) {
     return handleError(500, "Error updating parse book record", context, e);
