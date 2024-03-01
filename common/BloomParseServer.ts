@@ -454,11 +454,11 @@ export default class BloomParseServer {
     return await this.loginAsUser("book-cleanup", password);
   }
 
-  // This Azure function logs in to the Parse server, using a hard-coded user name ("api-super-user").
-  // That account has a ParseServer "role" which is allowed to modify all book records.
+  // This Azure function logs in to the parse server using a hard-coded user name ("api-super-user").
+  // That account has a parse server "role" which is allowed to modify all book records.
   // We use it when a user has permission to upload a book by being a collection editor
   // (as opposed to being the book uploader).
-  public async loginAsApiSuperUser(): Promise<string> {
+  private async loginAsApiSuperUser(): Promise<string> {
     let password;
     switch (this.environment) {
       case Environment.PRODUCTION:
@@ -469,6 +469,14 @@ export default class BloomParseServer {
         break;
     }
     return await this.loginAsUser("api-super-user", password);
+  }
+
+  // Be sure you've already checked that the user has permissions to perform the operation on this book.
+  public async loginAsApiSuperUserIfNeeded(userInfo: User, bookInfo: Book) {
+    if (!BloomParseServer.isUploader(userInfo, bookInfo)) {
+      return await this.loginAsApiSuperUser();
+    }
+    return undefined;
   }
 
   public async loginAsUser(
