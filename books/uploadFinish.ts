@@ -189,6 +189,11 @@ export async function longRunningUploadFinish(
       className: "_User",
       objectId: userInfo.objectId,
     };
+
+    // Switch ACL (row-level permissions) to the new uploader
+    bookRecord.ACL = bookInfo.ACL;
+    bookRecord.ACL[userInfo.objectId] = { write: true };
+    delete bookRecord.ACL[bookInfo.uploader.objectId];
   }
   try {
     await parseServer.modifyBookRecord(
