@@ -114,6 +114,7 @@ export function reshapeBookRecord(
     phashOfFirstContentImage,
     inCirculation,
     harvestState,
+    brandingProjectName,
     // assumed to be needed by blorg eventually... there will certainly be more
     lastUploaded,
     tags,
@@ -129,6 +130,7 @@ export function reshapeBookRecord(
     phashOfFirstContentImage,
     inCirculation,
     harvestState,
+    brandingProjectName,
     lastUploaded,
     tags,
     summary,

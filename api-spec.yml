@@ -129,6 +129,8 @@ components:
           nullable: true
         harvestState:
           type: string
+        brandingProjectName:
+          type: string
         inCirculation:
           type: boolean
           nullable: true
