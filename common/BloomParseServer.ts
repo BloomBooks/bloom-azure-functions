@@ -308,8 +308,8 @@ export default class BloomParseServer {
     }
 
     const whereParts = [
-      `"inCirculation":{"$in":[true,null]}`,
-      `"draft":{"$in":[false,null]}`,
+      `"inCirculation":true`,
+      `"draft":false`,
       `"createdAt":{"$lte":{"__type": "Date", "iso":"${newestDateString}"}}`,
     ];
 
@@ -341,7 +341,7 @@ export default class BloomParseServer {
     return results.data.results;
   }
 
-  // Get the count of books with the given language tag where 'rebrand' is not true and 'inCirculation' is not false and 'draft' is not true.
+  // Get the count of books with the given language tag where 'rebrand' is false and 'inCirculation' is true and 'draft' is false.
   // In the future, we may need to parameterize those filters, but for now, it fits our current use case (Bloom editor's count of books uploaded).
   public async getBookCountByLanguage(languageTag: string) {
     const results = await axios.get(this.getParseTableUrl("books"), {
@@ -351,7 +351,7 @@ export default class BloomParseServer {
       params: {
         count: 1,
         limit: 0,
-        where: `{"langPointers":{"$inQuery":{"where":{"isoCode":"${languageTag}"},"className":"language"}},"rebrand":{"$ne":true},"inCirculation":{"$ne":false},"draft":{"$ne":true}}`,
+        where: `{"langPointers":{"$inQuery":{"where":{"isoCode":"${languageTag}"},"className":"language"}},"rebrand":false,"inCirculation":true,"draft":false}`,
       },
     });
     return results.data.count;

@@ -10,7 +10,7 @@ export default class BookEntry {
   // Generate an OPDS entry for the given book if one is desired and return it as a string with an
   // XML <entry> element.  If the book should not have an OPDS entry (because of no published
   // artifacts or some other reason), then an empty string is returned.
-  // Note that the list of books has already been filtered for inCirculation not being false and
+  // Note that the list of books has already been filtered for inCirculation being true and
   // for desiredLang being listed in book.langPointers, so those values do not need to be checked
   // in this code.  It still needs to check whether individual artifacts exist and are approved for
   // publication, and whether the book is restricted from internet distribution for some reason.
@@ -26,7 +26,7 @@ export default class BookEntry {
       return "<!-- omitting a book because it is in DRAFT -->";
     }
     // these will be excluded by the query, so just being double safe
-    if (book.inCirculation == false) {
+    if (book.inCirculation === false) {
       return "<!-- omitting a book because it is out of circulation -->";
     }
 
