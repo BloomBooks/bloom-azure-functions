@@ -357,6 +357,15 @@ export default class BloomParseServer {
     return results.data.count;
   }
 
+  public async getMinDesktopVersion() {
+    const results = await axios.get(this.getParseTableUrl("version"), {
+      headers: {
+        "X-Parse-Application-Id": this.getParseAppId(),
+      },
+    });
+    return results.data.results[0].minDesktopVersion;
+  }
+
   public async getBook(
     where: string,
     fieldsToExpand: string[] = []

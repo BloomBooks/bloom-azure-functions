@@ -43,15 +43,22 @@ export function createResponseWithAcceptedStatusAndStatusUrl(
 }
 
 export function handleError(
-  httpCode: 400 | 404 | 500, // More can be added if/when needed
+  code: string,
   message: string,
   context: Context,
-  error: Error
+  error: Error,
+  messageIntendedForUser?: string
 ) {
   if (error && context) context.log.error(error);
+  const errorObj = {
+    code: code,
+    message: message,
+  };
+  if (typeof messageIntendedForUser !== "undefined")
+    errorObj["messageIntendedForUser"] = messageIntendedForUser;
   return {
-    failed: true,
+    failed: true, // used by the status endpoint to detect failures
     // see https://github.com/microsoft/api-guidelines/blob/vNext/azure/Guidelines.md#post-or-delete-lro-pattern
-    error: { code: httpCode, message: message },
+    error: errorObj,
   };
 }

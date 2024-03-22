@@ -13,10 +13,14 @@ import {
 import { Environment } from "../common/utils";
 import {
   createResponseWithAcceptedStatusAndStatusUrl,
-  handleError,
   LongRunningAction,
   startLongRunningAction,
 } from "../longRunningActions/utils";
+import {
+  BookUploadErrorCode,
+  handleBookUploadError,
+  bloomClientCanUpload,
+} from "./utils";
 
 const kPendingString = "pending";
 
@@ -66,6 +70,8 @@ export async function handleUploadStart(
     return context.res;
   }
 
+  const bloomClientVersion = req.body["clientVersion"];
+
   const instanceId = await startLongRunningAction(
     context,
     LongRunningAction.UploadStart,
@@ -73,6 +79,7 @@ export async function handleUploadStart(
       bookIdOrNew,
       bookTitle,
       bookFiles,
+      bloomClientVersion,
       userInfo,
       env,
     }
@@ -90,6 +97,7 @@ export async function longRunningUploadStart(
     bookIdOrNew: string;
     bookTitle: string | undefined;
     bookFiles: IBookFileInfo[] | undefined;
+    bloomClientVersion: string;
     userInfo: User;
     env: Environment;
   },
@@ -101,6 +109,15 @@ export async function longRunningUploadStart(
   const parseServer = new BloomParseServer(env);
 
   const currentTime = Date.now();
+
+  const canUpload = await bloomClientCanUpload(input.bloomClientVersion, env);
+  if (!canUpload) {
+    return handleBookUploadError(
+      BookUploadErrorCode.ClientOutOfDate,
+      context,
+      null
+    );
+  }
 
   const isNewBook = bookIdOrNew === "new";
   let bookId: string;
@@ -124,7 +141,11 @@ export async function longRunningUploadStart(
         userInfo.sessionToken
       );
     } catch (err) {
-      return handleError(400, "Unable to create book record", context, err);
+      return handleBookUploadError(
+        BookUploadErrorCode.ErrorCreatingBookRecord,
+        context,
+        err
+      );
     }
   } else {
     // We'll look it up below which will serve to validate it as a real, single, book ID.
@@ -154,9 +175,8 @@ export async function longRunningUploadStart(
         existingBookInfo
       ))
     ) {
-      return handleError(
-        400,
-        "Please provide a valid Authentication-Token and book ID",
+      return handleBookUploadError(
+        BookUploadErrorCode.UnableToValidatePermission,
         context,
         null
       );
@@ -177,9 +197,8 @@ export async function longRunningUploadStart(
         const prefixToExclude = existingS3Prefix;
         await deleteFilesByPrefix(prefixToDelete, env, prefixToExclude);
       } catch (err) {
-        return handleError(
-          500,
-          "Unable to delete files for previous pending upload",
+        return handleBookUploadError(
+          BookUploadErrorCode.ErrorDeletingPreviousFiles,
           context,
           err
         );
@@ -200,7 +219,11 @@ export async function longRunningUploadStart(
         apiSuperUserSessionToken ?? userInfo.sessionToken
       );
     } catch (err) {
-      return handleError(500, "Unable to modify book record", context, err);
+      return handleBookUploadError(
+        BookUploadErrorCode.ErrorUpdatingBookRecord,
+        context,
+        err
+      );
     }
 
     let filesToCopy: string[] = [];
@@ -211,7 +234,11 @@ export async function longRunningUploadStart(
         env
       );
     } catch (err) {
-      return handleError(500, "Unable to process file hashes", context, err);
+      return handleBookUploadError(
+        BookUploadErrorCode.ErrorProcessingFileHashes,
+        context,
+        err
+      );
     }
 
     if (filesToCopy.length) {
@@ -226,7 +253,11 @@ export async function longRunningUploadStart(
           env
         );
       } catch (err) {
-        return handleError(500, "Unable to copy book", context, err);
+        return handleBookUploadError(
+          BookUploadErrorCode.ErrorCopyingBookFiles,
+          context,
+          err
+        );
       }
     }
   }
@@ -235,9 +266,8 @@ export async function longRunningUploadStart(
   try {
     tempCredentials = await getTemporaryS3Credentials(newS3Prefix, env);
   } catch (err) {
-    return handleError(
-      500,
-      "Error generating temporary credentials",
+    return handleBookUploadError(
+      BookUploadErrorCode.ErrorGeneratingTemporaryCredentials,
       context,
       err
     );
