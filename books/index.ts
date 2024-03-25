@@ -14,6 +14,7 @@ import {
 const books: AzureFunction = async function (
   context: Context,
   req: HttpRequest
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
 ): Promise<any> {
   const env = getEnvironment(req);
   const parseServer = new BloomParseServer(env);
@@ -36,6 +37,10 @@ const books: AzureFunction = async function (
   }
 
   if (bookDatabaseId) {
+    // Do this before validating the book ID; see comment about 204/404 in handleDelete.
+    if (req.method === "DELETE")
+      return await handleDelete(context, userInfo, bookDatabaseId, parseServer);
+
     if (!isValidBookId(bookDatabaseId)) {
       context.res = {
         status: 400,
@@ -154,23 +159,34 @@ async function handlePermissions(
     return context.res;
   }
 
+  const isModerator = await parseServer.isModerator(userInfo);
+  if (isModerator) {
+    context.res = {
+      status: 200,
+      body: {
+        reupload: true,
+        becomeUploader: true,
+        delete: true,
+        editSurfaceMetadata: true,
+        editAllMetadata: true,
+      },
+    };
+    return context.res;
+  }
+
   const isUploaderOrCollectionEditor =
     await BloomParseServer.isUploaderOrCollectionEditor(userInfo, bookInfo);
-  const isModerator = await parseServer.isModerator(userInfo);
-
   context.res = {
     status: 200,
     body: {
       // Must be uploader or collection editor
       reupload: isUploaderOrCollectionEditor,
       becomeUploader: isUploaderOrCollectionEditor,
-
-      // Must be uploader, collection editor, or moderator
-      delete: isUploaderOrCollectionEditor || isModerator,
-      editSurfaceMetadata: isUploaderOrCollectionEditor || isModerator,
+      delete: isUploaderOrCollectionEditor,
+      editSurfaceMetadata: isUploaderOrCollectionEditor,
 
       // Must be moderator
-      editAllMetadata: isModerator,
+      editAllMetadata: false,
     },
   };
   return context.res;
@@ -207,6 +223,76 @@ async function handleGetOneBook(
     body: bookRecord,
   };
   return context.res;
+}
+
+async function handleDelete(
+  context: Context,
+  userInfo: User,
+  bookDatabaseId: string,
+  parseServer: BloomParseServer
+) {
+  try {
+    const bookInfo = await parseServer.getBookByDatabaseId(bookDatabaseId, [
+      "uploader",
+    ]);
+
+    if (bookInfo) {
+      const isUploaderOrCollectionEditor =
+        await BloomParseServer.isUploaderOrCollectionEditor(userInfo, bookInfo);
+
+      let isModerator = false;
+      if (!isUploaderOrCollectionEditor) {
+        isModerator = await parseServer.isModerator(userInfo);
+      }
+
+      if (isUploaderOrCollectionEditor || isModerator) {
+        let superUserSessionToken = null;
+        if (!isModerator) {
+          // Moderators and the book uploader have row-level permission to modify or delete
+          // the book record in the database. Users who have permission to modify the book because they are
+          // collection editors must make use of the super user to gain that permission in the database.
+          superUserSessionToken = await parseServer.loginAsApiSuperUserIfNeeded(
+            userInfo,
+            bookInfo
+          );
+        }
+
+        await parseServer.deleteBookRecord(
+          bookDatabaseId,
+          superUserSessionToken ?? userInfo.sessionToken
+        );
+      } else {
+        context.res = {
+          status: 403, // Forbidden
+        };
+        return context.res;
+      }
+    }
+
+    // Return 204 even if the book wasn't found.
+    // That's on the recommendation of https://github.com/microsoft/api-guidelines/blob/vNext/azure/Guidelines.md
+    // which we've generally been trying to follow.
+    context.res = {
+      status: 204,
+    };
+    return context.res;
+  } catch (e) {
+    // This shouldn't happen. If the book record isn't there, we should have failed to get the book info above
+    // (and returned a 204).
+    // But in case two deletes happen at almost the same time, handle it again here.
+    if (e.response.status === 404) {
+      context.res = {
+        status: 204,
+      };
+      return context.res;
+    }
+
+    context.res = {
+      status: 500,
+      body: "Unable to delete book",
+    };
+    return context.res;
+  }
 }
 
 // Validate the session token and return the user info
