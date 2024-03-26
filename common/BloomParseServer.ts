@@ -488,6 +488,13 @@ export default class BloomParseServer {
     return undefined;
   }
 
+  public async loginAsUnitTestUser(): Promise<string> {
+    if (this.environment !== Environment.UNITTEST) {
+      throw new Error("This function is only for unit tests");
+    }
+    return await this.loginAsUser("unittest@example.com", "unittest");
+  }
+
   public async loginAsUser(
     username: string,
     password: string
@@ -740,4 +747,5 @@ export type Book = {
   uploadPendingTimestamp: number;
   inCirculation: boolean;
   ACL: {};
+  harvestState: string;
 };

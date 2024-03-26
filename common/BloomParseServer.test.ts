@@ -35,6 +35,43 @@ describe("BloomParseServer", () => {
     expect(langs.length).toBeGreaterThan(500);
   });
 
+  it("parse cloud code sets system:Incoming and harvestState", async () => {
+    const newBookRecord = {
+      title: "test book",
+      bookInstanceId: testBookInstanceId,
+      updateSource: "BloomDesktop_azureFunctionUnitTest (new book)",
+      uploadPendingTimestamp: 123456,
+      inCirculation: false,
+      uploader: {
+        __type: "Pointer",
+        className: "_User",
+        objectId: myUserId,
+      },
+      languageDescriptors: [testLangParams],
+    };
+    const bookObjectId = await parseServer.createBookRecord(
+      newBookRecord,
+      token
+    );
+    const book = await parseServer.getBookByDatabaseId(bookObjectId);
+    expect(book.tags[0]).toBe("system:Incoming");
+    expect(book.harvestState).toBe("New");
+
+    const sessionToken = await parseServer.loginAsUnitTestUser();
+    await parseServer.modifyBookRecord(
+      bookObjectId,
+      {
+        updateSource: "BloomDesktop azureFunctionUnitTest",
+        harvestState: "bogusHarvestState",
+        tags: ["bogusTag"],
+      },
+      sessionToken
+    );
+    const modifiedBook = await parseServer.getBookByDatabaseId(bookObjectId);
+    expect(modifiedBook.harvestState).toBe("Updated");
+    expect(modifiedBook.tags).toContain("system:Incoming");
+  });
+
   it("successfully creates, modifies, and deletes Book records", async () => {
     const newBookRecord = {
       title: "test book",
