@@ -45,20 +45,19 @@ export function createResponseWithAcceptedStatusAndStatusUrl(
 export function handleError(
   code: string,
   message: string,
-  context: Context,
-  error: Error,
-  messageIntendedForUser?: string
+  ...additionalParams: [string, string][]
 ) {
-  if (error && context) context.log.error(error);
-  const errorObj = {
-    code: code,
-    message: message,
+  // see https://github.com/microsoft/api-guidelines/blob/vNext/azure/Guidelines.md#post-or-delete-lro-pattern
+  const errorObj: { code: string; message: string; [key: string]: string } = {
+    code,
+    message,
   };
-  if (typeof messageIntendedForUser !== "undefined")
-    errorObj["messageIntendedForUser"] = messageIntendedForUser;
+  if (additionalParams) {
+    additionalParams.forEach(([key, value]) => {
+      errorObj[key] = value;
+    });
+  }
   return {
-    failed: true, // used by the status endpoint to detect failures
-    // see https://github.com/microsoft/api-guidelines/blob/vNext/azure/Guidelines.md#post-or-delete-lro-pattern
     error: errorObj,
   };
 }

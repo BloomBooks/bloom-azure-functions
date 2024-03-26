@@ -19,7 +19,7 @@ import {
 import {
   BookUploadErrorCode,
   handleBookUploadError,
-  bloomClientCanUpload,
+  canClientUpload,
 } from "./utils";
 
 const kPendingString = "pending";
@@ -110,7 +110,7 @@ export async function longRunningUploadStart(
 
   const currentTime = Date.now();
 
-  const canUpload = await bloomClientCanUpload(input.bloomClientVersion, env);
+  const canUpload = await canClientUpload(input.bloomClientVersion, env);
   if (!canUpload) {
     return handleBookUploadError(
       BookUploadErrorCode.ClientOutOfDate,

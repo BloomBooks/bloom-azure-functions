@@ -21,14 +21,14 @@ export function getIdAndAction(
   return [id, action];
 }
 
-export async function bloomClientCanUpload(version: string, env: Environment) {
+export async function canClientUpload(version: string, env: Environment) {
   if (!version || typeof version !== "string") {
     return false;
   }
   const versionParts = version.split(".");
-  const queriedMajorVersion = parseInt(versionParts[0]);
-  const queriedMinorVersion = parseInt(versionParts[1]);
-  if (isNaN(queriedMajorVersion) || isNaN(queriedMinorVersion)) {
+  const clientMajorVersion = parseInt(versionParts[0]);
+  const clientMinorVersion = parseInt(versionParts[1]);
+  if (isNaN(clientMajorVersion) || isNaN(clientMinorVersion)) {
     return false;
   }
 
@@ -39,9 +39,9 @@ export async function bloomClientCanUpload(version: string, env: Environment) {
   const requiredMinorVersion = parseInt(requiredVersionParts[1]);
 
   let canUpload;
-  if (queriedMajorVersion === requiredMajorVersion)
-    canUpload = queriedMinorVersion >= requiredMinorVersion;
-  else canUpload = queriedMajorVersion >= requiredMajorVersion;
+  if (clientMajorVersion === requiredMajorVersion)
+    canUpload = clientMinorVersion >= requiredMinorVersion;
+  else canUpload = clientMajorVersion >= requiredMajorVersion;
   return canUpload;
 }
 
@@ -101,11 +101,17 @@ export function handleBookUploadError(
   error: Error,
   messageIntendedForUser?: string
 ) {
-  return handleError(
-    code.toString(),
-    bookUploadErrorCodeMessageMap.get(code),
-    context,
-    error,
-    messageIntendedForUser
-  );
+  context.log.error(error);
+  if (messageIntendedForUser) {
+    return handleError(
+      code.toString(),
+      bookUploadErrorCodeMessageMap.get(code),
+      ["messageIntendedForUser", messageIntendedForUser]
+    );
+  } else {
+    return handleError(
+      code.toString(),
+      bookUploadErrorCodeMessageMap.get(code)
+    );
+  }
 }

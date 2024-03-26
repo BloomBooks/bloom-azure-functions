@@ -35,6 +35,46 @@ describe("BloomParseServer", () => {
     expect(langs.length).toBeGreaterThan(500);
   });
 
+  // This is actually testing parse cloud code; we didn't find a good way to test the logic there.
+  // Originally, this test lived in BloomDesktop but we moved it here so we could get rid of all traces of parse server from the editor.
+  // Eventually, we will likely move the code which handles setting the tag and harvestState out of cloud code into uploadFinish. But we can't do that until all upload clients are using the API.
+  it("parse cloud code sets system:Incoming and harvestState", async () => {
+    const newBookRecord = {
+      title: "test book",
+      bookInstanceId: testBookInstanceId,
+      updateSource: "BloomDesktop_azureFunctionUnitTest (new book)",
+      uploadPendingTimestamp: 123456,
+      inCirculation: false,
+      uploader: {
+        __type: "Pointer",
+        className: "_User",
+        objectId: myUserId,
+      },
+      languageDescriptors: [testLangParams],
+    };
+    const bookObjectId = await parseServer.createBookRecord(
+      newBookRecord,
+      token
+    );
+    const book = await parseServer.getBookByDatabaseId(bookObjectId);
+    expect(book.tags[0]).toBe("system:Incoming");
+    expect(book.harvestState).toBe("New");
+
+    const sessionToken = await parseServer.loginAsUnitTestUser();
+    await parseServer.modifyBookRecord(
+      bookObjectId,
+      {
+        updateSource: "BloomDesktop azureFunctionUnitTest",
+        harvestState: "bogusHarvestState",
+        tags: ["bogusTag"],
+      },
+      sessionToken
+    );
+    const modifiedBook = await parseServer.getBookByDatabaseId(bookObjectId);
+    expect(modifiedBook.harvestState).toBe("Updated");
+    expect(modifiedBook.tags).toContain("system:Incoming");
+  });
+
   it("successfully creates, modifies, and deletes Book records", async () => {
     const newBookRecord = {
       title: "test book",

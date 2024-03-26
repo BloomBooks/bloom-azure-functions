@@ -31,7 +31,7 @@ const status: AzureFunction = async function (
     if (status.runtimeStatus === "Failed") {
       // This would be a completely unexpected error.
       body["error"] = { code: 500, message: status.output };
-    } else if (status?.output?.["failed"] === true) {
+    } else if (status?.output?.["error"]) {
       // This handles all the errors we have coded for.
       // i.e. all the ones for which we called utils.ts' handleError.
       body.status = "Failed";
