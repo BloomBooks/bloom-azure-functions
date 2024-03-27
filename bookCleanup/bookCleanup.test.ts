@@ -110,8 +110,10 @@ describe("bookCleanup", () => {
       Environment.UNITTEST
     );
 
-    await bookCleanupInternal(Environment.UNITTEST);
+    // eslint-disable-next-line @typescript-eslint/no-empty-function
+    await bookCleanupInternal(Environment.UNITTEST, () => {});
   });
+  // eslint-disable-next-line @typescript-eslint/no-empty-function
   beforeEach(async function () {});
   afterAll(async () => {
     await cleanupParse();

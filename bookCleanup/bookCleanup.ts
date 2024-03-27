@@ -1,9 +1,8 @@
-import { Context } from "@azure/functions";
 import BloomParseServer from "../common/BloomParseServer";
 import { deleteFilesByPrefix } from "../common/s3";
 import { Environment } from "../common/utils";
 
-export async function bookCleanupInternal(env: Environment, context: Context) {
+export async function bookCleanupInternal(env: Environment, log: Function) {
   const parseServer = new BloomParseServer(env);
 
   const runInSafeMode = env === Environment.PRODUCTION;
@@ -19,7 +18,7 @@ export async function bookCleanupInternal(env: Environment, context: Context) {
       // Delete files from S3 for partial upload.
       await deleteFilesByPrefix(bookPrefixToDelete, env);
     }
-    context.log(
+    log(
       `${
         runInSafeMode ? "Safe Mode. Would have deleted" : "Deleted"
       } files with prefix ${bookPrefixToDelete} from S3.`
@@ -30,7 +29,7 @@ export async function bookCleanupInternal(env: Environment, context: Context) {
         // Delete new book record which was never fully created.
         await parseServer.deleteBookRecord(book.objectId, sessionToken);
       }
-      context.log(
+      log(
         `${
           runInSafeMode ? "Safe Mode. Would have deleted" : "Deleted"
         } book record with ID ${book.objectId}.`
@@ -46,7 +45,7 @@ export async function bookCleanupInternal(env: Environment, context: Context) {
           sessionToken
         );
       }
-      context.log(
+      log(
         `${
           runInSafeMode ? "Safe Mode. Would have updated" : "Updated"
         } book record with ID ${
