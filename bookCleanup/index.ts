@@ -20,8 +20,7 @@ const timerTrigger: AzureFunction = async function (
 
   try {
     await bookCleanupInternal(Environment.DEVELOPMENT, context);
-    // TODO uncomment once this is thoroughly tested. We'll need to be careful since it involves deleting books!
-    // await bookCleanupInternal(Environment.PRODUCTION);
+    await bookCleanupInternal(Environment.PRODUCTION, context);
     context.log("book cleanup succeeded");
   } catch (e) {
     context.log("book cleanup failed", e);
