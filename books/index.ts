@@ -301,7 +301,12 @@ async function getUserFromSession(
   req: HttpRequest
 ): Promise<User | null> {
   // Note that req.headers' keys are all lower case.
-  const authenticationToken = req.headers["authentication-token"];
+  let authenticationToken: string;
+  if (parseServer.getEnvironment() === Environment.UNITTEST) {
+    authenticationToken = await parseServer.loginAsUnitTestUser();
+  } else {
+    authenticationToken = req.headers["authentication-token"];
+  }
   return await parseServer.getLoggedInUserInfo(authenticationToken);
 }
 
