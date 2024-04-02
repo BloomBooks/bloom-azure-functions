@@ -5,7 +5,7 @@ import { Environment } from "../common/utils";
 export async function bookCleanupInternal(env: Environment, log: Function) {
   const parseServer = new BloomParseServer(env);
 
-  const runInSafeMode = env === Environment.PRODUCTION;
+  const runInSafeMode = false; // env === Environment.PRODUCTION;
 
   const sessionToken = await parseServer.loginAsBookCleanupUser();
   const cutoff = Date.now() - 24 * 60 * 60 * 1000; // 1 day ago
