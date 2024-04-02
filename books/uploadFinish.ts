@@ -8,10 +8,10 @@ import {
 import { Environment } from "../common/utils";
 import {
   createResponseWithAcceptedStatusAndStatusUrl,
-  handleError,
   LongRunningAction,
   startLongRunningAction,
 } from "../longRunningActions/utils";
+import { BookUploadErrorCode, handleBookUploadError } from "./utils";
 
 // upload-finish is a long-running function (see status/README.md).
 // The client calls it to finalize the upload of a new or existing book.
@@ -96,9 +96,8 @@ export async function longRunningUploadFinish(
   if (
     !(await BloomParseServer.isUploaderOrCollectionEditor(userInfo, bookInfo))
   ) {
-    return handleError(
-      400,
-      "Please provide a valid Authentication-Token and book ID",
+    return handleBookUploadError(
+      BookUploadErrorCode.UnableToValidatePermission,
       context,
       null
     );
@@ -106,18 +105,16 @@ export async function longRunningUploadFinish(
 
   const newBaseUrl = bookRecord?.baseUrl;
   if (newBaseUrl === undefined) {
-    return handleError(
-      400,
-      "Please provide valid book info, including a baseUrl, in the body",
+    return handleBookUploadError(
+      BookUploadErrorCode.MissingBaseUrl,
       context,
       null
     );
   }
 
   if (!newBaseUrl.startsWith(getS3UrlFromPrefix(bookId, env))) {
-    return handleError(
-      400,
-      "Invalid book base URL. Please use the prefix provided by the upload-start function",
+    return handleBookUploadError(
+      BookUploadErrorCode.InvalidBaseUrl,
       context,
       null
     );
@@ -129,8 +126,8 @@ export async function longRunningUploadFinish(
   //   const newPrefix = getS3PrefixFromEncodedPath(newBaseUrl, env);
   //   await allowPublicRead(newPrefix, env);
   // } catch (e) {
-  //   return handleError(
-  //     500,
+  //   return handleBookUploadError(
+  //     ErrorCodes.ErrorSettingPublicRead,
   //     "Error setting book files to allow public read",
   //     context,
   //     e
@@ -197,7 +194,11 @@ export async function longRunningUploadFinish(
       apiSuperUserSessionToken ?? userInfo.sessionToken
     );
   } catch (e) {
-    return handleError(500, "Error updating parse book record", context, e);
+    return handleBookUploadError(
+      BookUploadErrorCode.ErrorUpdatingBookRecord,
+      context,
+      e
+    );
   }
 
   try {

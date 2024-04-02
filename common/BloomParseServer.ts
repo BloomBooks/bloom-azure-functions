@@ -357,6 +357,15 @@ export default class BloomParseServer {
     return results.data.count;
   }
 
+  public async getMinDesktopVersion() {
+    const results = await axios.get(this.getParseTableUrl("version"), {
+      headers: {
+        "X-Parse-Application-Id": this.getParseAppId(),
+      },
+    });
+    return results.data.results[0].minDesktopVersion;
+  }
+
   public async getBook(
     where: string,
     fieldsToExpand: string[] = []
@@ -477,6 +486,13 @@ export default class BloomParseServer {
       return await this.loginAsApiSuperUser();
     }
     return undefined;
+  }
+
+  public async loginAsUnitTestUser(): Promise<string> {
+    if (this.environment !== Environment.UNITTEST) {
+      throw new Error("This function is only for unit tests");
+    }
+    return await this.loginAsUser("unittest@example.com", "unittest");
   }
 
   public async loginAsUser(
@@ -731,4 +747,5 @@ export type Book = {
   uploadPendingTimestamp: number;
   inCirculation: boolean;
   ACL: {};
+  harvestState: string;
 };

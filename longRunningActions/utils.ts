@@ -43,15 +43,21 @@ export function createResponseWithAcceptedStatusAndStatusUrl(
 }
 
 export function handleError(
-  httpCode: 400 | 404 | 500, // More can be added if/when needed
+  code: string,
   message: string,
-  context: Context,
-  error: Error
+  ...additionalParams: [string, string][]
 ) {
-  if (error && context) context.log.error(error);
+  // see https://github.com/microsoft/api-guidelines/blob/vNext/azure/Guidelines.md#post-or-delete-lro-pattern
+  const errorObj: { code: string; message: string; [key: string]: string } = {
+    code,
+    message,
+  };
+  if (additionalParams) {
+    additionalParams.forEach(([key, value]) => {
+      errorObj[key] = value;
+    });
+  }
   return {
-    failed: true,
-    // see https://github.com/microsoft/api-guidelines/blob/vNext/azure/Guidelines.md#post-or-delete-lro-pattern
-    error: { code: httpCode, message: message },
+    error: errorObj,
   };
 }
