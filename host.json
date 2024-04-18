@@ -5,7 +5,7 @@
       "routePrefix": "v1"
     },
     "durableTask": {
-      "hubName": "DurableFunctionsHub"
+      "hubName": "%DurableTaskHubName%"
     }
   },
   "extensionBundle": {
