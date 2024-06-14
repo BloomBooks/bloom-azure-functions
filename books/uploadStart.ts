@@ -169,7 +169,9 @@ export async function longRunningUploadStart(
     // then copy unmodified book files to the new folder for a more efficient upload.
     // (So the client only has to upload new or modified files.)
     const existingBookInfo = await parseServer.getBookByDatabaseId(bookId);
+    const isModerator = await parseServer.isModerator(userInfo);
     if (
+      !isModerator &&
       !(await BloomParseServer.isUploaderOrCollectionEditor(
         userInfo,
         existingBookInfo
@@ -206,11 +208,14 @@ export async function longRunningUploadStart(
     }
 
     try {
-      const apiSuperUserSessionToken =
-        await parseServer.loginAsApiSuperUserIfNeeded(
-          userInfo,
-          existingBookInfo
-        );
+      let apiSuperUserSessionToken = null;
+      if (!isModerator) {
+        apiSuperUserSessionToken =
+          await parseServer.loginAsApiSuperUserIfNeeded(
+            userInfo,
+            existingBookInfo
+          );
+      }
       await parseServer.modifyBookRecord(
         bookId,
         {

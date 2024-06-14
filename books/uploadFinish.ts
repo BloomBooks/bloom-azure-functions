@@ -93,7 +93,9 @@ export async function longRunningUploadFinish(
   const parseServer = new BloomParseServer(env);
 
   const bookInfo = await parseServer.getBookByDatabaseId(bookId);
+  const isModerator = await parseServer.isModerator(userInfo);
   if (
+    !isModerator &&
     !(await BloomParseServer.isUploaderOrCollectionEditor(userInfo, bookInfo))
   ) {
     return handleBookUploadError(
@@ -186,8 +188,13 @@ export async function longRunningUploadFinish(
     delete bookRecord.ACL[bookInfo.uploader.objectId];
   }
   try {
-    const apiSuperUserSessionToken =
-      await parseServer.loginAsApiSuperUserIfNeeded(userInfo, bookInfo);
+    let apiSuperUserSessionToken = null;
+    if (!isModerator) {
+      apiSuperUserSessionToken = await parseServer.loginAsApiSuperUserIfNeeded(
+        userInfo,
+        bookInfo
+      );
+    }
     await parseServer.modifyBookRecord(
       bookId,
       bookRecord,
