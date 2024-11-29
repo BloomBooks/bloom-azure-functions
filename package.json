@@ -22,7 +22,7 @@
     "contentful": "^9.1.4",
     "durable-functions": "^2.0.0",
     "entities": "^3.0.1",
-    "moment": "^2.29.1",
+    "moment": "^2.29.4",
     "pg": "^8.7.1",
     "typescript": "^3.9.10"
   },
