@@ -5,12 +5,19 @@
     "outDir": "dist",
     "rootDir": ".",
     "sourceMap": true,
-    "strict": false
+    "strict": false, // else `tsc` goes through node_modules nit-picking
+    "skipLibCheck": true
   },
   // In theory, this should be
   // ["**/?(*.)(spec|test).ts?(x)", ...]
   // or
   // ["**/?(*.)@(spec|test).ts?(x)", ...]
   // but they don't work.
-  "exclude": ["**/*.test.ts", "**/*.test.js", "**/*TestUtils.ts"]
+  "exclude": [
+    "node_modules",
+    "dist",
+    "**/*.test.ts",
+    "**/*.test.js",
+    "**/*TestUtils.ts"
+  ]
 }
