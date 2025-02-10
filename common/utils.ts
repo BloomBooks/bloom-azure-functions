@@ -46,11 +46,3 @@ export function getBooleanFromQueryAsOneOrZero(
     return undefined;
   }
 }
-export function checkForRequiredEnvVars(envVars: string[]): void {
-  const missing = envVars.filter((envVar) => !process.env[envVar]);
-  if (missing.length > 0) {
-    throw new Error(
-      `Missing required environment variables: ${missing.join(", ")}`
-    );
-  }
-}

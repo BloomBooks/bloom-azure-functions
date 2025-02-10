@@ -53,14 +53,6 @@ These environment variables need to be set for the **books**, **opds**, and **fs
 
 Some functions may also require function-specific environment variables. See the function-specific READMEs and sections below.
 
-### Subscription spreadsheet variables
-
-The **subscriptions** function requires the following environment variables to access Google Sheets:
-
-- _BLOOM_GOOGLE_SERVICE_ACCOUNT_EMAIL_ - Service account client email. This ends with `gserviceaccount.com`
-- _BLOOM_GOOGLE_SERVICE_PRIVATE_KEY_ - Service account private key, taken from the json you download from the google cloud service. This starts with `-----BEGIN PRIVATE KEY-----\n`
-- _BLOOM_SUBSCRIPTION_SPREADSHEET_ID_ - ID of the Google Spreadsheet to read
-
 ### postgreSQL connection variables
 
 **stats** and **dailyTimer** functions connect to the postgresql database. The following environment variables are used directly by the node-postgres library (npm pg).

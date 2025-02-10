@@ -231,26 +231,6 @@ components:
     UploadFinishResult:
       type: object
 
-    SubscriptionResult:
-      type: object
-      properties:
-        code:
-          type: string
-          description: The subscription code
-        replacementCode:
-          type: string
-          description: A replacement code if applicable
-        tier:
-          type: string
-          description: The subscription tier
-        brandingLabel:
-          type: string
-          description: Label for branding purposes
-        showMessage:
-          type: string
-          description: Message to display to the user
-      required: [code, replacementCode, tier, brandingLabel, showMessage]
-
   responses:
     BookArray:
       description: OK
@@ -491,23 +471,3 @@ paths:
                     Failed: "#/components/schemas/LongRunningOperationFailedResult"
                     Running: "#/components/schemas/LongRunningOperationOtherResult"
                     NotStarted: "#/components/schemas/LongRunningOperationOtherResult"
-
-  /subscriptionInfo/{code}:
-    get:
-      description: Get subscription information for a given code
-      parameters:
-        - name: code
-          in: path
-          description: The subscription code to look up
-          required: true
-          schema:
-            type: string
-      responses:
-        200:
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/SubscriptionResult"
-        404:
-          description: Not Found - No subscription found for the given code
