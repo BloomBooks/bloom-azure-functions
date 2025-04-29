@@ -3,7 +3,7 @@ import { isLocalEnvironment } from "../common/utils";
 
 const runEvenIfLocal: boolean = false;
 
-// See README for schedule of time triggered tasks
+// See README for schedule of timer-triggered tasks
 const timerTrigger: AzureFunction = async function (
   context: Context,
   dailyTimer: any
@@ -14,18 +14,22 @@ const timerTrigger: AzureFunction = async function (
     context.log("dailyTimer trigger function is running late");
   }
 
+  const errors = [];
   try {
-    await refreshMaterializedViews();
+    await refreshMaterializedViewsAsync(context);
     context.log("refreshMaterializedViews() succeeded");
   } catch (e) {
-    context.log("refreshMaterializedViews() failed", e);
+    context.log.error("refreshMaterializedViews() failed:", e);
+    errors.push(e);
   }
 
   context.log("dailyTimer trigger function finished", new Date().toISOString());
-  context.done();
+  if (errors.length > 0) {
+    throw errors[0];
+  }
 };
 
-async function refreshMaterializedViews() {
+async function refreshMaterializedViewsAsync(context: Context) {
   // By default, we don't want to run this if we are running the functions locally.
   // Typically, if we are running locally, we want to test some other function, not this one.
   // And if we let this run, it will perform a long, blocking action on the production database.
@@ -41,11 +45,14 @@ async function refreshMaterializedViews() {
 
   const { Client } = require("pg");
   const client = new Client();
-  await client.connect();
-
-  await client.query("select common.refresh_materialized_views()");
-
-  await client.end();
+  try {
+    await client.connect();
+    await client.query("select common.refresh_materialized_views()");
+  } finally {
+    await client
+      .end()
+      .catch((e) => context.log.error("Error closing database connection:", e));
+  }
 }
 
 export default timerTrigger;
