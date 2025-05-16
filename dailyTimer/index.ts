@@ -47,7 +47,7 @@ async function refreshMaterializedViewsAsync(context: Context) {
   const client = new Client();
   try {
     await client.connect();
-    await client.query("select common.refresh_materialized_views()");
+    await client.query("call common.refresh_materialized_views()");
   } finally {
     await client
       .end()
