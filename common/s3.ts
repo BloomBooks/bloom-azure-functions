@@ -198,7 +198,7 @@ export async function copyBook(
 
     const copyCommandInput = {
       Bucket: bucket,
-      CopySource: `/${bucket}/${encodeURI(key)}`,
+      CopySource: `/${bucket}/${encodeURIComponent(key)}`,
       Key: key.replace(srcPath, destPath),
       ACL: "public-read",
     };

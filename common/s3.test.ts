@@ -13,6 +13,14 @@ import {
 } from "./s3";
 import { Environment } from "./utils";
 
+const pathNamesForMainTests = [
+  "12345678",
+  "蔬.htm",
+  "foo/bar",
+  "1 + 2.txt",
+  "&=%,@$'.png",
+];
+
 async function deleteTestFiles() {
   await deleteFilesByPrefix("testBookId", Environment.UNITTEST);
   await deleteFilesByPrefix("test2BookId", Environment.UNITTEST);
@@ -21,9 +29,9 @@ async function deleteTestFiles() {
 
 async function resetTestBookFolders() {
   await deleteTestFiles();
-  await uploadTestFileToS3("testBookId/12345678", Environment.UNITTEST);
-  await uploadTestFileToS3("testBookId/蔬.htm", Environment.UNITTEST); // special character which needs url encoding for copy
-  await uploadTestFileToS3("testBookId/foo/bar", Environment.UNITTEST);
+  for (const pathName of pathNamesForMainTests) {
+    await uploadTestFileToS3(`testBookId/${pathName}`, Environment.UNITTEST);
+  }
   await uploadTestFileToS3("test3BookId/toBeDeleted", Environment.UNITTEST);
   await uploadTestFileToS3(
     "test3BookId/toBeDeleted/subdirectory",
@@ -39,7 +47,6 @@ describe("s3", () => {
   beforeAll(async function () {
     await resetTestBookFolders();
   });
-  beforeEach(() => {});
   afterAll(async function () {
     await deleteTestFiles();
   });
@@ -47,10 +54,10 @@ describe("s3", () => {
   it("tests setup and list contents went correctly", async () => {
     await listPrefixContentsKeys("testBookId", Environment.UNITTEST).then(
       (keys) => {
-        expect(keys.length).toBe(3);
-        expect(keys).toContain("testBookId/12345678");
-        expect(keys).toContain("testBookId/蔬.htm");
-        expect(keys).toContain("testBookId/foo/bar");
+        expect(keys.length).toBe(pathNamesForMainTests.length);
+        for (const pathName of pathNamesForMainTests) {
+          expect(keys).toContain(`testBookId/${pathName}`);
+        }
       }
     );
     await listPrefixContentsKeys("test3BookId", Environment.UNITTEST).then(
@@ -82,15 +89,15 @@ describe("s3", () => {
     await copyBook(
       "testBookId/",
       "test2BookId/",
-      ["12345678", "蔬.htm", "foo/bar"],
+      pathNamesForMainTests,
       Environment.UNITTEST
     );
     await listPrefixContentsKeys("test2BookId", Environment.UNITTEST).then(
       (keys) => {
-        expect(keys.length).toBe(3);
-        expect(keys).toContain("test2BookId/12345678");
-        expect(keys).toContain("test2BookId/蔬.htm");
-        expect(keys).toContain("test2BookId/foo/bar");
+        expect(keys.length).toBe(pathNamesForMainTests.length);
+        for (const pathName of pathNamesForMainTests) {
+          expect(keys).toContain(`test2BookId/${pathName}`);
+        }
       }
     );
   });
