@@ -15,7 +15,9 @@ export function convertApiQueryParamsIntoParseAdditionalParams(
   query: HttpRequestQuery
 ): { limit?: number; skip?: number; count?: number } {
   const additionalParams = {
-    limit: getNumberFromQuery(query, "limit"),
+    // If no limit is specified, we get 100. That's never the default 
+    // we want. Override it with a number which will retrieve all records.
+    limit: getNumberFromQuery(query, "limit") ?? 10000000,
     skip: getNumberFromQuery(query, "offset"),
     count: getBooleanFromQueryAsOneOrZero(query, "count"),
   };
