@@ -1,4 +1,8 @@
-import { Context, HttpRequest } from "@azure/functions";
+import {
+  HttpRequest,
+  HttpResponseInit,
+  InvocationContext,
+} from "@azure/functions";
 import BloomParseServer, { User } from "../common/BloomParseServer";
 import {
   deleteFilesByPrefix,
@@ -13,54 +17,58 @@ import {
 } from "../longRunningActions/utils";
 import { BookUploadErrorCode, handleBookUploadError } from "./utils";
 
+// TODO do we need?
+interface UploadFinishRequestBody {
+  metadata?: any;
+  transactionId?: string;
+  becomeUploader?: boolean;
+}
+
 // upload-finish is a long-running function (see status/README.md).
 // The client calls it to finalize the upload of a new or existing book.
 // On parse-server, it creates a language record if needed and modifies the book record.
 // The reason it is long-running is, for existing books, it deletes the previous copy of the book files on S3.
 export async function handleUploadFinish(
-  context: Context,
   req: HttpRequest,
+  context: InvocationContext,
   userInfo: User,
   env: Environment
-) {
+): Promise<HttpResponseInit> {
   if (req.method !== "POST") {
-    context.res = {
+    return {
       status: 400,
       body: "Unhandled HTTP method",
     };
-    return context.res;
   }
 
   const bookId = req.params.id;
   if (!bookId) {
-    context.res = {
+    return {
       status: 400,
       body: "book ID is required: /books/{id}:upload-finish",
     };
-    return context.res;
   }
 
-  const metadata = req.body.metadata;
+  const requestBody = (await req
+    .json()
+    .catch(() => ({}))) as UploadFinishRequestBody;
+  const metadata = requestBody.metadata;
   if (!metadata) {
-    context.res = {
+    return {
       status: 400,
       body: "Please provide a valid metadata object in the body",
     };
-    return context.res;
   }
 
-  const transactionId = req.body.transactionId;
+  const transactionId = requestBody.transactionId;
   if (!transactionId || transactionId !== bookId) {
-    // With this initial implementation, transaction ID is always the book ID.
-    // But the API allows for them to be different some day.
-    context.res = {
+    return {
       status: 400,
       body: "Please provide a valid transactionId in the body",
     };
-    return context.res;
   }
 
-  const becomeUploader: boolean = req.body.becomeUploader === true;
+  const becomeUploader: boolean = requestBody.becomeUploader === true;
 
   const instanceId = await startLongRunningAction(
     context,
@@ -68,11 +76,7 @@ export async function handleUploadFinish(
     { bookRecord: metadata, userInfo, env, bookId, becomeUploader }
   );
 
-  context.res = createResponseWithAcceptedStatusAndStatusUrl(
-    instanceId,
-    req.url
-  );
-  return context.res;
+  return createResponseWithAcceptedStatusAndStatusUrl(instanceId, req.url);
 }
 
 export async function longRunningUploadFinish(
@@ -83,7 +87,7 @@ export async function longRunningUploadFinish(
     bookId: string;
     becomeUploader: boolean;
   },
-  context: Context
+  context: InvocationContext
 ) {
   const bookRecord = input.bookRecord;
   const userInfo = input.userInfo;
@@ -100,26 +104,17 @@ export async function longRunningUploadFinish(
   ) {
     return handleBookUploadError(
       BookUploadErrorCode.UnableToValidatePermission,
-      context,
       null
     );
   }
 
   const newBaseUrl = bookRecord?.baseUrl;
   if (newBaseUrl === undefined) {
-    return handleBookUploadError(
-      BookUploadErrorCode.MissingBaseUrl,
-      context,
-      null
-    );
+    return handleBookUploadError(BookUploadErrorCode.MissingBaseUrl, null);
   }
 
   if (!newBaseUrl.startsWith(getS3UrlFromPrefix(bookId, env))) {
-    return handleBookUploadError(
-      BookUploadErrorCode.InvalidBaseUrl,
-      context,
-      null
-    );
+    return handleBookUploadError(BookUploadErrorCode.InvalidBaseUrl, null);
   }
 
   // For performance reasons, we are letting uploadStart's copy process (for existing, unchanged files)
@@ -203,7 +198,6 @@ export async function longRunningUploadFinish(
   } catch (e) {
     return handleBookUploadError(
       BookUploadErrorCode.ErrorUpdatingBookRecord,
-      context,
       e
     );
   }
@@ -214,7 +208,7 @@ export async function longRunningUploadFinish(
       await deleteFilesByPrefix(bookPathPrefix, env);
     }
   } catch (e) {
-    console.log(e);
+    context.log(e);
     // TODO future work: we want this to somehow notify us of the now-orphan old book files
   }
   return {};

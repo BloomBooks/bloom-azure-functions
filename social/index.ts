@@ -1,36 +1,42 @@
-import { AzureFunction, Context, HttpRequest } from "@azure/functions";
+import {
+  app,
+  HttpRequest,
+  HttpResponseInit,
+  InvocationContext,
+} from "@azure/functions";
 
 // An azure function that takes parameters that can be used to fill in all the required fields of a facebook link.
 // input URL looks something like /social?link=<url>&title=<title>&img=<imgUrl>&description=<description>
 
-const httpTrigger: AzureFunction = async function(
-  context: Context,
-  req: HttpRequest
-): Promise<void> {
+const httpTrigger = async function (
+  request: HttpRequest,
+  context: InvocationContext
+): Promise<HttpResponseInit> {
   context.log("HTTP trigger function 'social' processed a request.");
-  const linkUrl = req.query.link || req.body.link;
+
+  const body = request.body ? ((await request.json()) as any) : null;
+
+  const linkUrl = request.query.get("link") || body?.link;
 
   if (!IsAllowedLink(linkUrl)) {
-    context.res = {
+    return {
       status: 403,
-      body:
-        "403 Error: Creating a link to that resource is not allowed.",
+      body: "403 Error: Creating a link to that resource is not allowed.",
     };
-    return;
   }
 
-  const title = req.query.title || req.body.title;
-  const imgUrl = GetOptionalParameter("img", req);
-  const imgWidth = GetOptionalParameter("width", req) || "256";
-  const imgHeight = GetOptionalParameter("height", req) || "256";
-  const description = GetOptionalParameter("description", req);
+  const title = request.query.get("title") || body?.title;
+  const imgUrl = GetOptionalParameter("img", request, body);
+  const imgWidth = GetOptionalParameter("width", request, body) || "256";
+  const imgHeight = GetOptionalParameter("height", request, body) || "256";
+  const description = GetOptionalParameter("description", request, body);
 
   if (linkUrl && title) {
-    context.res = {
-      // status: 200, /* Defaults to 200 */
+    return {
+      status: 200,
       headers: { "Content-Type": "text/html" },
       body: CreateLinkHtml(
-        req.url,
+        request.url,
         linkUrl,
         title,
         imgUrl,
@@ -40,15 +46,12 @@ const httpTrigger: AzureFunction = async function(
       ),
     };
   } else {
-    context.res = {
+    return {
       status: 400,
-      body:
-        "Please pass a link url, title, img url, and description in the GET query string or in the POST request JSON",
+      body: "Please pass a link url and title in the GET query string or in the POST request JSON",
     };
   }
 };
-
-export default httpTrigger;
 
 // Returns true if the user is allowed to create a link to that resource, or false if the link is not allowed (e.g. external link)
 function IsAllowedLink(linkUrl: string): boolean {
@@ -59,16 +62,19 @@ function IsAllowedLink(linkUrl: string): boolean {
   }
 
   // URL Constructor is unhappy if it doesn't start with the protocol.
-  if (!linkUrl.startsWith("http://") && !linkUrl.startsWith("https://")) {    
+  if (!linkUrl.startsWith("http://") && !linkUrl.startsWith("https://")) {
     linkUrl = "http://" + linkUrl;
   }
-  try
-  {
+  try {
     const url = new URL(linkUrl);
     const hostname = url.hostname.toLowerCase();
 
     // Allow bloomlibary.org, or its subdomains, but not any links to any other domain.
-    return (hostname && (hostname === "bloomlibrary.org" || hostname.endsWith(".bloomlibrary.org")));
+    return (
+      hostname &&
+      (hostname === "bloomlibrary.org" ||
+        hostname.endsWith(".bloomlibrary.org"))
+    );
   } catch (error) {
     // Probably a malformed URL
     return false;
@@ -77,13 +83,10 @@ function IsAllowedLink(linkUrl: string): boolean {
 
 function GetOptionalParameter(
   tag: string,
-  req: HttpRequest
+  request: HttpRequest,
+  body?: any
 ): string | undefined {
-  return tag in req.query
-    ? req.query[tag]
-    : req.body && tag in req.body
-    ? req.body[tag]
-    : undefined;
+  return request.query.get(tag) || body?.[tag];
 }
 
 function CreateLinkHtml(
@@ -126,8 +129,10 @@ function CreateLinkHtml(
     `
         <meta
             property="og:description"
-            content="${description ||
-              "Bloom makes it easy to create simple books and translate them into multiple languages."}"
+            content="${
+              description ||
+              "Bloom makes it easy to create simple books and translate them into multiple languages."
+            }"
         />` +
     // og:url must be set to originalUrl.  Using linkUrl instead does not work because the link is
     // followed and its HTML is scraped to find the values for the other OpenGraph metadata.  Note
@@ -163,3 +168,11 @@ function CreateLinkHtml(
   );
   /* eslint-enable indent */
 }
+
+app.http("social", {
+  methods: ["GET", "POST"],
+  authLevel: "anonymous",
+  handler: httpTrigger,
+});
+
+export default httpTrigger;

@@ -1,14 +1,13 @@
-import { AzureFunction, Context } from "@azure/functions";
+import { app, InvocationContext, Timer } from "@azure/functions";
 import { Environment, isLocalEnvironment } from "../common/utils";
 import { bookCleanupInternal } from "./bookCleanup";
 
 const runEvenIfLocal: boolean = false;
 
 // See README for schedule of time triggered tasks
-const timerTrigger: AzureFunction = async function (
-  context: Context,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  timer: any
+export async function bookCleanupTimer(
+  timer: Timer,
+  context: InvocationContext
 ): Promise<void> {
   // By default, we don't want to run this if we are running the functions locally.
   if (!runEvenIfLocal && isLocalEnvironment()) return;
@@ -33,7 +32,9 @@ const timerTrigger: AzureFunction = async function (
     "bookCleanup trigger function finished",
     new Date().toISOString()
   );
-  context.done();
-};
+}
 
-export default timerTrigger;
+app.timer("bookCleanup", {
+  schedule: "0 40 12 * * *",
+  handler: bookCleanupTimer,
+});

@@ -12,6 +12,8 @@ Careful! In July 2023, running via F5 caused a download and install of Azure Fun
 When you run, the log will display the Function Runtime version. Ensure it is 4.
 (If you get an error about unsupported node version, it is likely using Function Runtime version 3.)
 
+If you get "No job functions found", you may need to move to a newer version of Azure Functions Core Tools (e.g. by removing via Add or Remove Programs and then reinstall). As of September 2025, version 4.2.2 works but Version 4.0.5198 does not. The [docs](https://learn.microsoft.com/en-us/azure/azure-functions/functions-node-upgrade-v4?tabs=v4&pivots=programming-language-typescript) say you need v4.0.5382+.
+
 Due to the "books" endpoint needing durable functions, you will need to set up local storage emulation. Use the Azurite extension (in the recommended list). Once installed, you can start it from the command palette with `Azurite: Start`.
 
 Now you can use your favorite REST client to run each function. Or you can connect your local BloomLibrary2 to point to this (see ApiConnection.ts there).

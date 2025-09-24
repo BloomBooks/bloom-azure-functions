@@ -1,4 +1,4 @@
-import { Context } from "@azure/functions";
+import { InvocationContext } from "@azure/functions";
 import * as df from "durable-functions";
 
 export enum LongRunningAction {
@@ -10,7 +10,7 @@ export enum LongRunningAction {
 // Returns the instance ID of the action which will be used by the client to check the status.
 // e.g. https://api.bloomlibrary.org/v1/status/{instanceId}
 export async function startLongRunningAction(
-  context: Context,
+  context: InvocationContext,
   action: LongRunningAction,
   params: unknown
 ): Promise<string> {
@@ -32,7 +32,7 @@ export function createResponseWithAcceptedStatusAndStatusUrl(
     // thing to do might be to get the real status (client.getStatus(id)) at this point.
     // But it doesn't seem worth the complication. Either way, the client will call the status
     // endpoint to get the real status.
-    body: { id: instanceId, status: "Running" },
+    jsonBody: { id: instanceId, status: "Running" },
     headers: {
       "Operation-Location": `${originalRequestUrl.substring(
         0,

@@ -1,4 +1,4 @@
-import { AzureFunction, Context, HttpRequest } from "@azure/functions";
+import { app, HttpRequest, HttpResponseInit } from "@azure/functions";
 import { google } from "googleapis";
 import { checkForRequiredEnvVars } from "../common/utils";
 
@@ -14,16 +14,14 @@ export interface SubscriptionResult {
 // Code, Replacement Code, Branding Label, Show Message
 const RANGE = "SUBSCRIPTION_API_DATA";
 
-export const getSubscriptionInfo: AzureFunction = async function (
-  context: Context,
-  req: HttpRequest
-): Promise<void> {
-  if (!req.params?.code) {
-    context.res = {
+export async function getSubscriptionInfo(
+  request: HttpRequest
+): Promise<HttpResponseInit> {
+  if (!request.params?.code) {
+    return {
       status: 400,
       body: "Missing required parameter: code",
     };
-    return;
   }
 
   checkForRequiredEnvVars([
@@ -59,37 +57,44 @@ export const getSubscriptionInfo: AzureFunction = async function (
     // The first row is labels
     if (rows?.length) {
       // find the first row matching the code we were given
-      const cells = rows.find((columns) => columns[0] === req.params.code);
+      const cells = rows.find((columns) => columns[0] === request.params.code);
       if (cells) {
-        context.res = {
+        return {
           status: 200,
           headers: {
             "Content-Type": "application/json",
           },
-          body: {
+          body: JSON.stringify({
             code: cells[0],
             replacementCode: cells[1],
             tier: cells[2],
             brandingLabel: cells[3],
             showMessage: cells[4],
-          } as SubscriptionResult,
+          } as SubscriptionResult),
         };
       } else {
-        context.res = {
+        return {
           status: 404,
           body: "Did not find a row with that code",
         };
       }
     } else {
-      context.res = {
+      return {
         status: 404,
         body: "No data found",
       };
     }
   } catch (error) {
     console.error(error.message);
-    context.res = {
+    return {
       status: 500,
     };
   }
-};
+}
+
+app.http("getSubscriptionInfo", {
+  methods: ["GET"],
+  authLevel: "anonymous",
+  route: "subscriptionInfo/{code}",
+  handler: getSubscriptionInfo,
+});
