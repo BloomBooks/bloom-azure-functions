@@ -16,8 +16,6 @@ function createMockHttpRequest(params: { code?: string } = {}): any {
 }
 
 describe("Subscriptions Integration Test", () => {
-  let context: InvocationContext;
-
   beforeEach(() => {
     const loggerFunction = (...args: unknown[]): void => {
       console.log(...args);
@@ -26,15 +24,11 @@ describe("Subscriptions Integration Test", () => {
     loggerFunction.warn = console.warn;
     loggerFunction.info = console.info;
     loggerFunction.verbose = console.debug;
-
-    context = {
-      log: loggerFunction,
-    } as unknown as InvocationContext;
   });
 
   it("should provide the fields that go with 'Test-Expired-Code'", async () => {
     const request = createMockHttpRequest({ code: "Test-361769-1088" });
-    const response = await getSubscriptionInfo(request, context);
+    const response = await getSubscriptionInfo(request);
 
     expect(response.status).toBe(200);
     // TODO will this be a problem?
@@ -48,7 +42,7 @@ describe("Subscriptions Integration Test", () => {
 
   it("should provide the fields that go with 'Legacy-Community'", async () => {
     const request = createMockHttpRequest({ code: "Legacy-Community" });
-    const response = await getSubscriptionInfo(request, context);
+    const response = await getSubscriptionInfo(request);
 
     expect(response.status).toBe(200);
     const result = JSON.parse(
@@ -63,7 +57,7 @@ describe("Subscriptions Integration Test", () => {
 
   it("should return 400 if code is missing", async () => {
     const request = createMockHttpRequest({});
-    const response = await getSubscriptionInfo(request, context);
+    const response = await getSubscriptionInfo(request);
 
     expect(response.status).toBe(400);
     expect(response.body).toBe("Missing required parameter: code");

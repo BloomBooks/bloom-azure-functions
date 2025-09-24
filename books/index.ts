@@ -65,8 +65,6 @@ export async function books(
       );
     }
 
-    const client = df.getClient(context);
-
     switch (action) {
       case "upload-start":
         return await handleUploadStart(request, context, userInfo, env);
@@ -336,4 +334,10 @@ app.http("books", {
   authLevel: "anonymous",
   route: "books/{id-and-action?}",
   handler: books,
+  extraInputs: [
+    {
+      name: "starter",
+      type: "orchestrationClient",
+    },
+  ],
 });

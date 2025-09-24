@@ -8,7 +8,7 @@
     "watch": "tsc -w",
     "prestart": "npm run build",
     "start": "func start",
-    "test": "jest parseAdapters.test.ts --verbose",
+    "test": "jest --verbose",
     "lint": "eslint -c .eslintrc.js --ext .ts ."
   },
   "main": "dist/*/index.js",
