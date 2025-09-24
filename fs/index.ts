@@ -1,7 +1,6 @@
 import axios from "axios";
 import { app, HttpRequest, HttpResponseInit } from "@azure/functions";
 import BookData from "./bookdata";
-import { createReadStream } from "fs";
 
 // This function allows us to request a file in a book on S3 without knowing [it is on s3, who the uploader is, etc].
 // Example use: https://api.bloomlibrary.org/v1/fs/upload/U8INuhZHlU/thumbnail.png
@@ -33,7 +32,7 @@ async function fs(request: HttpRequest): Promise<HttpResponseInit> {
   let errorResult: any;
   const s3Result = await axios
     .get(urlArtifact, {
-      responseType: "document",
+      responseType: "stream",
     })
     .catch((err) => {
       errorResult = err;
@@ -68,11 +67,11 @@ async function fs(request: HttpRequest): Promise<HttpResponseInit> {
   return {
     headers: headers,
     body: s3Result.data,
-    // body: createReadStream(s3Result.data),
     status: s3Result.status,
   };
 }
 
+app.setup({ enableHttpStream: true });
 app.http("fs", {
   methods: ["GET"],
   authLevel: "anonymous",
