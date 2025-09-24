@@ -1,4 +1,8 @@
-import { Context, HttpRequest } from "@azure/functions";
+import {
+  HttpRequest,
+  HttpResponseInit,
+  InvocationContext,
+} from "@azure/functions";
 import BloomParseServer, { User } from "../common/BloomParseServer";
 import {
   IBookFileInfo,
@@ -30,47 +34,42 @@ const kPendingString = "pending";
 // The reason it is long-running is, for existing books, it copies the existing book files to a new folder.
 // That copy will be the starting point for the client to sync book files to S3.
 export async function handleUploadStart(
-  context: Context,
   req: HttpRequest,
+  context: InvocationContext,
   userInfo: User,
   env: Environment
-) {
+): Promise<HttpResponseInit> {
   if (req.method !== "POST") {
-    context.res = {
+    return {
       status: 400,
       body: "Unhandled HTTP method",
     };
-    return context.res;
   }
 
   const bookIdOrNew = req.params.id;
   if (!bookIdOrNew) {
-    context.res = {
+    return {
       status: 400,
       body: 'book ID is required: /books/{id}:upload-start (id is "new" for a new book)',
     };
-    return context.res;
   }
 
-  // The new API design is for "name", but we first implemented it with "title".
-  // So we accept either for now. With the next breaking change, we can remove "title".
-  const bookTitle: string = req.body["name"] || req.body["title"] || "";
+  const requestBody = await req.json().catch(() => ({}));
+  const bookTitle: string = requestBody["name"] || requestBody["title"] || "";
 
   let bookFiles: IBookFileInfo[];
   try {
-    bookFiles = JSON.parse(req.body["files"]);
+    bookFiles = JSON.parse(requestBody["files"]);
     if (!bookFiles?.length || !isArrayOfIBookFileInfo(bookFiles))
       throw new Error();
   } catch (error) {
-    // Handle parsing/validation errors
-    context.res = {
+    return {
       status: 400,
       body: '"files" must be an array of objects, each with a path and hash property',
     };
-    return context.res;
   }
 
-  const bloomClientVersion = req.body["clientVersion"];
+  const bloomClientVersion = requestBody["clientVersion"];
 
   const instanceId = await startLongRunningAction(
     context,
@@ -85,11 +84,7 @@ export async function handleUploadStart(
     }
   );
 
-  context.res = createResponseWithAcceptedStatusAndStatusUrl(
-    instanceId,
-    req.url
-  );
-  return context.res;
+  return createResponseWithAcceptedStatusAndStatusUrl(instanceId, req.url);
 }
 
 export async function longRunningUploadStart(
@@ -101,7 +96,7 @@ export async function longRunningUploadStart(
     userInfo: User;
     env: Environment;
   },
-  context: Context
+  context: InvocationContext
 ) {
   const userInfo = input.userInfo;
   const env = input.env;
@@ -112,11 +107,7 @@ export async function longRunningUploadStart(
 
   const canUpload = await canClientUpload(input.bloomClientVersion, env);
   if (!canUpload) {
-    return handleBookUploadError(
-      BookUploadErrorCode.ClientOutOfDate,
-      context,
-      null
-    );
+    return handleBookUploadError(BookUploadErrorCode.ClientOutOfDate, null);
   }
 
   const isNewBook = bookIdOrNew === "new";
@@ -143,7 +134,6 @@ export async function longRunningUploadStart(
     } catch (err) {
       return handleBookUploadError(
         BookUploadErrorCode.ErrorCreatingBookRecord,
-        context,
         err
       );
     }
@@ -179,7 +169,6 @@ export async function longRunningUploadStart(
     ) {
       return handleBookUploadError(
         BookUploadErrorCode.UnableToValidatePermission,
-        context,
         null
       );
     }
@@ -201,7 +190,6 @@ export async function longRunningUploadStart(
       } catch (err) {
         return handleBookUploadError(
           BookUploadErrorCode.ErrorDeletingPreviousFiles,
-          context,
           err
         );
       }
@@ -226,7 +214,6 @@ export async function longRunningUploadStart(
     } catch (err) {
       return handleBookUploadError(
         BookUploadErrorCode.ErrorUpdatingBookRecord,
-        context,
         err
       );
     }
@@ -241,7 +228,6 @@ export async function longRunningUploadStart(
     } catch (err) {
       return handleBookUploadError(
         BookUploadErrorCode.ErrorProcessingFileHashes,
-        context,
         err
       );
     }
@@ -260,7 +246,6 @@ export async function longRunningUploadStart(
       } catch (err) {
         return handleBookUploadError(
           BookUploadErrorCode.ErrorCopyingBookFiles,
-          context,
           err
         );
       }
@@ -273,7 +258,6 @@ export async function longRunningUploadStart(
   } catch (err) {
     return handleBookUploadError(
       BookUploadErrorCode.ErrorGeneratingTemporaryCredentials,
-      context,
       err
     );
   }

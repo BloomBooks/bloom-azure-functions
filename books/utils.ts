@@ -1,7 +1,6 @@
-import { Context } from "@azure/functions";
+import { InvocationContext } from "@azure/functions";
 import BloomParseServer from "../common/BloomParseServer";
 import { Environment } from "../common/utils";
-import { handleError } from "../longRunningActions/utils";
 
 export function getIdAndAction(
   idAndAction: string | undefined
@@ -95,23 +94,26 @@ export const bookUploadErrorCodeMessageMap = new Map<
   ],
 ]);
 
-export function handleBookUploadError(
-  code: BookUploadErrorCode,
-  context: Context,
-  error: Error,
-  messageIntendedForUser?: string
+// tODO this function changed
+export async function handleBookUploadError(
+  errorCode: BookUploadErrorCode,
+  context: InvocationContext | null,
+  error?: Error,
+  operationId?: string
 ) {
-  context.log.error(error);
-  if (messageIntendedForUser) {
-    return handleError(
-      code.toString(),
-      bookUploadErrorCodeMessageMap.get(code),
-      ["messageIntendedForUser", messageIntendedForUser]
-    );
-  } else {
-    return handleError(
-      code.toString(),
-      bookUploadErrorCodeMessageMap.get(code)
-    );
+  if (error && context) {
+    context.error(error);
   }
+
+  const status = errorCode === BookUploadErrorCode.ClientOutOfDate ? 426 : 400;
+  const message =
+    bookUploadErrorCodeMessageMap.get(errorCode) || "Unknown error";
+
+  return {
+    status,
+    jsonBody: {
+      message,
+      ...(operationId && { id: operationId, status: "Failed" }),
+    },
+  };
 }

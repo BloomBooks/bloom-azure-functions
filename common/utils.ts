@@ -1,4 +1,4 @@
-import { HttpRequest, HttpRequestQuery } from "@azure/functions";
+import { HttpRequest } from "@azure/functions";
 
 export function isLocalEnvironment(): boolean {
   // This obscure environment variable is set on the cloud instance but (presumably) not on the local machine.
@@ -21,23 +21,24 @@ export function setDefaultEnvironment(env: Environment) {
 }
 
 export function getEnvironment(req: HttpRequest): Environment {
-  return (req.query["env"] as Environment) || DefaultEnvironment;
+  return (req.query.get("env") as Environment) || DefaultEnvironment;
 }
 
 export function getNumberFromQuery(
-  query: HttpRequestQuery,
+  query: URLSearchParams,
   key: string
 ): number | undefined {
-  const value = query[key];
+  const value = query.get(key);
+  if (!value) return undefined;
   const num = parseInt(value);
   return isNaN(num) ? undefined : num;
 }
 
 export function getBooleanFromQueryAsOneOrZero(
-  query: HttpRequestQuery,
+  query: URLSearchParams,
   key: string
 ): number | undefined {
-  const value = query[key];
+  const value = query.get(key);
   if (value === "true") {
     return 1;
   } else if (value === "false") {

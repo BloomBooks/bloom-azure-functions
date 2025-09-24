@@ -1,63 +1,72 @@
-import { AzureFunction, Context, HttpRequest } from "@azure/functions";
+import {
+  app,
+  HttpRequest,
+  HttpResponseInit,
+  InvocationContext,
+} from "@azure/functions";
 import BloomParseServer, { ApiAccount } from "../common/BloomParseServer";
 import { Environment } from "../common/utils";
 import { getApiAccount } from "./apiAccount";
-import Catalog from "./catalog";
+import Catalog, { CatalogParams } from "./catalog";
 
 // See https://specs.opds.io/opds-1.2.html for the OPDS catalog standard.
 // See https://validator.w3.org/feed/docs/atom.html for the basic (default) tags
 // See https://www.dublincore.org/specifications/dublin-core/dcmi-terms/ for the Dublin Core
 //     (dcterms) tags
 
-const opds: AzureFunction = async function (
-  context: Context,
-  req: HttpRequest
-): Promise<void> {
+export async function opds(
+  request: HttpRequest,
+  context: InvocationContext
+): Promise<HttpResponseInit> {
   context.log(
-    "HTTP trigger function 'opds' processed a request. url=" + req.url
+    "HTTP trigger function 'opds' processed a request. url=" + request.url
   );
   let baseUrl: string;
-  const idxQuestion = req.url.indexOf("?");
+  const idxQuestion = request.url.indexOf("?");
   if (idxQuestion > 0) {
-    baseUrl = req.url.substring(0, idxQuestion);
+    baseUrl = request.url.substring(0, idxQuestion);
   } else {
-    baseUrl = req.url;
+    baseUrl = request.url;
   }
 
   BloomParseServer.ApiBaseUrl = baseUrl.substring(0, baseUrl.indexOf("v1") + 2);
 
-  const params = req.query;
+  const params = request.query;
   var account: ApiAccount;
-  if (params["key"]) {
+  if (params.get("key")) {
     const accountResult = await getApiAccount(
-      params["key"],
-      params["src"]?.toLowerCase() as Environment
+      params.get("key"),
+      params.get("src")?.toLowerCase() as Environment
     );
     if (accountResult.resultCode) {
-      context.res = {
+      return {
         status: accountResult.resultCode,
         body: accountResult.errorMessage,
       };
-      return;
     } else {
       account = accountResult.account;
       // each OPDS api account has a tag that we propagate through all
       // links for eventual use in analytics.
-      params.ref = account.referrerTag;
+      params.set("ref", account.referrerTag);
     }
   }
   try {
-    const body = await Catalog.getCatalog(baseUrl, params, account);
-    context.res = {
+    const catalogParams: CatalogParams = Object.fromEntries(params.entries());
+    const body = await Catalog.getCatalog(baseUrl, catalogParams, account);
+    return {
       headers: { "Content-Type": "application/xml" },
       body: body,
     };
   } catch (err) {
-    context.res = {
+    return {
       status: 500,
       body: err.toString(),
     };
   }
-};
+}
 
-export default opds;
+app.http("opds", {
+  methods: ["GET", "POST"],
+  authLevel: "anonymous",
+  handler: opds,
+});

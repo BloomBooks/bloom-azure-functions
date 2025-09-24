@@ -1,16 +1,16 @@
-import { AzureFunction, Context } from "@azure/functions";
+import { app, InvocationContext, Timer } from "@azure/functions";
 import { isLocalEnvironment } from "../common/utils";
 
 const runEvenIfLocal: boolean = false;
 
 // See README for schedule of timer-triggered tasks
-const timerTrigger: AzureFunction = async function (
-  context: Context,
-  dailyTimer: any
+async function timerTrigger(
+  myTimer: Timer,
+  context: InvocationContext
 ): Promise<void> {
   context.log("dailyTimer trigger function started", new Date().toISOString());
 
-  if (dailyTimer.isPastDue) {
+  if (myTimer.isPastDue) {
     context.log("dailyTimer trigger function is running late");
   }
 
@@ -19,7 +19,7 @@ const timerTrigger: AzureFunction = async function (
     await refreshMaterializedViewsAsync(context);
     context.log("refreshMaterializedViews() succeeded");
   } catch (e) {
-    context.log.error("refreshMaterializedViews() failed:", e);
+    context.error("refreshMaterializedViews() failed:", e);
     errors.push(e);
   }
 
@@ -27,9 +27,9 @@ const timerTrigger: AzureFunction = async function (
   if (errors.length > 0) {
     throw errors[0];
   }
-};
+}
 
-async function refreshMaterializedViewsAsync(context: Context) {
+async function refreshMaterializedViewsAsync(context: InvocationContext) {
   // By default, we don't want to run this if we are running the functions locally.
   // Typically, if we are running locally, we want to test some other function, not this one.
   // And if we let this run, it will perform a long, blocking action on the production database.
@@ -51,8 +51,11 @@ async function refreshMaterializedViewsAsync(context: Context) {
   } finally {
     await client
       .end()
-      .catch((e) => context.log.error("Error closing database connection:", e));
+      .catch((e) => context.error("Error closing database connection:", e));
   }
 }
 
-export default timerTrigger;
+app.timer("dailyTimer", {
+  schedule: "0 40 10 * * *",
+  handler: timerTrigger,
+});

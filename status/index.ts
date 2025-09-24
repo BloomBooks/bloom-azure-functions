@@ -1,28 +1,31 @@
-import { AzureFunction, Context, HttpRequest } from "@azure/functions";
+import {
+  app,
+  HttpRequest,
+  HttpResponseInit,
+  InvocationContext,
+} from "@azure/functions";
 import * as df from "durable-functions";
 
-const status: AzureFunction = async function (
-  context: Context,
-  req: HttpRequest
-): Promise<void> {
-  const operationId = req.params["operation-id"];
+const status = async function (
+  request: HttpRequest,
+  context: InvocationContext
+): Promise<HttpResponseInit> {
+  const operationId = request.params["operation-id"];
   if (!operationId) {
-    context.res = {
+    return {
       status: 400,
       body: "Provide a valid operation-id",
     };
-    return;
   }
 
   const client = df.getClient(context);
 
   const status = await client.getStatus(operationId);
   if (!status) {
-    context.res = {
+    return {
       status: 404,
       body: "Status not found for the given operation-id",
     };
-    return;
   } else {
     const body = {
       id: status.instanceId,
@@ -40,8 +43,11 @@ const status: AzureFunction = async function (
       body["result"] = status.output;
     }
 
-    context.res = { status: 200, body: body };
-    context.res.headers = { "Retry-After": "1" }; // in seconds
+    return {
+      status: 200,
+      body: JSON.stringify(body),
+      headers: { "Retry-After": "1" }, // in seconds
+    };
   }
 };
 
@@ -66,4 +72,9 @@ function getStatus(status: df.OrchestrationRuntimeStatus) {
   }
 }
 
-export default status;
+app.http("status", {
+  methods: ["GET"],
+  authLevel: "anonymous",
+  route: "status/{operation-id}",
+  handler: status,
+});
