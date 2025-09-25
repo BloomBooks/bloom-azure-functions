@@ -4,7 +4,7 @@
 // I think that makes the code cleaner now and will hopefully make it easier to replace
 // parse with something else in the future.
 
-import { HttpRequest } from "@azure/functions";
+import { HttpRequestQuery } from "@azure/functions";
 import { Book } from "../common/BloomParseServer";
 import {
   getBooleanFromQueryAsOneOrZero,
@@ -12,7 +12,7 @@ import {
 } from "../common/utils";
 
 export function convertApiQueryParamsIntoParseAdditionalParams(
-  query: URLSearchParams
+  query: HttpRequestQuery
 ): { limit?: number; skip?: number; count?: number } {
   const additionalParams = {
     // If no limit is specified, we get 100. That's never the default 
@@ -53,11 +53,13 @@ export function convertExpandParamToParseFields(expandStr: string): string[] {
 }
 
 export function convertApiQueryParamsIntoParseWhere(
-  query: URLSearchParams,
-  instanceIds?: string
+  query: HttpRequestQuery
 ): string {
-  const langParam = query.get("lang");
-  const uploaderParam = query.get("uploader");
+  const {
+    lang: langParam,
+    uploader: uploaderParam,
+    instanceIds: instanceIdsParam,
+  } = query;
   const whereParts = [];
 
   // If one of these xParam variables is falsy, either the user didn't include it in the query
@@ -76,9 +78,9 @@ export function convertApiQueryParamsIntoParseWhere(
       `"uploader":{"$inQuery":{"where":{"email":{"$in":[${uploaders}]}},"className":"_User"}}`
     );
   }
-  if (instanceIds) {
-    const wrappedInstanceIds = wrapCommaSeparatedListInQuotes(instanceIds);
-    whereParts.push(`"bookInstanceId":{"$in":[${wrappedInstanceIds}]}`);
+  if (instanceIdsParam) {
+    const instanceIds = wrapCommaSeparatedListInQuotes(instanceIdsParam);
+    whereParts.push(`"bookInstanceId":{"$in":[${instanceIds}]}`);
   }
   return `{${whereParts.join(",")}}`;
 }

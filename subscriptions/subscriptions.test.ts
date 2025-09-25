@@ -1,53 +1,52 @@
-import { InvocationContext } from "@azure/functions";
+import { Context } from "@azure/functions";
 import { getSubscriptionInfo, SubscriptionResult } from "./index";
 
-function createMockHttpRequest(params: { code?: string } = {}): any {
-  return {
-    params,
-    query: new URLSearchParams(),
-    headers: new Map(),
-    method: "GET",
-    url: "http://localhost",
-    text: () => Promise.resolve(""),
-    json: () => Promise.resolve({}),
-    arrayBuffer: () => Promise.resolve(new ArrayBuffer(0)),
-    formData: () => Promise.resolve(new FormData()),
+interface TestContext extends Context {
+  res: {
+    status?: number;
+    headers?: { [key: string]: string };
+    body?: SubscriptionResult | string;
   };
 }
 
 describe("Subscriptions Integration Test", () => {
+  let context: TestContext;
+
   beforeEach(() => {
-    const loggerFunction = (...args: unknown[]): void => {
+    const loggerFunction = (...args: any[]): void => {
       console.log(...args);
     };
     loggerFunction.error = console.error;
     loggerFunction.warn = console.warn;
     loggerFunction.info = console.info;
     loggerFunction.verbose = console.debug;
+
+    context = {
+      res: {},
+    } as unknown as TestContext;
   });
 
   it("should provide the fields that go with 'Test-Expired-Code'", async () => {
-    const request = createMockHttpRequest({ code: "Test-361769-1088" });
-    const response = await getSubscriptionInfo(request);
+    await getSubscriptionInfo(context, {
+      params: { code: "Test-361769-1088" },
+    });
 
-    expect(response.status).toBe(200);
-    // TODO will this be a problem?
-    const result = JSON.parse(
-      (response as any).body as string
-    ) as SubscriptionResult;
+    expect(context.res.status).toBe(200);
+    expect(context.res.headers?.["Content-Type"]).toBe("application/json");
+    const result = context.res.body as SubscriptionResult;
     expect(result.code).toBe("Test-361769-1088");
     expect(result.replacementCode).toBe("Test-727011-1339");
     expect(result.showMessage).toBe("Happy Testing");
   });
 
   it("should provide the fields that go with 'Legacy-Community'", async () => {
-    const request = createMockHttpRequest({ code: "Legacy-Community" });
-    const response = await getSubscriptionInfo(request);
+    await getSubscriptionInfo(context, {
+      params: { code: "Legacy-Community" },
+    });
 
-    expect(response.status).toBe(200);
-    const result = JSON.parse(
-      (response as any).body as string
-    ) as SubscriptionResult;
+    expect(context.res.status).toBe(200);
+    expect(context.res.headers?.["Content-Type"]).toBe("application/json");
+    const result = context.res.body as SubscriptionResult;
     expect(result.code).toBe("Legacy-Community");
     expect(result.replacementCode).toBe("Legacy-Community-005962-9361");
     expect(result.tier).toBe("Community");
@@ -56,10 +55,9 @@ describe("Subscriptions Integration Test", () => {
   });
 
   it("should return 400 if code is missing", async () => {
-    const request = createMockHttpRequest({});
-    const response = await getSubscriptionInfo(request);
+    await getSubscriptionInfo(context, { params: {} });
 
-    expect(response.status).toBe(400);
-    expect(response.body).toBe("Missing required parameter: code");
+    expect(context.res.status).toBe(400);
+    expect(context.res.body).toBe("Missing required parameter: code");
   });
-});
+}); // Remove the special characters test

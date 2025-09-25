@@ -1,9 +1,4 @@
-import {
-  app,
-  HttpRequest,
-  HttpResponseInit,
-  InvocationContext,
-} from "@azure/functions";
+import { AzureFunction, Context, HttpRequest } from "@azure/functions";
 import { processEvents } from "./events";
 import { AxiosRequestConfig } from "axios";
 
@@ -21,38 +16,35 @@ export interface IFilter {
   bookInstanceId?: string;
 }
 
-async function stats(
-  request: HttpRequest,
-  context: InvocationContext
-): Promise<HttpResponseInit> {
+const stats: AzureFunction = async function(
+  context: Context,
+  req: HttpRequest
+): Promise<void> {
   try {
-    const category = request.params.category;
-    const rowType = request.params.rowType;
-    const body: any = await request.json();
-    const filter = request.query.get("filter") || body.filter;
+    const category = req.params.category;
+    const rowType = req.params.rowType;
+
+    const filter = req.query.filter || (req.body && req.body.filter);
 
     if (category && rowType && filter) {
-      const response = await processEvents(context, category, rowType, filter);
-      return response;
+      await processEvents(context, category, rowType, filter);
+      return;
     }
 
-    return fail(
+    fail(
+      context,
       "Url and/or request body are not in a valid state. Be sure to provide a valid filter object in the request payload. This requires POST, not GET."
     );
   } catch (e) {
-    return fail(e.message);
+    fail(context, e.message);
   }
-}
+};
 
-function fail(message: string): HttpResponseInit {
-  return {
+function fail(context: Context, message: string): void {
+  context.res = {
     status: 400,
     body: message,
   };
 }
 
-app.http("stats", {
-  methods: ["GET", "POST"],
-  route: "stats/{category}/{rowType}",
-  handler: stats,
-});
+export default stats;

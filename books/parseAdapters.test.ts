@@ -7,7 +7,9 @@ import {
 
 describe("parseAdapters", () => {
   it("convertApiQueryParamsIntoParseWhere single language", async () => {
-    const query = new URLSearchParams({ lang: "en" });
+    const query = {
+      lang: "en",
+    };
     const where = convertApiQueryParamsIntoParseWhere(query);
     expect(where).toBe(
       '{"langPointers":{"$inQuery":{"where":{"isoCode":{"$in":["en"]}},"className":"language"}}}'
@@ -15,7 +17,9 @@ describe("parseAdapters", () => {
   });
 
   it("convertApiQueryParamsIntoParseWhere multiple languages", async () => {
-    const query = new URLSearchParams({ lang: "en,fr,de" });
+    const query = {
+      lang: "en,fr,de",
+    };
     const where = convertApiQueryParamsIntoParseWhere(query);
     expect(where).toBe(
       '{"langPointers":{"$inQuery":{"where":{"isoCode":{"$in":["en","fr","de"]}},"className":"language"}}}'
@@ -23,7 +27,9 @@ describe("parseAdapters", () => {
   });
 
   it("convertApiQueryParamsIntoParseWhere single uploader", async () => {
-    const query = new URLSearchParams({ uploader: "bob@example.com" });
+    const query = {
+      uploader: "bob@example.com",
+    };
     const where = convertApiQueryParamsIntoParseWhere(query);
     expect(where).toBe(
       '{"uploader":{"$inQuery":{"where":{"email":{"$in":["bob@example.com"]}},"className":"_User"}}}'
@@ -31,9 +37,9 @@ describe("parseAdapters", () => {
   });
 
   it("convertApiQueryParamsIntoParseWhere multiple uploaders", async () => {
-    const query = new URLSearchParams({
+    const query = {
       uploader: "bob@example.com,sue@ex.com",
-    });
+    };
     const where = convertApiQueryParamsIntoParseWhere(query);
     expect(where).toBe(
       '{"uploader":{"$inQuery":{"where":{"email":{"$in":["bob@example.com","sue@ex.com"]}},"className":"_User"}}}'
@@ -41,10 +47,10 @@ describe("parseAdapters", () => {
   });
 
   it("convertApiQueryParamsIntoParseWhere multiple params", async () => {
-    const query = new URLSearchParams({
+    const query = {
       lang: "en",
       uploader: "bob@example.com",
-    });
+    };
     const where = convertApiQueryParamsIntoParseWhere(query);
     expect(where).toBe(
       '{"langPointers":{"$inQuery":{"where":{"isoCode":{"$in":["en"]}},"className":"language"}},"uploader":{"$inQuery":{"where":{"email":{"$in":["bob@example.com"]}},"className":"_User"}}}'
@@ -119,41 +125,37 @@ describe("parseAdapters", () => {
   });
 
   it("convertApiQueryParamsIntoParseAdditionalParams handles empty query", () => {
-    const query = new URLSearchParams();
+    const query = {};
     const additionalParams =
       convertApiQueryParamsIntoParseAdditionalParams(query);
     expect(additionalParams).toEqual({});
   });
   it("convertApiQueryParamsIntoParseAdditionalParams handles limit", () => {
-    const query = new URLSearchParams({ limit: "10" });
+    const query = { limit: "10" };
     const additionalParams =
       convertApiQueryParamsIntoParseAdditionalParams(query);
     expect(additionalParams).toEqual({ limit: 10 });
   });
   it("convertApiQueryParamsIntoParseAdditionalParams handles offset", () => {
-    const query = new URLSearchParams({ offset: "10" });
+    const query = { offset: "10" };
     const additionalParams =
       convertApiQueryParamsIntoParseAdditionalParams(query);
     expect(additionalParams).toEqual({ skip: 10 });
   });
   it("convertApiQueryParamsIntoParseAdditionalParams handles limit and offset", () => {
-    const query = new URLSearchParams({ limit: "10", offset: "10" });
+    const query = { limit: "10", offset: "10" };
     const additionalParams =
       convertApiQueryParamsIntoParseAdditionalParams(query);
     expect(additionalParams).toEqual({ limit: 10, skip: 10 });
   });
   it("convertApiQueryParamsIntoParseAdditionalParams handles limit, offset, and count", () => {
-    const query = new URLSearchParams({
-      limit: "10",
-      offset: "10",
-      count: "true",
-    });
+    const query = { limit: "10", offset: "10", count: "true" };
     const additionalParams =
       convertApiQueryParamsIntoParseAdditionalParams(query);
     expect(additionalParams).toEqual({ limit: 10, skip: 10, count: 1 });
   });
   it("convertApiQueryParamsIntoParseAdditionalParams handles count as false", () => {
-    const query = new URLSearchParams({ count: "false" });
+    const query = { count: "false" };
     const additionalParams =
       convertApiQueryParamsIntoParseAdditionalParams(query);
     expect(additionalParams).toEqual({ count: 0 });

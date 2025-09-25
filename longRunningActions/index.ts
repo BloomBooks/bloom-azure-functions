@@ -1,12 +1,12 @@
-import { InvocationContext } from "@azure/functions";
+import { AzureFunction, Context } from "@azure/functions";
 import { longRunningUploadStart } from "../books/uploadStart";
 import { longRunningUploadFinish } from "../books/uploadFinish";
 import { LongRunningAction } from "./utils";
 
-const longRunningActions = async function (
-  input: any,
-  context: InvocationContext
+const longRunningActions: AzureFunction = async function (
+  context: Context
 ): Promise<any> {
+  const input = context.bindingData.data;
   const action = input.action;
   const params = input.params;
 
@@ -15,8 +15,6 @@ const longRunningActions = async function (
       return await longRunningUploadStart(params, context);
     case LongRunningAction.UploadFinish:
       return await longRunningUploadFinish(params, context);
-    default:
-      throw new Error(`Unknown action: ${action}`);
   }
 };
 

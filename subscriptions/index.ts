@@ -1,4 +1,4 @@
-import { app, HttpRequest, HttpResponseInit } from "@azure/functions";
+import { AzureFunction, Context, HttpRequest } from "@azure/functions";
 import { google } from "googleapis";
 import { checkForRequiredEnvVars } from "../common/utils";
 
@@ -14,14 +14,16 @@ export interface SubscriptionResult {
 // Code, Replacement Code, Branding Label, Show Message
 const RANGE = "SUBSCRIPTION_API_DATA";
 
-export async function getSubscriptionInfo(
-  request: HttpRequest
-): Promise<HttpResponseInit> {
-  if (!request.params?.code) {
-    return {
+export const getSubscriptionInfo: AzureFunction = async function (
+  context: Context,
+  req: HttpRequest
+): Promise<void> {
+  if (!req.params?.code) {
+    context.res = {
       status: 400,
       body: "Missing required parameter: code",
     };
+    return;
   }
 
   checkForRequiredEnvVars([
@@ -57,44 +59,37 @@ export async function getSubscriptionInfo(
     // The first row is labels
     if (rows?.length) {
       // find the first row matching the code we were given
-      const cells = rows.find((columns) => columns[0] === request.params.code);
+      const cells = rows.find((columns) => columns[0] === req.params.code);
       if (cells) {
-        return {
+        context.res = {
           status: 200,
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({
+          body: {
             code: cells[0],
             replacementCode: cells[1],
             tier: cells[2],
             brandingLabel: cells[3],
             showMessage: cells[4],
-          } as SubscriptionResult),
+          } as SubscriptionResult,
         };
       } else {
-        return {
+        context.res = {
           status: 404,
           body: "Did not find a row with that code",
         };
       }
     } else {
-      return {
+      context.res = {
         status: 404,
         body: "No data found",
       };
     }
   } catch (error) {
     console.error(error.message);
-    return {
+    context.res = {
       status: 500,
     };
   }
-}
-
-app.http("getSubscriptionInfo", {
-  methods: ["GET"],
-  authLevel: "anonymous",
-  route: "subscriptionInfo/{code}",
-  handler: getSubscriptionInfo,
-});
+};

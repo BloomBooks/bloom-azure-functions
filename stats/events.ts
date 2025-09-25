@@ -1,4 +1,4 @@
-import { InvocationContext, HttpResponseInit } from "@azure/functions";
+import { Context } from "@azure/functions";
 import axios, { AxiosRequestConfig, AxiosResponse } from "axios";
 import { IFilter } from ".";
 
@@ -10,11 +10,11 @@ function isValidDateStr(dateStr: string | null | undefined): boolean {
 
 // Go to postgresql to get the information asked for based on category and rowType.
 export async function processEvents(
-  context: InvocationContext,
+  context: Context,
   category: string,
   rowType: string,
   filter: IFilter
-): Promise<HttpResponseInit> {
+): Promise<void> {
   const t0 = new Date().getTime();
 
   if (filter.fromDate && !isValidDateStr(filter.fromDate)) {
@@ -52,7 +52,7 @@ export async function processEvents(
   }
 
   // Return results as json
-  const response = {
+  context.res = {
     headers: { "Content-Type": "application/json" },
   };
 
@@ -66,9 +66,8 @@ export async function processEvents(
 
     const tSql1 = new Date().getTime();
     context.log(
-      `stats - SQL query (${sqlFunctionName}) took ${
-        tSql1 - tSql0
-      } milliseconds to return.`
+      `stats - SQL query (${sqlFunctionName}) took ${tSql1 -
+        tSql0} milliseconds to return.`
     );
 
     await client.end();
@@ -76,20 +75,20 @@ export async function processEvents(
     const jsonResult = Array.isArray(statsResult)
       ? statsResult[statsResult.length - 1].rows
       : statsResult.rows;
-    response["body"] = JSON.stringify({
+    context.res.body = {
       stats: jsonResult,
-    });
+    };
   } else {
-    response["body"] = JSON.stringify({
+    context.res.body = {
       stats: [],
-    });
+    };
   }
 
   const t1 = new Date().getTime();
   context.log(
     `stats - processEvents took ${t1 - t0} milliseconds to complete.`
   );
-  return response;
+  context.done();
 }
 
 function getDatesFromFilter(filter: IFilter): [string, string] {
@@ -109,7 +108,7 @@ async function generateAddParseBooksToTempTableStatement(
   },
   fromDateValidatedStr: string | undefined,
   toDateValidatedStr: string | undefined,
-  context: InvocationContext
+  context: Context
 ): Promise<string | undefined> {
   // Send query to parse
   const t0 = new Date().getTime();
@@ -175,7 +174,7 @@ async function generateAddParseBooksToTempTableStatement(
 async function getCombinedParseAndOrSqlFunction(
   functionName,
   filter: IFilter,
-  context: InvocationContext
+  context: Context
 ): Promise<string | undefined> {
   let sqlQuery = "";
   const parseDBQuery = filter.parseDBQuery;

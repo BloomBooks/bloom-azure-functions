@@ -1,9 +1,4 @@
-import {
-  app,
-  HttpRequest,
-  HttpResponseInit,
-  InvocationContext,
-} from "@azure/functions";
+import { AzureFunction, Context, HttpRequest } from "@azure/functions";
 import BloomParseServer, { User } from "../common/BloomParseServer";
 import { Environment, getEnvironment } from "../common/utils";
 import { handleUploadStart } from "./uploadStart";
@@ -15,44 +10,43 @@ import {
   convertExpandParamToParseFields,
   reshapeBookRecord,
 } from "./parseAdapters";
-import * as df from "durable-functions";
 
-export async function books(
-  request: HttpRequest,
-  context: InvocationContext
-): Promise<HttpResponseInit> {
-  const env = getEnvironment(request);
+const books: AzureFunction = async function (
+  context: Context,
+  req: HttpRequest
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+): Promise<any> {
+  const env = getEnvironment(req);
   const parseServer = new BloomParseServer(env);
 
-  const [bookDatabaseId, action] = getIdAndAction(
-    request.params["id-and-action"]
-  );
-
-  request.params.id = bookDatabaseId;
-  request.params.action = action;
+  const [bookDatabaseId, action] = getIdAndAction(req.params["id-and-action"]);
+  req.params.id = bookDatabaseId;
+  req.params.action = action;
 
   let userInfo: User | null = null;
-  if (requiresAuthentication(request.method, action)) {
-    userInfo = await getUserFromSession(parseServer, request);
+  if (requiresAuthentication(req.method, action)) {
+    userInfo = await getUserFromSession(parseServer, req);
     // for actions for which we need to validate the authentication token
     if (!userInfo) {
-      return {
+      context.res = {
         status: 400,
         body: "Unable to validate user. Did you include a valid Authentication-Token header?",
       };
+      return context.res;
     }
   }
 
   if (bookDatabaseId) {
     // Do this before validating the book ID; see comment about 204/404 in handleDelete.
-    if (request.method === "DELETE")
+    if (req.method === "DELETE")
       return await handleDelete(context, userInfo, bookDatabaseId, parseServer);
 
     if (!isValidBookId(bookDatabaseId)) {
-      return {
+      context.res = {
         status: 400,
         body: "Invalid book ID",
       };
+      return context.res;
     }
 
     if (!action) {
@@ -60,16 +54,16 @@ export async function books(
       return await handleGetOneBook(
         context,
         bookDatabaseId,
-        request.query.get("expand"),
+        req.query.expand,
         parseServer
       );
     }
 
     switch (action) {
       case "upload-start":
-        return await handleUploadStart(request, context, userInfo, env);
+        return await handleUploadStart(context, req, userInfo, env);
       case "upload-finish":
-        return await handleUploadFinish(request, context, userInfo, env);
+        return await handleUploadFinish(context, req, userInfo, env);
       case "permissions":
         return await handlePermissions(
           context,
@@ -79,95 +73,97 @@ export async function books(
         );
 
       default:
-        return {
+        context.res = {
           status: 400,
           body: "Invalid action type",
         };
+        return context.res;
     }
   }
 
   // Endpoint is /books
   // i.e. no book ID, no action
   // We are querying for a collection of books.
-  return await findBooks(context, request, parseServer);
-}
+  return await findBooks(context, req, parseServer);
+};
 
 async function findBooks(
-  context: InvocationContext,
-  request: HttpRequest,
+  context: Context,
+  req: HttpRequest,
   parseServer: BloomParseServer
-): Promise<HttpResponseInit> {
+) {
   // Hacking in this specific use case for now.
   // This is used by the editor to get the count of books in a language.
-  const lang = request.query.get("lang");
-  const limit = request.query.get("limit");
-  const count = request.query.get("count");
-
-  if (lang && limit === "0" && count === "true") {
-    const count = await parseServer.getBookCountByLanguage(lang);
-    return {
+  if (
+    req.query.lang &&
+    req.query.limit &&
+    req.query.limit === "0" &&
+    req.query.count &&
+    req.query.count === "true"
+  ) {
+    const count = await parseServer.getBookCountByLanguage(req.query.lang);
+    context.res = {
       status: 200,
       // A GET/POST to /books always returns an array of books, even if it's empty.
       // In this temporary, hacked use case, it is always empty.
-      jsonBody: { results: [], count },
+      body: { results: [], count },
     };
+    return context.res;
   }
 
-  let instanceIds: string;
-  if (request.method === "POST") {
+  const query = { ...req.query };
+  if (req.method === "POST" && req.body?.instanceIds?.length) {
     // POST to /books is a special case.
     // We treat it basically the same as a GET, but know we have to look
     // for something (so far, just instanceIds) in the body to tell us which books to return
     // (rather than just the query parameters).
     // We use a POST because the list of instanceIds might be too long for a GET request.
     // This is used by the editor to get a set of books by bookInstanceIds for the blorg status badges.
-    const body = (await request.json()) as any;
-    if (body?.instanceIds?.length) {
-      instanceIds = body.instanceIds.join(",");
-    }
+    query.instanceIds = req.body.instanceIds.join(",");
   }
-
-  const where = convertApiQueryParamsIntoParseWhere(request.query, instanceIds);
+  const where = convertApiQueryParamsIntoParseWhere(query);
   const rawBookRecordsAndCount = await parseServer.getBooks(
     where,
-    convertExpandParamToParseFields(request.query.get("expand")),
-    convertApiQueryParamsIntoParseAdditionalParams(request.query)
+    convertExpandParamToParseFields(query.expand),
+    convertApiQueryParamsIntoParseAdditionalParams(query)
   );
 
   const isForClientUnitTest =
     parseServer.getEnvironment() === Environment.UNITTEST;
   const bookRecords = rawBookRecordsAndCount.books.map((book) =>
-    reshapeBookRecord(book, request.query.get("expand"), isForClientUnitTest)
+    reshapeBookRecord(book, query.expand, isForClientUnitTest)
   );
 
-  return {
+  context.res = {
     status: 200,
     // Properties aren't included in objects if the value is undefined, so count
     // won't be returned if it is undefined (meaning the user didn't ask for it).
-    jsonBody: { results: bookRecords, count: rawBookRecordsAndCount.count },
+    body: { results: bookRecords, count: rawBookRecordsAndCount.count },
   };
+  return context.res;
 }
 
 async function handlePermissions(
-  context: InvocationContext,
+  context: Context,
   userInfo: User,
   bookDatabaseId: string,
   parseServer: BloomParseServer
-): Promise<HttpResponseInit> {
+) {
   const bookInfo = await parseServer.getBookByDatabaseId(bookDatabaseId);
 
   if (!bookInfo) {
-    return {
+    context.res = {
       status: 400,
-      jsonBody: "Invalid book ID",
+      body: "Invalid book ID",
     };
+    return context.res;
   }
 
   const isModerator = await parseServer.isModerator(userInfo);
   if (isModerator) {
-    return {
+    context.res = {
       status: 200,
-      jsonBody: {
+      body: {
         reupload: true,
         becomeUploader: true,
         delete: true,
@@ -175,13 +171,14 @@ async function handlePermissions(
         editAllMetadata: true,
       },
     };
+    return context.res;
   }
 
   const isUploaderOrCollectionEditor =
     await BloomParseServer.isUploaderOrCollectionEditor(userInfo, bookInfo);
-  return {
+  context.res = {
     status: 200,
-    jsonBody: {
+    body: {
       // Must be uploader or collection editor
       reupload: isUploaderOrCollectionEditor,
       becomeUploader: isUploaderOrCollectionEditor,
@@ -192,14 +189,15 @@ async function handlePermissions(
       editAllMetadata: false,
     },
   };
+  return context.res;
 }
 
 async function handleGetOneBook(
-  context: InvocationContext,
+  context: Context,
   bookDatabaseId: string,
   expandParam: string,
   parseServer: BloomParseServer
-): Promise<HttpResponseInit> {
+) {
   const parseFieldsToExpand = convertExpandParamToParseFields(expandParam);
 
   const rawParseBook = await parseServer.getBookByDatabaseId(
@@ -207,10 +205,11 @@ async function handleGetOneBook(
     parseFieldsToExpand
   );
   if (!rawParseBook) {
-    return {
+    context.res = {
       status: 404,
       body: "Book not found",
     };
+    return context.res;
   }
   const isForClientUnitTest =
     parseServer.getEnvironment() === Environment.UNITTEST;
@@ -219,18 +218,19 @@ async function handleGetOneBook(
     expandParam,
     isForClientUnitTest
   );
-  return {
+  context.res = {
     status: 200,
-    jsonBody: bookRecord,
+    body: bookRecord,
   };
+  return context.res;
 }
 
 async function handleDelete(
-  context: InvocationContext,
+  context: Context,
   userInfo: User,
   bookDatabaseId: string,
   parseServer: BloomParseServer
-): Promise<HttpResponseInit> {
+) {
   try {
     const bookInfo = await parseServer.getBookByDatabaseId(bookDatabaseId, [
       "uploader",
@@ -262,46 +262,50 @@ async function handleDelete(
           superUserSessionToken ?? userInfo.sessionToken
         );
       } else {
-        return {
+        context.res = {
           status: 403, // Forbidden
         };
+        return context.res;
       }
     }
 
     // Return 204 even if the book wasn't found.
     // That's on the recommendation of https://github.com/microsoft/api-guidelines/blob/vNext/azure/Guidelines.md
     // which we've generally been trying to follow.
-    return {
+    context.res = {
       status: 204,
     };
+    return context.res;
   } catch (e) {
     // This shouldn't happen. If the book record isn't there, we should have failed to get the book info above
     // (and returned a 204).
     // But in case two deletes happen at almost the same time, handle it again here.
     if (e.response.status === 404) {
-      return {
+      context.res = {
         status: 204,
       };
+      return context.res;
     }
 
-    return {
+    context.res = {
       status: 500,
       body: "Unable to delete book",
     };
+    return context.res;
   }
 }
 
 // Validate the session token and return the user info
 async function getUserFromSession(
   parseServer: BloomParseServer,
-  request: HttpRequest
+  req: HttpRequest
 ): Promise<User | null> {
   // Note that req.headers' keys are all lower case.
   let authenticationToken: string;
   if (parseServer.getEnvironment() === Environment.UNITTEST) {
     authenticationToken = await parseServer.loginAsUnitTestUser();
   } else {
-    authenticationToken = request.headers.get("authentication-token");
+    authenticationToken = req.headers["authentication-token"];
   }
   return await parseServer.getLoggedInUserInfo(authenticationToken);
 }
@@ -329,15 +333,4 @@ function isValidBookId(bookDatabaseId: string): boolean {
   return BloomParseServer.isValidDatabaseId(bookDatabaseId);
 }
 
-app.http("books", {
-  methods: ["GET", "POST", "DELETE"],
-  authLevel: "anonymous",
-  route: "books/{id-and-action?}",
-  handler: books,
-  extraInputs: [
-    {
-      name: "starter",
-      type: "orchestrationClient",
-    },
-  ],
-});
+export default books;

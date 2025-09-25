@@ -3,7 +3,7 @@
 if you want to get an auto run on each save (like watch),
 2) install `npm add -g ts-node-dev` and then `ts-node-dev --respawn index.ts`. */
 
-import { app, InvocationContext, Timer } from "@azure/functions";
+import { AzureFunction, Context } from "@azure/functions";
 import crowdin from "@crowdin/crowdin-api-client";
 import { isLocalEnvironment } from "../common/utils";
 import {
@@ -21,24 +21,19 @@ const kCrowdinProjectId = 261564;
 readTransformUpload();
 
 // See README for schedule of time triggered tasks
-const contentfulToCrowdin = async (
-  myTimer: Timer,
-  context: InvocationContext
+const contentfulToCrowdin: AzureFunction = async (
+  context: Context
 ): Promise<void> => {
   try {
     context.log("contentfulToCrowdin starting", new Date().toISOString());
     readTransformUpload();
     context.log("contentfulToCrowdin finished", new Date().toISOString());
+    context.done();
   } catch (err) {
     console.error(err);
-    throw new Error("Error: " + JSON.stringify(err));
+    context.done("Error: " + JSON.stringify(err));
   }
 };
-
-app.timer("contentfulToCrowdin", {
-  schedule: "0 0 */6 * * *", // every 6 hours
-  handler: contentfulToCrowdin,
-});
 
 async function readTransformUpload() {
   // By default, we don't want to run this if we are running the functions locally.
