@@ -1,7 +1,8 @@
 /* Suggestion: If you are working on this function,
 1) install `npm add -g ts-node` and then `ts-node index.ts`. or
 if you want to get an auto run on each save (like watch),
-2) install `npm add -g ts-node-dev` and then `ts-node-dev --respawn index.ts`. */
+2) install `npm add -g ts-node-dev` and then `ts-node-dev --respawn index.ts`.
+Either way, see the note above the function about adding a temporary call. */
 
 import { AzureFunction, Context } from "@azure/functions";
 import crowdin from "@crowdin/crowdin-api-client";
@@ -16,23 +17,17 @@ const runEvenIfLocal = false;
 const crowdinApiToken = process.env.bloomCrowdinApiToken;
 const kCrowdinProjectId = 261564;
 
-// uncomment this listCrowdinFiles(); and do ts-node index.ts to get a file list
-//listCrowdinFiles();
-readTransformUpload();
+// To run by hand with ts-node, temporarily add a top-level call to readTransformUpload() (or
+// listCrowdinFiles() to get a file list). Don't commit it: the host loads this module on every
+// instance start, so a top-level call runs the whole sync on every cold start.
 
 // See README for schedule of time triggered tasks
 const contentfulToCrowdin: AzureFunction = async (
   context: Context
 ): Promise<void> => {
-  try {
-    context.log("contentfulToCrowdin starting", new Date().toISOString());
-    readTransformUpload();
-    context.log("contentfulToCrowdin finished", new Date().toISOString());
-    context.done();
-  } catch (err) {
-    console.error(err);
-    context.done("Error: " + JSON.stringify(err));
-  }
+  context.log("contentfulToCrowdin starting", new Date().toISOString());
+  await readTransformUpload();
+  context.log("contentfulToCrowdin finished", new Date().toISOString());
 };
 
 async function readTransformUpload() {
