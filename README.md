@@ -20,17 +20,17 @@ By default, the timer functions (see "Chron job schedule" below) are set to not 
 
 ## Package manager
 
-**Use npm**, not yarn.
+**Use npm** for now, not yarn or pnpm. The build and deploy workflow uses `npm ci`, so keep `package-lock.json` up to date.
 
-The auto-deploy from github feature on Azure uses npm.
+We used npm because Azure's server-side build (Kudu) ran `npm install`. Now that GitHub Actions builds the package, we could move to pnpm. That needs `node-linker=hoisted` in `.npmrc`, because the zip deployment needs a plain `node_modules` folder rather than pnpm's symlinks, plus switching the workflow and `DEPLOYMENT.md` to the pnpm commands.
 
 ## Deployment
 
-When the code is pushed to master, there is an automated deployment to a staging server.
+When the code is pushed to master, a GitHub Actions workflow builds it and deploys it to the staging slot.
 
-Some sanity checks can be done against the staging server, then the Azure portal is used to perform a swap from staging to production.
+Some sanity checks can be done against the staging slot, then the Azure portal is used to perform a swap from staging to production.
 
-Currently we have only one deployment: production. So all the testing you need to do, you need to do locally.
+See [DEPLOYMENT.md](DEPLOYMENT.md) for how it works, rolling back, and deploying by hand, and [RUN-FROM-PACKAGE-CUTOVER.md](RUN-FROM-PACKAGE-CUTOVER.md) for the one-time switch to this setup.
 
 ## Adding a new function
 
@@ -50,6 +50,8 @@ These environment variables need to be set for the **books**, **opds**, and **fs
 - _ParseAppIdProd_ - the APP_ID from the bloom-parse-server-production configuration in Azure
 - _ParseAppIdDev_ - the APP_ID from the bloom-parse-server-develop configuration in Azure
 - _ParseAppIdUnitTest_ - the APP_ID from the bloom-parse-server-unittest configuration in Azure
+
+_DurableTaskHubName_ sets the Durable Functions task hub (see `host.json`). It is a deployment slot setting, `TaskHub` in production and `TaskHubStaging` in staging, so staging and production don't share orchestrations. See [DEPLOYMENT.md](DEPLOYMENT.md#settings-and-credentials).
 
 Some functions may also require function-specific environment variables. See the function-specific READMEs and sections below.
 

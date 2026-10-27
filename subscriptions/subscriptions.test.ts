@@ -10,6 +10,9 @@ interface TestContext extends Context {
 }
 
 describe("Subscriptions Integration Test", () => {
+  // The first call loads googleapis (several seconds under jest) as well as calling Google.
+  jest.setTimeout(30000);
+
   let context: TestContext;
 
   beforeEach(() => {

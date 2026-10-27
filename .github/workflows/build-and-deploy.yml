@@ -1,0 +1,129 @@
+# Builds the Functions app into a zip and deploys it as a run-from-package deployment.
+# See DEPLOYMENT.md for how deployment works and the settings this relies on.
+#
+# - Pull requests to master: build and test only.
+# - Push to master: build, then deploy to the staging slot (replaces the staging slot's
+#   Deployment Center GitHub connection, which followed master).
+#   Production gets the code by swapping staging into production in the portal (or with az).
+# - Run manually on master (Actions > Build and deploy > Run workflow): deploy this build to
+#   the staging slot or, if the "production" environment approves it, straight to production.
+#   Deploys only ever happen from master.
+
+name: Build and deploy
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+    inputs:
+      target:
+        description: Slot to deploy to
+        type: choice
+        options: [staging, production]
+        default: staging
+
+permissions:
+  contents: read
+
+# One run per branch and target at a time, so two quick pushes to master deploy to staging in
+# order (a newer queued run replaces an older queued one). Production dispatches get their own
+# group, so one waiting for approval doesn't hold up staging. Superseded pull request runs are
+# cancelled.
+concurrency:
+  group: build-and-deploy-${{ github.ref }}-${{ inputs.target || 'staging' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  AZURE_FUNCTIONAPP_NAME: bloom-functions
+  PACKAGE_NAME: bloom-functions-${{ github.sha }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # Reads the "volta" node version from package.json, which matches the app's Node 22.
+          node-version-file: package.json
+          cache: npm
+
+      - run: npm ci
+      - run: npm run lint
+      # Only the tests that need no Parse, S3 or Google credentials; see DEPLOYMENT.md.
+      - run: npm run test:ci
+      - run: npm run build
+      - run: npm prune --omit=dev
+
+      - name: Assemble package
+        run: |
+          set -euo pipefail
+          mkdir package
+          cp host.json package.json package
+          cp -r dist node_modules package
+          # Source maps aren't used at runtime (.funcignore leaves them out of hand deploys too).
+          find package/dist -name '*.js.map' -delete
+          for f in */function.json; do
+            mkdir -p "package/$(dirname "$f")"
+            cp "$f" "package/$f"
+          done
+          # Fail if any function points at a script that is not in the package.
+          for f in package/*/function.json; do
+            script=$(node -p "require('./$f').scriptFile")
+            test -f "$(dirname "$f")/$script" || { echo "Missing $script for $f"; exit 1; }
+          done
+          (cd package && zip -qr "../$PACKAGE_NAME.zip" .)
+          du -h "$PACKAGE_NAME.zip"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.PACKAGE_NAME }}
+          path: ${{ env.PACKAGE_NAME }}.zip
+          retention-days: 90
+          # Lets "Re-run all jobs" replace the artifact from the earlier attempt.
+          overwrite: true
+          # Already a zip.
+          compression-level: 0
+
+  deploy-staging:
+    needs: build
+    if: >-
+      github.ref == 'refs/heads/master' &&
+      (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.target == 'staging'))
+    runs-on: ubuntu-latest
+    environment: staging
+    concurrency: deploy-staging
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.PACKAGE_NAME }}
+      # The publish profile is a secret on the "staging" environment: the staging slot's profile.
+      - uses: Azure/functions-action@v1
+        with:
+          app-name: ${{ env.AZURE_FUNCTIONAPP_NAME }}
+          slot-name: staging
+          package: ${{ env.PACKAGE_NAME }}.zip
+          publish-profile: ${{ secrets.AZURE_FUNCTIONAPP_PUBLISH_PROFILE }}
+
+  deploy-production:
+    needs: build
+    if: >-
+      github.ref == 'refs/heads/master' &&
+      github.event_name == 'workflow_dispatch' && inputs.target == 'production'
+    runs-on: ubuntu-latest
+    environment: production
+    concurrency: deploy-production
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.PACKAGE_NAME }}
+      # The publish profile is a secret on the "production" environment: the production slot's
+      # profile, readable only by jobs a reviewer has approved.
+      - uses: Azure/functions-action@v1
+        with:
+          app-name: ${{ env.AZURE_FUNCTIONAPP_NAME }}
+          package: ${{ env.PACKAGE_NAME }}.zip
+          publish-profile: ${{ secrets.AZURE_FUNCTIONAPP_PUBLISH_PROFILE }}
