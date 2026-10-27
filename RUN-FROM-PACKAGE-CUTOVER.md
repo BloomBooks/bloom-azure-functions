@@ -42,12 +42,21 @@ requests take on fresh instances instead (below).
 
 ### Azure
 
-1. **Identity for GitHub.** Create an app registration (or user-assigned managed identity), give it
-   **Website Contributor** on `bloom-functions` (this covers its slots), and add two federated
-   credentials, entity type *Environment*:
-   - `repo:BloomBooks/bloom-azure-functions:environment:staging`
-   - `repo:BloomBooks/bloom-azure-functions:environment:production`
-2. **Staging slot settings** (**Configuration → Application settings**, or
+Everything here can be done in the Azure portal. App settings are under **Settings → Environment variables** on
+the Function App, or on a slot (**bloom-functions → Deployment → Deployment slots → staging**); each
+has a **Deployment slot setting** checkbox. The CLI equivalents are given where they exist.
+
+1. **Identity for GitHub.** (Creating an app registration needs the right Microsoft Entra
+   permissions.)
+   - **Microsoft Entra ID → App registrations → New registration**, e.g.
+     `bloom-functions-github-deploy`. Its **Overview** shows the client ID and tenant ID GitHub needs.
+   - In that registration, **Certificates & secrets → Federated credentials → Add credential**,
+     scenario *GitHub Actions deploying Azure resources*: organization `BloomBooks`, repository
+     `bloom-azure-functions`, entity type *Environment*, environment `staging`. Add a second one for
+     `production`.
+   - **bloom-functions → Access control (IAM) → Add → Add role assignment → Website Contributor**,
+     members: the app registration. This covers its slots.
+2. **Staging slot settings** (portal: the staging slot's **Settings → Environment variables**; CLI:
    `az functionapp config appsettings set -g <resource-group> -n bloom-functions --slot staging --settings WEBSITE_NODE_DEFAULT_VERSION=~22`):
    - `WEBSITE_NODE_DEFAULT_VERSION` = `~22` (was `~20`; Microsoft no longer supports Node 20 for
      Functions). Check it is **not** a deployment slot setting, so the swap moves production to Node
@@ -55,16 +64,17 @@ requests take on fresh instances instead (below).
    - Remove `SCM_DO_BUILD_DURING_DEPLOYMENT` if it is present.
    - Not `WEBSITE_RUN_FROM_PACKAGE` yet: with it set and no package deployed, the slot has no code
      at all. It is set in "Cutting over", right before the first deploy.
-3. **Check** that the production slot has no Deployment Center source, and that the timer functions are
-   disabled in staging if you don't want them running there (see DEPLOYMENT.md, "Settings and
+3. **Check** that the production slot has no source in **Deployment → Deployment Center**, and that
+   the timer functions are disabled in staging if you don't want them running there (see DEPLOYMENT.md, "Settings and
    credentials").
 
 ### GitHub
 
 1. **Settings → Environments**: create `staging` and `production`. On both, set **Deployment branches
    and tags** to `master` only. On `production`, add required reviewers.
-2. Secrets: `AZURE_CLIENT_ID` (the app registration's or managed identity's client ID),
-   `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`.
+2. **Settings → Secrets and variables → Actions**, repository secrets: `AZURE_CLIENT_ID` and
+   `AZURE_TENANT_ID` (from the app registration's **Overview**), and `AZURE_SUBSCRIPTION_ID` (from
+   the Function App's **Overview**).
 
 If OIDC is not possible, a publish profile works instead: download it for each slot, store it as
 `AZURE_FUNCTIONAPP_PUBLISH_PROFILE_STAGING` / `..._PRODUCTION`, drop the `azure/login` steps and pass
@@ -74,13 +84,16 @@ If OIDC is not possible, a publish profile works instead: download it for each s
 
 1. Do the setup above.
 2. On staging, back to back:
-   - Disconnect the Deployment Center (**Disconnect**, or
+   - Disconnect the Deployment Center (portal: the staging slot's **Deployment → Deployment Center →
+     Disconnect**; CLI:
      `az functionapp deployment source delete -g <resource-group> -n bloom-functions --slot staging`).
      Otherwise, once this change is merged, Kudu finds no `deploy.cmd`, falls back to its default
      Node build without `tsc`, and staging ends up with no `dist` and no working functions.
-   - Set `WEBSITE_RUN_FROM_PACKAGE` = `1`, **not** a deployment slot setting. Not on production: it
+   - In the staging slot's **Settings → Environment variables**, set `WEBSITE_RUN_FROM_PACKAGE` = `1`, **not** a
+     deployment slot setting. Not on production: it
      has no package until the first swap, which carries the setting there with it.
-   - Deploy this pull request's build artifact by hand (DEPLOYMENT.md, "Deploying by hand").
+   - Deploy this pull request's build artifact by hand (DEPLOYMENT.md, "Deploying by hand"; the
+     portal's Cloud Shell runs the one command it needs).
 
    Staging serves nothing between setting `WEBSITE_RUN_FROM_PACKAGE` and the deploy finishing. If the
    deploy fails, remove the setting to bring back the last Kudu build.
@@ -90,7 +103,8 @@ If OIDC is not possible, a publish profile works instead: download it for each s
 5. At a quiet time, with no orchestrations running, swap. Watch production: `/v1/social`, a
    `/v1/books` request, and a Durable orchestration end to end (an upload, checking `/v1/status`).
    This is the first time production runs code built by CI rather than by Kudu.
-6. Set `WEBSITE_RUN_FROM_PACKAGE` = `1` and `WEBSITE_NODE_DEFAULT_VERSION` = `~22` on staging again.
+6. In the staging slot's **Settings → Environment variables**, set `WEBSITE_RUN_FROM_PACKAGE` = `1` and
+   `WEBSITE_NODE_DEFAULT_VERSION` = `~22` again.
    The swap moved both settings to production, and staging is now the old production site, with
    neither. The deploy action would set `WEBSITE_RUN_FROM_PACKAGE` on the next deploy anyway, but a
    hand deploy with `az ... config-zip` would not, and would leave plain files that the next swap puts
@@ -108,8 +122,11 @@ If OIDC is not possible, a publish profile works instead: download it for each s
 
 ## Backing out
 
-Revert this change's commits, remove `WEBSITE_RUN_FROM_PACKAGE` from both slots, and reconnect the
-staging slot's Deployment Center to GitHub `master`. The next push builds with Kudu again; then swap.
+Revert this change's commits and remove `WEBSITE_RUN_FROM_PACKAGE` from both slots'
+**Settings → Environment variables**. Then reconnect the staging slot's **Deployment Center** to GitHub
+(`BloomBooks/bloom-azure-functions`, branch `master`). Choose the App Service build service (Kudu)
+as the build provider, not GitHub Actions; the portal now suggests GitHub Actions by default. The
+next push builds with Kudu again; then swap.
 
 ## Not yet verified
 

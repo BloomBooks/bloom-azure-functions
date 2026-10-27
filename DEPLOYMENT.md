@@ -51,7 +51,13 @@ App settings that matter for deployment:
 - Never make `WEBSITE_CONTENTSHARE` or `WEBSITE_CONTENTAZUREFILECONNECTIONSTRING` slot settings, and
   don't set `SCM_DO_BUILD_DURING_DEPLOYMENT`.
 - The timer functions (dailyTimer, bookCleanup, contentfulToCrowdin) run in the staging slot too unless
-  disabled there with sticky `AzureWebJobs.<name>.Disabled` = `true` settings.
+  disabled there with sticky `AzureWebJobs.<name>.Disabled` = `true` settings. Add those in the staging
+  slot's **Settings → Environment variables** with **Deployment slot setting** ticked. Don't use the Disable button
+  in the slot's function list: it writes the same setting without ticking that box, so the next swap
+  would disable the timers in production.
+
+App settings are under **Settings → Environment variables** on the Function App, or on a slot
+(**bloom-functions → Deployment → Deployment slots → staging**).
 
 GitHub logs in to Azure with OpenID Connect; nothing secret is stored. An app registration (or managed
 identity) has the **Website Contributor** role on `bloom-functions`, with federated credentials for the
@@ -70,7 +76,8 @@ Before swapping, make sure no Durable orchestrations are running in production (
 upload in progress). After a swap, production's existing orchestrations replay against the new code,
 so orchestrator changes must stay replay-compatible.
 
-- Portal: **bloom-functions → Deployment slots → Swap**, source `staging`, target `production`.
+- Portal: **bloom-functions → Deployment → Deployment slots → Swap**, source `staging`, target
+  `production`.
 - CLI: `az functionapp deployment slot swap -g <resource-group> -n bloom-functions --slot staging --target-slot production`
 
 After a swap, staging holds what used to be in production.
@@ -87,12 +94,16 @@ After a swap, staging holds what used to be in production.
 
 From a build artifact (preferred, it's exactly what CI built and tested): download
 `bloom-functions-<sha>` from the workflow run, unzip it once to get `bloom-functions-<sha>.zip`, check
-that the target slot has `WEBSITE_RUN_FROM_PACKAGE=1` (this command won't set it), then
+that the target slot has `WEBSITE_RUN_FROM_PACKAGE=1` (this command won't set it), then run:
 
 ```
-az login
 az functionapp deployment source config-zip -g <resource-group> -n bloom-functions --slot staging --src bloom-functions-<sha>.zip
 ```
+
+The portal has no button that uploads a zip as a package, but its **Cloud Shell** (the `>_` icon at
+the top of the portal) runs this command without installing anything. In Cloud Shell, upload the zip
+with **Manage files → Upload**, then run the command; it is already signed in. The resource group is
+on the Function App's **Overview** page. From your own machine, run `az login` first.
 
 From your own checkout, with [Core Tools v4](https://learn.microsoft.com/azure/azure-functions/functions-run-local):
 
