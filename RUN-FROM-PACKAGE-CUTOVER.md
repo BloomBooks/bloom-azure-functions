@@ -46,16 +46,11 @@ Everything here can be done in the Azure portal. App settings are under **Settin
 the Function App, or on a slot (**bloom-functions → Deployment → Deployment slots → staging**); each
 has a **Deployment slot setting** checkbox. The CLI equivalents are given where they exist.
 
-1. **Identity for GitHub.** (Creating an app registration needs the right Microsoft Entra
-   permissions.)
-   - **Microsoft Entra ID → App registrations → New registration**, e.g.
-     `bloom-functions-github-deploy`. Its **Overview** shows the client ID and tenant ID GitHub needs.
-   - In that registration, **Certificates & secrets → Federated credentials → Add credential**,
-     scenario *GitHub Actions deploying Azure resources*: organization `BloomBooks`, repository
-     `bloom-azure-functions`, entity type *Environment*, environment `staging`. Add a second one for
-     `production`.
-   - **bloom-functions → Access control (IAM) → Add → Add role assignment → Website Contributor**,
-     members: the app registration. This covers its slots.
+1. **Publish profiles for GitHub.** On the Function App and on the staging slot:
+   - **Settings → Configuration → General settings**: turn **SCM Basic Auth Publishing Credentials**
+     on, and save. Leave **FTP Basic Auth Publishing Credentials** off; nothing needs it.
+   - **Overview → Download publish profile**. Keep the two files private; each is a password for
+     deploying to its slot.
 2. **Staging slot settings** (portal: the staging slot's **Settings → Environment variables**; CLI:
    `az functionapp config appsettings set -g <resource-group> -n bloom-functions --slot staging --settings WEBSITE_NODE_DEFAULT_VERSION=~22`):
    - `WEBSITE_NODE_DEFAULT_VERSION` = `~22` (was `~20`; Microsoft no longer supports Node 20 for
@@ -72,13 +67,10 @@ has a **Deployment slot setting** checkbox. The CLI equivalents are given where 
 
 1. **Settings → Environments**: create `staging` and `production`. On both, set **Deployment branches
    and tags** to `master` only. On `production`, add required reviewers.
-2. **Settings → Secrets and variables → Actions**, repository secrets: `AZURE_CLIENT_ID` and
-   `AZURE_TENANT_ID` (from the app registration's **Overview**), and `AZURE_SUBSCRIPTION_ID` (from
-   the Function App's **Overview**).
-
-If OIDC is not possible, a publish profile works instead: download it for each slot, store it as
-`AZURE_FUNCTIONAPP_PUBLISH_PROFILE_STAGING` / `..._PRODUCTION`, drop the `azure/login` steps and pass
-`publish-profile:` to `Azure/functions-action`. That needs **SCM Basic Auth** turned on for the app.
+2. In each environment (**Settings → Environments → staging**, then **production**), add an
+   environment secret named `AZURE_FUNCTIONAPP_PUBLISH_PROFILE`, pasting in the whole contents of that
+   slot's publish profile file. Staging gets the staging slot's profile, production gets the
+   production one. Then delete the downloaded files.
 
 ## Cutting over
 
@@ -106,9 +98,8 @@ If OIDC is not possible, a publish profile works instead: download it for each s
 6. In the staging slot's **Settings → Environment variables**, set `WEBSITE_RUN_FROM_PACKAGE` = `1` and
    `WEBSITE_NODE_DEFAULT_VERSION` = `~22` again.
    The swap moved both settings to production, and staging is now the old production site, with
-   neither. The deploy action would set `WEBSITE_RUN_FROM_PACKAGE` on the next deploy anyway, but a
-   hand deploy with `az ... config-zip` would not, and would leave plain files that the next swap puts
-   into production.
+   neither. Nothing else sets `WEBSITE_RUN_FROM_PACKAGE`. Without it, the next deploy to staging is
+   unpacked into `wwwroot` as plain files, and the swap after that puts them into production.
 
 ## After
 
@@ -130,6 +121,7 @@ next push builds with Kudu again; then swap.
 
 ## Not yet verified
 
-The workflow, `Azure/functions-action` with OIDC on a Windows Consumption slot, and the KQL queries
+The workflow, `Azure/functions-action` with a publish profile on a Windows Consumption slot, and the
+KQL queries
 have not been run against Azure. The build and packaging steps were run locally. Steps 2–4 of
 "Cutting over" test the package on staging first, then the workflow's own deploy.

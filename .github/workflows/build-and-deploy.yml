@@ -95,24 +95,18 @@ jobs:
       (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.target == 'staging'))
     runs-on: ubuntu-latest
     environment: staging
-    permissions:
-      contents: read
-      id-token: write
     concurrency: deploy-staging
     steps:
       - uses: actions/download-artifact@v4
         with:
           name: ${{ env.PACKAGE_NAME }}
-      - uses: azure/login@v3
-        with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      # The publish profile is a secret on the "staging" environment: the staging slot's profile.
       - uses: Azure/functions-action@v1
         with:
           app-name: ${{ env.AZURE_FUNCTIONAPP_NAME }}
           slot-name: staging
           package: ${{ env.PACKAGE_NAME }}.zip
+          publish-profile: ${{ secrets.AZURE_FUNCTIONAPP_PUBLISH_PROFILE }}
 
   deploy-production:
     needs: build
@@ -121,20 +115,15 @@ jobs:
       github.event_name == 'workflow_dispatch' && inputs.target == 'production'
     runs-on: ubuntu-latest
     environment: production
-    permissions:
-      contents: read
-      id-token: write
     concurrency: deploy-production
     steps:
       - uses: actions/download-artifact@v4
         with:
           name: ${{ env.PACKAGE_NAME }}
-      - uses: azure/login@v3
-        with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      # The publish profile is a secret on the "production" environment: the production slot's
+      # profile, readable only by jobs a reviewer has approved.
       - uses: Azure/functions-action@v1
         with:
           app-name: ${{ env.AZURE_FUNCTIONAPP_NAME }}
           package: ${{ env.PACKAGE_NAME }}.zip
+          publish-profile: ${{ secrets.AZURE_FUNCTIONAPP_PUBLISH_PROFILE }}

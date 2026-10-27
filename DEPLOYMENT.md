@@ -40,8 +40,9 @@ switch the build job to `windows-latest`.
 App settings that matter for deployment:
 
 - `WEBSITE_RUN_FROM_PACKAGE` = `1` on both slots. **Not** a deployment slot setting, so it swaps with
-  the code. The deploy action sets it on the slot it deploys to if it's missing; `az ... config-zip`
-  does not.
+  the code. Nothing sets it for you: neither the workflow's deploy (with a publish profile) nor
+  `az ... config-zip` does. If a slot is missing it, a deploy is unpacked into `wwwroot` as plain
+  files, and the next swap puts that into production.
 - `WEBSITE_NODE_DEFAULT_VERSION` = `~22` on both slots, matching `volta.node` in `package.json`.
   **Not** a deployment slot setting, so the Node version swaps with the code built for it. Change both
   together.
@@ -59,11 +60,13 @@ App settings that matter for deployment:
 App settings are under **Settings → Environment variables** on the Function App, or on a slot
 (**bloom-functions → Deployment → Deployment slots → staging**).
 
-GitHub logs in to Azure with OpenID Connect; nothing secret is stored. An app registration (or managed
-identity) has the **Website Contributor** role on `bloom-functions`, with federated credentials for the
-GitHub environments `staging` and `production`. Both environments only allow `master`; `production`
-requires a reviewer. The workflow needs these secrets: `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`,
-`AZURE_SUBSCRIPTION_ID`.
+GitHub deploys with each slot's **publish profile**, which needs **SCM Basic Auth Publishing
+Credentials** turned on for both slots (**Settings → Configuration → General settings**). Each
+profile is stored as the secret `AZURE_FUNCTIONAPP_PUBLISH_PROFILE` on its GitHub environment:
+the staging slot's on `staging`, production's on `production`. Both environments only allow `master`,
+and `production` requires a reviewer, so only an approved job can read production's profile. A
+profile is a password for deploying to its slot. If one leaks, use **Reset publish profile** on that
+slot's **Overview** and store the new one.
 
 ## Normal deploy
 
