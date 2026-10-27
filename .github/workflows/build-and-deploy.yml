@@ -2,7 +2,8 @@
 # See DEPLOYMENT.md for the one-time Azure/GitHub setup this relies on.
 #
 # - Pull requests to master: build and test only.
-# - Push to master: build, then deploy to the staging slot (same as the old Kudu setup).
+# - Push to master: build, then deploy to the staging slot (replaces the staging slot's
+#   Deployment Center GitHub connection, which followed master).
 #   Production gets the code by swapping staging into production in the portal (or with az).
 # - Run manually (Actions > Build and deploy > Run workflow): deploy this build to the
 #   staging slot or, if the "production" environment approves it, straight to production.

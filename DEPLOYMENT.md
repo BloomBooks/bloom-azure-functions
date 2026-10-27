@@ -15,18 +15,9 @@
 8,000 `node_modules` files one by one from the app's Azure Files share, which makes Node cold starts
 on the Consumption plan slow.
 
-What we know about how a deploy was triggered: the README says a push to `master` deploys
-automatically to a staging server, then someone swaps staging into production in the portal. The repo
-has no GitHub workflow, so that must be the portal's Deployment Center (Kudu "continuous deployment").
-What we **could not determine** from the repo:
-
-- whether Deployment Center uses GitHub or local Git, and whether it is attached to the staging slot,
-  the production slot, or both;
-- which branch each slot follows (the README implies `master` → staging; it also says, in an older
-  line, that there is only a production deployment).
-
-Check **bloom-functions → Deployment slots → staging → Deployment Center** (and the same for
-production) before switching.
+The staging slot's Deployment Center was connected to GitHub, following `master`, so every push to
+`master` made Kudu build and deploy to staging. Production got the code by swapping staging into
+production in the portal. The new workflow keeps that mapping.
 
 ## How it works now
 
@@ -52,10 +43,10 @@ something ever needs to).
 
 ### Azure
 
-1. **Stop the old deployment.** On every slot that has a Deployment Center source, choose
-   **Disconnect** (or `az functionapp deployment source delete -g <resource-group> -n bloom-functions --slot staging`).
+1. **Stop the old deployment.** In the staging slot's Deployment Center, choose **Disconnect** (or
+   `az functionapp deployment source delete -g <resource-group> -n bloom-functions --slot staging`).
    Otherwise the next push to `master` makes Kudu try to build with a `deploy.cmd` that no longer
-   exists.
+   exists. Do this just before merging this change, so staging never gets both deploys.
 2. **App settings, on both slots** (**Configuration → Application settings**, or `az functionapp config appsettings set ... --settings WEBSITE_RUN_FROM_PACKAGE=1`, with `--slot staging` for staging):
    - `WEBSITE_RUN_FROM_PACKAGE` = `1`. Same value on both slots; it does not need to be a
      deployment-slot ("sticky") setting. The deploy action may set it too; setting it ourselves keeps
@@ -173,8 +164,6 @@ requests
 
 ## Risks and open questions
 
-- **Branch/slot mapping is unconfirmed** (see "How it worked before"). The workflow assumes
-  `master` → staging, production by swap.
 - **Durable Functions task hub per slot.** `host.json` uses `%DurableTaskHubName%`. Each slot must
   have its own value, marked as a deployment-slot setting, or staging and production share
   orchestrations. Check this before the first swap; it is true today too, but worth confirming.
