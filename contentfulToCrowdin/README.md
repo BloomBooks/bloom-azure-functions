@@ -23,5 +23,5 @@ Leave the inputs empty, click The "Run" button in the lower right.
 # Running locally
 
 1. Have typescript installed globally, e.g. `npm add -g typescript`
-2. Uncomment the function you want to test
+2. Temporarily add a top-level call to the function you want to test, e.g. `readTransformUpload();`. Don't commit it: the host loads this module on every instance start, so a top-level call runs the sync on every cold start.
 3. On the command line from the root of this folder, `ts-node index.ts`

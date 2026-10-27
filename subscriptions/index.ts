@@ -1,5 +1,4 @@
 import { AzureFunction, Context, HttpRequest } from "@azure/functions";
-import { google } from "googleapis";
 import { checkForRequiredEnvVars } from "../common/utils";
 
 export interface SubscriptionResult {
@@ -31,6 +30,10 @@ export const getSubscriptionInfo: AzureFunction = async function (
     "BLOOM_GOOGLE_SERVICE_PRIVATE_KEY",
     "BLOOM_SUBSCRIPTION_SPREADSHEET_ID",
   ]);
+
+  // Loaded here rather than at the top of the file: googleapis is huge, and the host loads every
+  // function's module when an instance starts, so a top-level import slowed every cold start.
+  const { google } = await import("googleapis");
 
   const auth = new google.auth.GoogleAuth({
     credentials: {

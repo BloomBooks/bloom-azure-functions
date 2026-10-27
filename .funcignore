@@ -1,7 +1,21 @@
 *.js.map
 *.ts
+*.md
+*.test.js
 .git*
+.github
 .vscode
+.eslintrc.js
+jest.config.js
+api-spec.yml
+LICENSE
 local.settings.json
-test
+/coverage
+/test
 tsconfig.json
+__azurite*
+__blobstorage__
+__queuestorage__
+opds/sample.dat
+contentfulToCrowdin/Contentful *.json
+contentfulToCrowdin/contentful-config.json
