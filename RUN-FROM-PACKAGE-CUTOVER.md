@@ -22,31 +22,35 @@ with large `node_modules`.
 This may not be the whole story. Loading files from the share usually costs seconds to tens of seconds,
 not minutes. Other suspects for the stall: throttling on the storage account behind the share (the zip
 is still read from it, and Durable Functions may use the same account), an extension bundle download on
-cold start (`host.json` allows any 4.x), Durable Functions acquiring leases at host start, and Node 20
-(below).
+cold start (`host.json` allows any 4.x), and Durable Functions acquiring leases at host start.
 
-## Decide first
+## Before: look at the 2026-10-27 stall
 
-- **Node version.** Microsoft no longer supports Node 20 for Functions (supported: 22 and 24). Retired
-  versions get no fixes and "in certain cases" may be limited to one instance, which could itself cause
-  slow starts under load. Recommended: move to Node 22 before or alongside this switch, as its own
-  change: `WEBSITE_NODE_DEFAULT_VERSION` = `~22` on both slots, `volta.node` and `@types/node` in
-  `package.json`. The function.json programming model works on 22.
+This change won't help if the stall was caused by storage or by Azure itself, so check that first. It
+needs only the logs we already have. In Application Insights → **Logs**, this lists long silences on
+each instance that day, with the last log line before each and the first after:
 
-## Before: get a baseline
+```kusto
+traces
+| where timestamp between (datetime(2026-10-27) .. datetime(2026-10-28))
+| project timestamp, cloud_RoleInstance, message
+| order by cloud_RoleInstance asc, timestamp asc
+| extend prevTime = prev(timestamp), prevMsg = prev(message), prevInstance = prev(cloud_RoleInstance)
+| where cloud_RoleInstance == prevInstance
+| extend gapSeconds = datetime_diff('second', timestamp, prevTime)
+| where gapSeconds > 60
+| project cloud_RoleInstance, gapStart = prevTime, gapSeconds, lastBefore = prevMsg, firstAfter = message
+| order by gapSeconds desc
+```
 
-Mark both settings below as **deployment slot settings** on production, or the cut-over swap
-replaces them with staging's values (none) and the "after" numbers aren't comparable. Adding app
-settings restarts the app, so do it at a quiet time.
+Idle instances have quiet stretches too; the interesting gaps are in an instance's first few minutes.
+Storage timeouts, extension bundle downloads or Durable lease messages around the gap point away from
+this change; a late "Worker process started and initialized" points at loading our modules, which this
+change targets. Also check the storage account's metrics that day (Transactions split by Response type,
+for throttling) and **Diagnose and solve problems** on the Function App.
 
-1. Turn off request sampling so the numbers are complete, without a deploy: add the app setting
-   `AzureFunctionsJobHost__logging__applicationInsights__samplingSettings__excludedTypes` = `Request`
-   on production.
-2. For the stall investigation, add `SCALE_CONTROLLER_LOGGING_ENABLED` = `AppInsights:Verbose` on
-   production. It logs why instances are added or removed. It's verbose; remove it afterwards.
-3. Run the queries in [DEPLOYMENT.md](DEPLOYMENT.md#watching-cold-start) for the two weeks before the
-   switch, and save the results. Look at 2026-10-27 in the host traces (extension bundle loading, host
-   lock lease messages) and at the storage account's metrics for throttling.
+If the stall happens again, add `SCALE_CONTROLLER_LOGGING_ENABLED` = `AppInsights:Verbose` (a
+deployment slot setting on production) to log why instances are added, and remove it afterwards.
 
 ## One-time setup
 
@@ -97,11 +101,11 @@ If OIDC is not possible, a publish profile works instead: download it for each s
 
 ## After
 
-1. Run the cold-start queries again after two weeks and compare with the baseline.
-2. Remove `SCALE_CONTROLLER_LOGGING_ENABLED`. Keep or remove the sampling override as you like.
-3. Once stable, delete the old Kudu-built files in `d:\home\site\wwwroot` on both slots (Kudu console).
+1. After a couple of weeks, run the queries in
+   [DEPLOYMENT.md](DEPLOYMENT.md#watching-cold-start) over the weeks before and after the switch.
+2. Once stable, delete the old Kudu-built files in `d:\home\site\wwwroot` on both slots (Kudu console).
    They're hidden under the package, but would reappear if `WEBSITE_RUN_FROM_PACKAGE` were removed.
-4. Delete this file.
+3. Delete this file.
 
 ## Backing out
 
