@@ -48,13 +48,13 @@ requests take on fresh instances instead (below).
    - `repo:BloomBooks/bloom-azure-functions:environment:staging`
    - `repo:BloomBooks/bloom-azure-functions:environment:production`
 2. **Staging slot settings** (**Configuration → Application settings**, or
-   `az functionapp config appsettings set -g <resource-group> -n bloom-functions --slot staging --settings WEBSITE_RUN_FROM_PACKAGE=1 WEBSITE_NODE_DEFAULT_VERSION=~22`):
-   - `WEBSITE_RUN_FROM_PACKAGE` = `1`, **not** a deployment slot setting. Don't set it on production
-     yet: production has no package until the first swap, which carries the setting there with it.
+   `az functionapp config appsettings set -g <resource-group> -n bloom-functions --slot staging --settings WEBSITE_NODE_DEFAULT_VERSION=~22`):
    - `WEBSITE_NODE_DEFAULT_VERSION` = `~22` (was `~20`; Microsoft no longer supports Node 20 for
      Functions). Check it is **not** a deployment slot setting, so the swap moves production to Node
      22 together with the code.
    - Remove `SCM_DO_BUILD_DURING_DEPLOYMENT` if it is present.
+   - Not `WEBSITE_RUN_FROM_PACKAGE` yet: with it set and no package deployed, the slot has no code
+     at all. It is set in "Cutting over", right before the first deploy.
 3. **Check** that the production slot has no Deployment Center source, and that the timer functions are
    disabled in staging if you don't want them running there (see DEPLOYMENT.md, "Settings and
    credentials").
@@ -73,17 +73,24 @@ If OIDC is not possible, a publish profile works instead: download it for each s
 ## Cutting over
 
 1. Do the setup above.
-2. Disconnect the staging slot's Deployment Center (**Disconnect**, or
-   `az functionapp deployment source delete -g <resource-group> -n bloom-functions --slot staging`),
-   then merge this change. Do the two together: if Kudu is still connected, it finds no `deploy.cmd`,
-   falls back to its default Node build without `tsc`, and staging ends up with no `dist` and no
-   working functions.
-3. The merge runs the workflow. Check staging (see DEPLOYMENT.md, "Verifying a deploy"). **Don't swap
-   until this passes**; until then staging still holds the last Kudu build.
-4. At a quiet time, with no orchestrations running, swap. Watch production: `/v1/social`, a
+2. On staging, back to back:
+   - Disconnect the Deployment Center (**Disconnect**, or
+     `az functionapp deployment source delete -g <resource-group> -n bloom-functions --slot staging`).
+     Otherwise, once this change is merged, Kudu finds no `deploy.cmd`, falls back to its default
+     Node build without `tsc`, and staging ends up with no `dist` and no working functions.
+   - Set `WEBSITE_RUN_FROM_PACKAGE` = `1`, **not** a deployment slot setting. Not on production: it
+     has no package until the first swap, which carries the setting there with it.
+   - Deploy this pull request's build artifact by hand (DEPLOYMENT.md, "Deploying by hand").
+
+   Staging serves nothing between setting `WEBSITE_RUN_FROM_PACKAGE` and the deploy finishing. If the
+   deploy fails, remove the setting to bring back the last Kudu build.
+3. Check staging (see DEPLOYMENT.md, "Verifying a deploy"). **Don't swap until this passes.**
+4. Merge this change. The workflow deploys the same code to staging, which tests its own deploy.
+   Check staging again.
+5. At a quiet time, with no orchestrations running, swap. Watch production: `/v1/social`, a
    `/v1/books` request, and a Durable orchestration end to end (an upload, checking `/v1/status`).
    This is the first time production runs code built by CI rather than by Kudu.
-5. Set `WEBSITE_RUN_FROM_PACKAGE` = `1` and `WEBSITE_NODE_DEFAULT_VERSION` = `~22` on staging again.
+6. Set `WEBSITE_RUN_FROM_PACKAGE` = `1` and `WEBSITE_NODE_DEFAULT_VERSION` = `~22` on staging again.
    The swap moved both settings to production, and staging is now the old production site, with
    neither. The deploy action would set `WEBSITE_RUN_FROM_PACKAGE` on the next deploy anyway, but a
    hand deploy with `az ... config-zip` would not, and would leave plain files that the next swap puts
@@ -107,10 +114,5 @@ staging slot's Deployment Center to GitHub `master`. The next push builds with K
 ## Not yet verified
 
 The workflow, `Azure/functions-action` with OIDC on a Windows Consumption slot, and the KQL queries
-have not been run against Azure. The build and packaging steps were run locally.
-
-The workflow can't deploy before it's merged (it only deploys from `master`), but the pull request's
-build job produces the zip. The safest first test is to disconnect the staging Deployment Center, set
-`WEBSITE_RUN_FROM_PACKAGE` on staging, and deploy the pull request's artifact to staging by hand
-(DEPLOYMENT.md, "Deploying by hand"). That checks the package and the slot settings; merging then
-tests the workflow's own deploy.
+have not been run against Azure. The build and packaging steps were run locally. Steps 2–4 of
+"Cutting over" test the package on staging first, then the workflow's own deploy.
