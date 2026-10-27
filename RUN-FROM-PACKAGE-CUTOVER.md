@@ -19,22 +19,24 @@ recommends run-from-package for Windows Consumption, and says it can reduce cold
 with large `node_modules`. It also moves the build off the server, so a deploy no longer depends on
 `npm install` succeeding in Kudu, and moves to Node 22, since Microsoft no longer supports Node 20.
 
-**It may also address the 2026-10-27 stall; that is not yet confirmed.** That day, requests to new
-instances were held for about 3.5 minutes. The host passed each request on as it arrived, but none of
-our code ran until all of them were released at once. CPU was low, and storage was healthy. Requests
-on ordinary days are held the same way (157 s on one instance on 10-05), so this happens on every cold
-start.
+**It also addresses the 2026-10-27 stall.** Every cold start holds its requests for about 3 minutes
+while the worker loads our code: 150–246 s, median 190 s, across 96 instance starts in 30 days. The
+host passes each request on as it arrives, but none of our code runs until all of them are released
+at once. CPU is low and storage was healthy. 10-27 was just a morning with many cold starts.
 
-The leading explanation: the Node worker's event loop is blocked by loading our modules synchronously,
-file by file, from the Azure Files share. That's about 2,000 modules, almost half of them from
-`googleapis`. Fewer modules (lazy `googleapis`) read from one zip (run-from-package) should shorten
-it a lot. The other possibility is that something in the Contentful→Crowdin sync held the worker.
+The cause is the Node worker loading our modules synchronously, file by file, from the Azure Files
+share. That's about 2,000 modules, almost half of them from `googleapis`, and nothing else can run
+until it finishes. The log timing confirms it. `contentfulToCrowdin`, loaded after 52% of the
+modules, logged a line at a steady point in each instance's hold: 0.43 / 0.45 / 0.46 of the way
+through (p10 / median / p90), however long the hold was. Fewer modules (lazy `googleapis`: 2,037 →
+1,077) read from one zip (run-from-package) should shorten the hold a lot.
 
 The "Connection error occurred. Waiting for ~2000 ms before retrying..." warning printed at each
-release comes from our own code. `contentfulToCrowdin` started the whole Contentful→Crowdin sync at
-module load, on every instance start. Its Contentful client retried after its connection failed
-during the wait. This branch removes that call. With the call gone, the warning no longer marks the
-release, so the "after" measurement has to use request durations instead.
+release comes from our own code, but it is a symptom, not the cause. `contentfulToCrowdin` started the
+whole Contentful→Crowdin sync at module load, on every instance start. Its connection failed during
+the hold, and its retry warning was the first thing to run once the worker was free. This branch
+removes that call, so the warning no longer marks the release. Measure the "after" by how long
+requests take on fresh instances instead (below).
 
 ## One-time setup
 
@@ -89,8 +91,10 @@ If OIDC is not possible, a publish profile works instead: download it for each s
 
 ## After
 
-1. After a couple of weeks, run the queries in
-   [DEPLOYMENT.md](DEPLOYMENT.md#watching-cold-start) over the weeks before and after the switch.
+1. After a couple of weeks, compare how long the first requests on each new production instance take,
+   before and after the switch: the second query in
+   [DEPLOYMENT.md](DEPLOYMENT.md#watching-cold-start). Before, requests that arrive in an instance's
+   first few minutes take up to its 150–246 s hold.
 2. Once stable, delete the old Kudu-built files in `d:\home\site\wwwroot` on both slots (Kudu console).
    They're hidden under the package, but would reappear if `WEBSITE_RUN_FROM_PACKAGE` were removed.
 3. Delete this file.
