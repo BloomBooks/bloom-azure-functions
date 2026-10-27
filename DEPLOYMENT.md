@@ -51,11 +51,12 @@ App settings that matter for deployment:
   orchestrations. `host.json` reads it.
 - Never make `WEBSITE_CONTENTSHARE` or `WEBSITE_CONTENTAZUREFILECONNECTIONSTRING` slot settings, and
   don't set `SCM_DO_BUILD_DURING_DEPLOYMENT`.
-- The timer functions (dailyTimer, bookCleanup, contentfulToCrowdin) run in the staging slot too unless
-  disabled there with sticky `AzureWebJobs.<name>.Disabled` = `true` settings. Add those in the staging
-  slot's **Settings → Environment variables** with **Deployment slot setting** ticked. Don't use the Disable button
-  in the slot's function list: it writes the same setting without ticking that box, so the next swap
-  would disable the timers in production.
+- The timer functions (dailyTimer, bookCleanup, contentfulToCrowdin) are disabled in the staging slot
+  by `AzureWebJobs.<name>.Disabled` = `1` settings, each a **deployment slot setting**, so they stay
+  with staging through a swap. The staging slot's **Functions** list shows them as Disabled. If you
+  add another timer, disable it in staging the same way. Don't use the Disable button in the slot's
+  function list: it writes the same setting without ticking **Deployment slot setting**, so the next
+  swap would disable the timer in production.
 
 App settings are under **Settings → Environment variables** on the Function App, or on a slot
 (**bloom-functions → Deployment → Deployment slots → staging**).

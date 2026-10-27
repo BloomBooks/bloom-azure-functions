@@ -59,9 +59,9 @@ has a **Deployment slot setting** checkbox. The CLI equivalents are given where 
    - Remove `SCM_DO_BUILD_DURING_DEPLOYMENT` if it is present.
    - Not `WEBSITE_RUN_FROM_PACKAGE` yet: with it set and no package deployed, the slot has no code
      at all. It is set in "Cutting over", right before the first deploy.
-3. **Check** that the production slot has no source in **Deployment → Deployment Center**, and that
-   the timer functions are disabled in staging if you don't want them running there (see DEPLOYMENT.md, "Settings and
-   credentials").
+3. **Check** that the production slot has no source in **Deployment → Deployment Center**. (The timer
+   functions are already disabled in staging with sticky settings; see DEPLOYMENT.md, "Settings and
+   credentials".)
 
 ### GitHub
 
