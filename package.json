@@ -9,7 +9,7 @@
     "prestart": "npm run build",
     "start": "func start",
     "test": "jest --verbose",
-    "test:ci": "jest --verbose --testPathIgnorePatterns /node_modules/ /dist/ common/BloomParseServer.test.ts common/s3.test.ts bookCleanup/bookCleanup.test.ts opds/catalog.test.ts opds/apiAccount.test.ts books/parseAdapters.test.ts",
+    "test:ci": "jest --verbose --testPathIgnorePatterns /node_modules/ /dist/ common/BloomParseServer.test.ts common/s3.test.ts bookCleanup/bookCleanup.test.ts opds/catalog.test.ts opds/apiAccount.test.ts books/parseAdapters.test.ts subscriptions/subscriptions.test.ts",
     "lint": "eslint -c .eslintrc.js --ext .ts ."
   },
   "dependencies": {

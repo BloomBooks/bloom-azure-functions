@@ -11,9 +11,9 @@
 ## How it worked before
 
 `.deployment` told Kudu to run `deploy.cmd`, which copied the source into `wwwroot`, ran
-`npm install --production` and `tsc` on the server. Each new instance then loaded `dist` and about
-8,000 `node_modules` files one by one from the app's Azure Files share, which makes Node cold starts
-on the Consumption plan slow.
+`npm install --production` and `tsc` on the server. When a new instance starts, the host loads every
+function's script, which pulled in about 2,000 modules, each read file by file from the app's Azure
+Files share. That makes Node cold starts on the Consumption plan slow.
 
 The staging slot's Deployment Center was connected to GitHub, following `master`, so every push to
 `master` made Kudu build and deploy to staging. Production got the code by swapping staging into
@@ -30,8 +30,9 @@ production in the portal. The new workflow keeps that mapping.
    artifact for 90 days.
 3. On a push to `master`, deploys the zip to the **staging** slot. Production gets it by a slot swap,
    as before.
-4. Run by hand (**Actions → Build and deploy → Run workflow**) it can deploy to staging or, after
-   approval in the `production` environment, straight to production.
+4. Run by hand on `master` (**Actions → Build and deploy → Run workflow**) it can deploy to staging
+   or, after approval in the `production` environment, straight to production. It never deploys
+   another branch.
 
 With `WEBSITE_RUN_FROM_PACKAGE=1`, Azure stores the zip under `d:\home\data\SitePackages` and mounts
 it as `wwwroot`. Instances read one zip instead of thousands of small files. **`wwwroot` becomes
@@ -45,12 +46,15 @@ something ever needs to).
 
 1. **Stop the old deployment.** In the staging slot's Deployment Center, choose **Disconnect** (or
    `az functionapp deployment source delete -g <resource-group> -n bloom-functions --slot staging`).
-   Otherwise the next push to `master` makes Kudu try to build with a `deploy.cmd` that no longer
-   exists. Do this just before merging this change, so staging never gets both deploys.
-2. **App settings, on both slots** (**Configuration → Application settings**, or `az functionapp config appsettings set ... --settings WEBSITE_RUN_FROM_PACKAGE=1`, with `--slot staging` for staging):
-   - `WEBSITE_RUN_FROM_PACKAGE` = `1`. Same value on both slots; it does not need to be a
-     deployment-slot ("sticky") setting. The deploy action may set it too; setting it ourselves keeps
-     it visible and documented.
+   Do this just before merging this change. Otherwise Kudu, finding no `deploy.cmd`, falls back to
+   its default Node build, which doesn't run `tsc`: staging ends up with no `dist` and none of the
+   functions load. Also check that the production slot has no Deployment Center source.
+2. **App settings, on the staging slot only** (**Configuration → Application settings**, or
+   `az functionapp config appsettings set -g <resource-group> -n bloom-functions --slot staging --settings WEBSITE_RUN_FROM_PACKAGE=1`):
+   - `WEBSITE_RUN_FROM_PACKAGE` = `1`. Do **not** make it a deployment slot setting. Don't set it on
+     production by hand: production has no package until the first swap, and the swap carries the
+     setting there along with the package. (The deploy action may also set it; setting it first
+     avoids an extra restart.)
    - Remove `SCM_DO_BUILD_DURING_DEPLOYMENT` if it is present.
    - Leave `WEBSITE_NODE_DEFAULT_VERSION` (`~20`), `FUNCTIONS_EXTENSION_VERSION` (`~4`),
      `WEBSITE_CONTENTAZUREFILECONNECTIONSTRING` and `WEBSITE_CONTENTSHARE` as they are.
@@ -62,8 +66,8 @@ something ever needs to).
 
 ### GitHub
 
-1. **Settings → Environments**: create `staging` and `production`. On `production`, add required
-   reviewers.
+1. **Settings → Environments**: create `staging` and `production`. On both, set **Deployment branches
+   and tags** to `master` only. On `production`, add required reviewers.
 2. Repository (or environment) secrets:
    - `AZURE_CLIENT_ID` — the app registration's (or managed identity's) client ID
    - `AZURE_TENANT_ID`
@@ -72,6 +76,17 @@ something ever needs to).
 If OIDC is not possible, a publish profile works instead: download it for each slot, store it as
 `AZURE_FUNCTIONAPP_PUBLISH_PROFILE_STAGING` / `..._PRODUCTION`, drop the `azure/login` steps and pass
 `publish-profile:` to `Azure/functions-action`. That needs **SCM Basic Auth** turned on for the app.
+
+## Cutting over
+
+1. Do the one-time setup above.
+2. Disconnect the staging Deployment Center and merge this change. The push runs the workflow.
+3. Check staging (see "Verifying a deploy"). **Don't swap until this passes.** Until then, staging
+   still holds the last Kudu build.
+4. Swap. Production now runs from the package too.
+5. Once it has been stable for a while, delete the old Kudu-built files in `d:\home\site\wwwroot`
+   on both slots (Kudu console). They are hidden under the package, but would reappear if
+   `WEBSITE_RUN_FROM_PACKAGE` were ever removed.
 
 ## Normal deploy
 
@@ -95,7 +110,9 @@ settings. This change does not touch it.
 
 ## Rolling back
 
-- **Just swapped and it's bad:** swap again. Staging still has the previous production build.
+- **Just swapped and it's bad:** swap again. Staging still has the previous production build, as
+  long as nothing has been pushed to `master` since. This doesn't apply after a direct production
+  deploy: then staging holds whatever was last deployed there, not the previous production build.
 - **Older build:** open that build's workflow run and re-run its deploy job (GitHub allows re-runs for
   30 days), or download its artifact and deploy it by hand (below). Then swap if you deployed to
   staging.
@@ -116,7 +133,7 @@ From your own checkout, with [Core Tools v4](https://learn.microsoft.com/azure/a
 npm ci
 npm run build
 npm prune --omit=dev
-func azure functionapp publish bloom-functions --slot staging
+func azure functionapp publish bloom-functions --slot staging --javascript
 npm ci
 ```
 
@@ -138,6 +155,10 @@ App" command here; it would upload dev dependencies. Don't build the zip with Po
 
 In Application Insights → **Logs**. Run these for two weeks before the switch and again after.
 
+Both are approximate: Application Insights samples `traces` and `requests` by default, and we haven't
+checked how the two slots show up in `cloud_RoleName`. If both show `bloom-functions`, staging's
+instances (timers start them too) are mixed in.
+
 Host start time, as the host logs it:
 
 ```kusto
@@ -150,14 +171,18 @@ traces
 | order by timestamp asc
 ```
 
-That excludes loading our Node code, which is where run-from-package should help most. This one
-measures what callers feel: the first request on each new instance.
+That excludes loading our Node code, which is where this change should help most. This one looks
+at each new instance's first request: how long after the instance's first log line it ran, and how
+long it took. Neither number includes time a caller waited before the instance was ready, so it
+undercounts what callers feel.
 
 ```kusto
 let since = ago(14d);
 let instanceStarts = traces
     | where timestamp > since
-    | summarize instanceStart = min(timestamp) by cloud_RoleInstance;
+    | summarize instanceStart = min(timestamp) by cloud_RoleInstance
+    // Drop instances that may have started before the window.
+    | where instanceStart > since + 1d;
 requests
 | where timestamp > since
 | summarize arg_min(timestamp, name, duration) by cloud_RoleInstance
@@ -176,13 +201,24 @@ requests
   settings" below). Anything else that differs between staging and production must be too. Also: the timer
   functions (dailyTimer, bookCleanup, contentfulToCrowdin) run in the staging slot as well unless
   disabled there with sticky `AzureWebJobs.<name>.Disabled = true` settings.
-- **Tests in CI are partial.** Most suites call the real Parse server and S3 and need secrets, so
-  `test:ci` skips them. `books/parseAdapters.test.ts` is also skipped because three of its tests
+- **Tests in CI are partial.** Most suites call the real Parse server, S3 or Google Sheets and need
+  secrets, so `test:ci` skips them; only `books/utils` and `opds/bookEntry` run. `books/parseAdapters.test.ts` is also skipped because three of its tests
   already fail on `master`; it should be fixed and put back.
 - **Not tried against Azure.** The workflow, `Azure/functions-action` with OIDC on a Windows
   Consumption slot, and the KQL queries have not been run. The build and packaging steps were tried
   locally.
-- **Package size.** Production `node_modules` is about 150 MB, 115 MB of it `googleapis` (used only by
-  subscriptions). Switching to `@googleapis/sheets` would shrink the package and cold start further.
-- **Run-from-package may not be the whole story** behind the 2026-10-27 stall. Use the queries above
-  to see whether instance start times actually improve.
+- **`googleapis` is loaded on first use.** It was 830 of the roughly 2,000 modules every instance
+  loaded at startup, though only `subscriptions` uses it. It is now loaded on that function's first
+  call, so startup loads about 1,100 modules, and the first `subscriptionInfo` call on each instance
+  is slower instead. It is still 115 MB of the package; `@googleapis/sheets` would shrink that.
+- **Run-from-package may not be the whole story** behind the 2026-10-27 stall. Loading files from the
+  share usually costs seconds to tens of seconds, not minutes. Other suspects: throttling on the
+  storage account behind the share (the zip is still read from it, and Durable Functions may use the
+  same account), an extension bundle download on cold start (`host.json` allows any 4.x), and Durable
+  Functions acquiring leases at host start. Check the host traces and the storage account's metrics
+  for that day, and use the queries above to see whether start times improve.
+- **Deploys restart staging.** Every push to `master` restarts staging, interrupting any Durable
+  activities or timer runs there; Durable replays them. Orchestrator code must also stay
+  replay-compatible across a swap, since production keeps its task hub history. Both were already
+  true with Kudu.
+- **Node 20** reached end of life on 2026-04-30. Moving to Node 22 is a separate change.
