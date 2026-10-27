@@ -10,8 +10,8 @@ jest.config.js
 api-spec.yml
 LICENSE
 local.settings.json
-coverage
-test
+/coverage
+/test
 tsconfig.json
 __azurite*
 __blobstorage__

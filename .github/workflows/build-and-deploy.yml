@@ -1,5 +1,5 @@
 # Builds the Functions app into a zip and deploys it as a run-from-package deployment.
-# See DEPLOYMENT.md for the one-time Azure/GitHub setup this relies on.
+# See DEPLOYMENT.md for how deployment works and the settings this relies on.
 #
 # - Pull requests to master: build and test only.
 # - Push to master: build, then deploy to the staging slot (replaces the staging slot's
@@ -103,7 +103,7 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: ${{ env.PACKAGE_NAME }}
-      - uses: azure/login@v2
+      - uses: azure/login@v3
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
@@ -129,7 +129,7 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: ${{ env.PACKAGE_NAME }}
-      - uses: azure/login@v2
+      - uses: azure/login@v3
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}

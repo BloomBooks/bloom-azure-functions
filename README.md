@@ -30,7 +30,7 @@ When the code is pushed to master, a GitHub Actions workflow builds it and deplo
 
 Some sanity checks can be done against the staging slot, then the Azure portal is used to perform a swap from staging to production.
 
-See [DEPLOYMENT.md](DEPLOYMENT.md) for how it works, setup, rolling back, and deploying by hand.
+See [DEPLOYMENT.md](DEPLOYMENT.md) for how it works, rolling back, and deploying by hand, and [RUN-FROM-PACKAGE-CUTOVER.md](RUN-FROM-PACKAGE-CUTOVER.md) for the one-time switch to this setup.
 
 ## Adding a new function
 
@@ -51,7 +51,7 @@ These environment variables need to be set for the **books**, **opds**, and **fs
 - _ParseAppIdDev_ - the APP_ID from the bloom-parse-server-develop configuration in Azure
 - _ParseAppIdUnitTest_ - the APP_ID from the bloom-parse-server-unittest configuration in Azure
 
-_DurableTaskHubName_ sets the Durable Functions task hub (see `host.json`). It is a deployment slot setting, `TaskHub` in production and `TaskHubStaging` in staging, so staging and production don't share orchestrations. See [DEPLOYMENT.md](DEPLOYMENT.md#slot-settings).
+_DurableTaskHubName_ sets the Durable Functions task hub (see `host.json`). It is a deployment slot setting, `TaskHub` in production and `TaskHubStaging` in staging, so staging and production don't share orchestrations. See [DEPLOYMENT.md](DEPLOYMENT.md#settings-and-credentials).
 
 Some functions may also require function-specific environment variables. See the function-specific READMEs and sections below.
 
