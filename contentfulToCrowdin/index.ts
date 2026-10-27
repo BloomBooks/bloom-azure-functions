@@ -212,23 +212,17 @@ async function updateCrowdinFile(l10Json: any, fileId: number) {
     token: crowdinApiToken,
   });
 
-  crowdinAccess.uploadStorageApi
-    .addStorage("Bloom Library Contentful.json", l10Json)
-    .then((response) => {
-      console.log(`new storage id: ${response.data.id}`);
-      crowdinAccess.sourceFilesApi
-        .updateOrRestoreFile(kCrowdinProjectId, fileId, {
-          storageId: response.data.id,
-        })
-        .then((updateResponse) =>
-          console.log(
-            `crowdin update response: ${JSON.stringify(updateResponse)}`
-          )
-        )
-        .catch((error) => {
-          console.error(error);
-        });
-    });
+  const response = await crowdinAccess.uploadStorageApi.addStorage(
+    "Bloom Library Contentful.json",
+    l10Json
+  );
+  console.log(`new storage id: ${response.data.id}`);
+  const updateResponse = await crowdinAccess.sourceFilesApi.updateOrRestoreFile(
+    kCrowdinProjectId,
+    fileId,
+    { storageId: response.data.id }
+  );
+  console.log(`crowdin update response: ${JSON.stringify(updateResponse)}`);
 }
 
 export default contentfulToCrowdin;
