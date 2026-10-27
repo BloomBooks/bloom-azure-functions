@@ -9,26 +9,24 @@
     "prestart": "npm run build",
     "start": "func start",
     "test": "jest --verbose",
+    "test:ci": "jest --verbose --testPathIgnorePatterns /node_modules/ /dist/ common/BloomParseServer.test.ts common/s3.test.ts bookCleanup/bookCleanup.test.ts opds/catalog.test.ts opds/apiAccount.test.ts books/parseAdapters.test.ts",
     "lint": "eslint -c .eslintrc.js --ext .ts ."
   },
-  "//": "typescript and @azure/functions need to be here rather than devDependencies so the",
-  "// ": "Azure deployment script can run the typescript transpilation using our local typescript",
   "dependencies": {
     "@aws-sdk/client-s3": "^3.421.0",
-    "@azure/functions": "^1.2.3",
     "@crowdin/crowdin-api-client": "^1.12.3",
-    "@types/node": "20.10.0",
     "axios": "^0.21.1",
     "contentful": "^9.1.4",
     "durable-functions": "^2.0.0",
     "entities": "^3.0.1",
     "googleapis": "^144.0.0",
     "moment": "^2.29.1",
-    "pg": "^8.7.1",
-    "typescript": "^5.7.3"
+    "pg": "^8.7.1"
   },
   "devDependencies": {
+    "@azure/functions": "^1.2.3",
     "@types/jest": "^27.0.3",
+    "@types/node": "20.10.0",
     "@typescript-eslint/eslint-plugin": "^6.11.0",
     "@typescript-eslint/parser": "^6.11.0",
     "@xmldom/xmldom": "^0.7.5",
@@ -39,6 +37,7 @@
     "prettier": "^2.4.1",
     "stub-azure-function-context": "^2.5.0",
     "ts-jest": "^29.2.5",
+    "typescript": "^5.7.3",
     "xml-formatter": "^2.5.1",
     "xpath": "^0.0.32"
   },

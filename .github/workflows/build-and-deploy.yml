@@ -1,0 +1,128 @@
+# Builds the Functions app into a zip and deploys it as a run-from-package deployment.
+# See DEPLOYMENT.md for the one-time Azure/GitHub setup this relies on.
+#
+# - Pull requests to master: build and test only.
+# - Push to master: build, then deploy to the staging slot (same as the old Kudu setup).
+#   Production gets the code by swapping staging into production in the portal (or with az).
+# - Run manually (Actions > Build and deploy > Run workflow): deploy this build to the
+#   staging slot or, if the "production" environment approves it, straight to production.
+
+name: Build and deploy
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+    inputs:
+      target:
+        description: Slot to deploy to
+        type: choice
+        options: [staging, production]
+        default: staging
+
+permissions:
+  contents: read
+
+env:
+  AZURE_FUNCTIONAPP_NAME: bloom-functions
+  PACKAGE_NAME: bloom-functions-${{ github.sha }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # Reads the "volta" node version from package.json, which matches the app's Node 20.
+          node-version-file: package.json
+          cache: npm
+
+      - run: npm ci
+      - run: npm run lint
+      # Only the tests that need no Parse/S3 credentials; see DEPLOYMENT.md.
+      - run: npm run test:ci
+      - run: npm run build
+      - run: npm prune --omit=dev
+
+      - name: Assemble package
+        run: |
+          set -euo pipefail
+          mkdir package
+          cp host.json package.json package
+          cp -r dist node_modules package
+          for f in */function.json; do
+            mkdir -p "package/$(dirname "$f")"
+            cp "$f" "package/$f"
+          done
+          # Fail if any function points at a script that is not in the package.
+          for f in package/*/function.json; do
+            script=$(node -p "require('./$f').scriptFile")
+            test -f "$(dirname "$f")/$script" || { echo "Missing $script for $f"; exit 1; }
+          done
+          (cd package && zip -qr "../$PACKAGE_NAME.zip" .)
+          du -h "$PACKAGE_NAME.zip"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.PACKAGE_NAME }}
+          path: ${{ env.PACKAGE_NAME }}.zip
+          retention-days: 90
+          # Already a zip.
+          compression-level: 0
+
+  deploy-staging:
+    needs: build
+    if: >-
+      (github.event_name == 'push' && github.ref == 'refs/heads/master') ||
+      (github.event_name == 'workflow_dispatch' && inputs.target == 'staging')
+    runs-on: ubuntu-latest
+    environment: staging
+    permissions:
+      contents: read
+      id-token: write
+    concurrency: deploy-staging
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.PACKAGE_NAME }}
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - uses: Azure/functions-action@v1
+        with:
+          app-name: ${{ env.AZURE_FUNCTIONAPP_NAME }}
+          slot-name: staging
+          package: ${{ env.PACKAGE_NAME }}.zip
+          scm-do-build-during-deployment: false
+          enable-oryx-build: false
+
+  deploy-production:
+    needs: build
+    if: github.event_name == 'workflow_dispatch' && inputs.target == 'production'
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      contents: read
+      id-token: write
+    concurrency: deploy-production
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.PACKAGE_NAME }}
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - uses: Azure/functions-action@v1
+        with:
+          app-name: ${{ env.AZURE_FUNCTIONAPP_NAME }}
+          package: ${{ env.PACKAGE_NAME }}.zip
+          scm-do-build-during-deployment: false
+          enable-oryx-build: false

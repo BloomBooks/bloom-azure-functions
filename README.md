@@ -22,15 +22,15 @@ By default, the timer functions (see "Chron job schedule" below) are set to not 
 
 **Use npm**, not yarn.
 
-The auto-deploy from github feature on Azure uses npm.
+The build and deploy workflow uses `npm ci`, so keep `package-lock.json` up to date.
 
 ## Deployment
 
-When the code is pushed to master, there is an automated deployment to a staging server.
+When the code is pushed to master, a GitHub Actions workflow builds it and deploys it to the staging slot.
 
-Some sanity checks can be done against the staging server, then the Azure portal is used to perform a swap from staging to production.
+Some sanity checks can be done against the staging slot, then the Azure portal is used to perform a swap from staging to production.
 
-Currently we have only one deployment: production. So all the testing you need to do, you need to do locally.
+See [DEPLOYMENT.md](DEPLOYMENT.md) for how it works, setup, rolling back, and deploying by hand.
 
 ## Adding a new function
 
