@@ -19,12 +19,22 @@ recommends run-from-package for Windows Consumption, and says it can reduce cold
 with large `node_modules`. It also moves the build off the server, so a deploy no longer depends on
 `npm install` succeeding in Kudu, and moves to Node 22, since Microsoft no longer supports Node 20.
 
-**This is not the fix for the 2026-10-27 stall.** That day, new instances started normally, but
-requests to them were held for about 3.5 minutes and then all released at once, right after a
-"Connection error occurred. Waiting for ~2000 ms before retrying..." warning written to the worker's
-console. That warning appears about 3 minutes after every instance starts; on most days nothing waits
-on it. Storage was healthy. What emits it, and why requests waited on it that day, is still being
-investigated separately.
+**It may also address the 2026-10-27 stall; that is not yet confirmed.** That day, requests to new
+instances were held for about 3.5 minutes. The host passed each request on as it arrived, but none of
+our code ran until all of them were released at once. CPU was low, and storage was healthy. Requests
+on ordinary days are held the same way (157 s on one instance on 10-05), so this happens on every cold
+start.
+
+The leading explanation: the Node worker's event loop is blocked by loading our modules synchronously,
+file by file, from the Azure Files share. That's about 2,000 modules, almost half of them from
+`googleapis`. Fewer modules (lazy `googleapis`) read from one zip (run-from-package) should shorten
+it a lot. The other possibility is that something in the Contentful→Crowdin sync held the worker.
+
+The "Connection error occurred. Waiting for ~2000 ms before retrying..." warning printed at each
+release comes from our own code. `contentfulToCrowdin` started the whole Contentful→Crowdin sync at
+module load, on every instance start. Its Contentful client retried after its connection failed
+during the wait. This branch removes that call. With the call gone, the warning no longer marks the
+release, so the "after" measurement has to use request durations instead.
 
 ## One-time setup
 
