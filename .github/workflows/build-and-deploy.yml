@@ -47,7 +47,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          # Reads the "volta" node version from package.json, which matches the app's Node 20.
+          # Reads the "volta" node version from package.json, which matches the app's Node 22.
           node-version-file: package.json
           cache: npm
 

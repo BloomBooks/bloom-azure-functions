@@ -62,9 +62,12 @@ deployment slot setting on production) to log why instances are added, and remov
    - `repo:BloomBooks/bloom-azure-functions:environment:staging`
    - `repo:BloomBooks/bloom-azure-functions:environment:production`
 2. **Staging slot settings** (**Configuration → Application settings**, or
-   `az functionapp config appsettings set -g <resource-group> -n bloom-functions --slot staging --settings WEBSITE_RUN_FROM_PACKAGE=1`):
+   `az functionapp config appsettings set -g <resource-group> -n bloom-functions --slot staging --settings WEBSITE_RUN_FROM_PACKAGE=1 WEBSITE_NODE_DEFAULT_VERSION=~22`):
    - `WEBSITE_RUN_FROM_PACKAGE` = `1`, **not** a deployment slot setting. Don't set it on production
      yet: production has no package until the first swap, which carries the setting there with it.
+   - `WEBSITE_NODE_DEFAULT_VERSION` = `~22` (was `~20`; Microsoft no longer supports Node 20 for
+     Functions). Check it is **not** a deployment slot setting, so the swap moves production to Node
+     22 together with the code.
    - Remove `SCM_DO_BUILD_DURING_DEPLOYMENT` if it is present.
 3. **Check** that the production slot has no Deployment Center source, and that the timer functions are
    disabled in staging if you don't want them running there (see DEPLOYMENT.md, "Settings and
@@ -94,10 +97,11 @@ If OIDC is not possible, a publish profile works instead: download it for each s
 4. At a quiet time, with no orchestrations running, swap. Watch production: `/v1/social`, a
    `/v1/books` request, and a Durable orchestration end to end (an upload, checking `/v1/status`).
    This is the first time production runs code built by CI rather than by Kudu.
-5. Set `WEBSITE_RUN_FROM_PACKAGE` = `1` on staging again. The swap moved the setting to production,
-   and staging is now the old production site, without it. The deploy action would set it on the next
-   deploy anyway, but a hand deploy with `az ... config-zip` would not, and would leave plain files that
-   the next swap puts into production.
+5. Set `WEBSITE_RUN_FROM_PACKAGE` = `1` and `WEBSITE_NODE_DEFAULT_VERSION` = `~22` on staging again.
+   The swap moved both settings to production, and staging is now the old production site, with
+   neither. The deploy action would set `WEBSITE_RUN_FROM_PACKAGE` on the next deploy anyway, but a
+   hand deploy with `az ... config-zip` would not, and would leave plain files that the next swap puts
+   into production.
 
 ## After
 

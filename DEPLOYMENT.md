@@ -10,7 +10,7 @@ keep it fast and safe.
 
 ## How it works
 
-The app is a Windows Function App on the Consumption plan, with a `staging` slot.
+The app is a Windows Function App on the Consumption plan, running Node 22, with a `staging` slot.
 [.github/workflows/build-and-deploy.yml](.github/workflows/build-and-deploy.yml):
 
 1. On every pull request and push to `master`: `npm ci`, lint, the tests that need no secrets
@@ -42,6 +42,9 @@ App settings that matter for deployment:
 - `WEBSITE_RUN_FROM_PACKAGE` = `1` on both slots. **Not** a deployment slot setting, so it swaps with
   the code. The deploy action sets it on the slot it deploys to if it's missing; `az ... config-zip`
   does not.
+- `WEBSITE_NODE_DEFAULT_VERSION` = `~22` on both slots, matching `volta.node` in `package.json`.
+  **Not** a deployment slot setting, so the Node version swaps with the code built for it. Change both
+  together.
 - `DurableTaskHubName`: `TaskHub` in production, `TaskHubStaging` in staging. A **deployment slot
   setting**, so each slot keeps its own Durable Functions task hub across swaps and they never share
   orchestrations. `host.json` reads it.
