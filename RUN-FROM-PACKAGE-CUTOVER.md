@@ -5,8 +5,7 @@ Delete this file once the switch is done and stable.
 
 ## Why
 
-On 2026-10-27 new instances stalled for about 3.5 minutes after starting. Slow Node cold starts on
-the Consumption plan are one suspect. Before this change:
+Before this change:
 
 - The staging slot's Deployment Center followed GitHub `master`. On each push, Kudu ran `deploy.cmd`:
   it copied the source into `wwwroot`, ran `npm install --production` and `tsc` on the server.
@@ -17,40 +16,15 @@ the Consumption plan are one suspect. Before this change:
 After it, CI builds a zip, the app runs from that one file, and `googleapis` (830 of those modules) is
 loaded only when `subscriptions` first needs it, so startup loads about 1,100 modules. Microsoft
 recommends run-from-package for Windows Consumption, and says it can reduce cold start for Node apps
-with large `node_modules`.
+with large `node_modules`. It also moves the build off the server, so a deploy no longer depends on
+`npm install` succeeding in Kudu, and moves to Node 22, since Microsoft no longer supports Node 20.
 
-This may not be the whole story. Loading files from the share usually costs seconds to tens of seconds,
-not minutes. Other suspects for the stall: throttling on the storage account behind the share (the zip
-is still read from it, and Durable Functions may use the same account), an extension bundle download on
-cold start (`host.json` allows any 4.x), and Durable Functions acquiring leases at host start.
-
-## Before: look at the 2026-10-27 stall
-
-This change won't help if the stall was caused by storage or by Azure itself, so check that first. It
-needs only the logs we already have. In Application Insights → **Logs**, this lists long silences on
-each instance that day, with the last log line before each and the first after:
-
-```kusto
-traces
-| where timestamp between (datetime(2026-10-27) .. datetime(2026-10-28))
-| project timestamp, cloud_RoleInstance, message
-| order by cloud_RoleInstance asc, timestamp asc
-| extend prevTime = prev(timestamp), prevMsg = prev(message), prevInstance = prev(cloud_RoleInstance)
-| where cloud_RoleInstance == prevInstance
-| extend gapSeconds = datetime_diff('second', timestamp, prevTime)
-| where gapSeconds > 60
-| project cloud_RoleInstance, gapStart = prevTime, gapSeconds, lastBefore = prevMsg, firstAfter = message
-| order by gapSeconds desc
-```
-
-Idle instances have quiet stretches too; the interesting gaps are in an instance's first few minutes.
-Storage timeouts, extension bundle downloads or Durable lease messages around the gap point away from
-this change; a late "Worker process started and initialized" points at loading our modules, which this
-change targets. Also check the storage account's metrics that day (Transactions split by Response type,
-for throttling) and **Diagnose and solve problems** on the Function App.
-
-If the stall happens again, add `SCALE_CONTROLLER_LOGGING_ENABLED` = `AppInsights:Verbose` (a
-deployment slot setting on production) to log why instances are added, and remove it afterwards.
+**This is not the fix for the 2026-10-27 stall.** That day, new instances started normally, but
+requests to them were held for about 3.5 minutes and then all released at once, right after a
+"Connection error occurred. Waiting for ~2000 ms before retrying..." warning written to the worker's
+console. That warning appears about 3 minutes after every instance starts; on most days nothing waits
+on it. Storage was healthy. What emits it, and why requests waited on it that day, is still being
+investigated separately.
 
 ## One-time setup
 
