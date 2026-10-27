@@ -85,6 +85,13 @@ swap.
 
 The package swaps with the slot. After a swap, staging holds what used to be in production.
 
+### Slot settings
+
+`host.json` takes the Durable Functions task hub name from the `DurableTaskHubName` app setting. Each
+slot has its own value, marked as a **deployment slot setting**, so it stays with the slot on a swap
+and staging and production never share orchestrations. Keep it that way when adding or copying
+settings. This change does not touch it.
+
 ## Rolling back
 
 - **Just swapped and it's bad:** swap again. Staging still has the previous production build.
@@ -164,11 +171,8 @@ requests
 
 ## Risks and open questions
 
-- **Durable Functions task hub per slot.** `host.json` uses `%DurableTaskHubName%`. Each slot must
-  have its own value, marked as a deployment-slot setting, or staging and production share
-  orchestrations. Check this before the first swap; it is true today too, but worth confirming.
-- **Other settings that must stick to a slot**: anything that differs between staging and production
-  (e.g. storage connection, database credentials if staging uses different ones). Also: the timer
+- **Other settings that must stick to a slot.** `DurableTaskHubName` already is one (see "Slot
+  settings" below). Anything else that differs between staging and production must be too. Also: the timer
   functions (dailyTimer, bookCleanup, contentfulToCrowdin) run in the staging slot as well unless
   disabled there with sticky `AzureWebJobs.<name>.Disabled = true` settings.
 - **Tests in CI are partial.** Most suites call the real Parse server and S3 and need secrets, so
