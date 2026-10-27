@@ -183,7 +183,7 @@ requests
 - **`googleapis` is loaded on first use** in `subscriptions`, because loading it at startup doubled the
   modules every new instance loads. The first `subscriptionInfo` call on each instance is slower
   instead. It's still 115 MB of the package; `@googleapis/sheets` would shrink that.
-- **Every push to `master` restarts staging**, interrupting any Durable activities or timer runs there;
-  Durable replays them.
+- **Every push to `master` restarts staging**, interrupting any Durable activities running there (such
+  as an upload being tested); Durable replays them.
 - **Windows Consumption is now "legacy".** Microsoft recommends moving to Flex Consumption (Linux, no
   slots). We're not doing that, since this app is moving to Supabase.
