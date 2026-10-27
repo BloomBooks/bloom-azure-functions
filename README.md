@@ -20,9 +20,9 @@ By default, the timer functions (see "Chron job schedule" below) are set to not 
 
 ## Package manager
 
-The build and deploy workflow uses `npm ci`, so keep `package-lock.json` up to date.
+**Use npm** for now, not yarn or pnpm. The build and deploy workflow uses `npm ci`, so keep `package-lock.json` up to date.
 
-We used npm because Azure's server-side build (Kudu) ran `npm install`. Now that GitHub Actions builds the package, we can move to pnpm. That needs `node-linker=hoisted` in `.npmrc`, because the zip deployment needs a plain `node_modules` folder rather than pnpm's symlinks, plus switching the workflow and `DEPLOYMENT.md` to the pnpm commands.
+We used npm because Azure's server-side build (Kudu) ran `npm install`. Now that GitHub Actions builds the package, we could move to pnpm. That needs `node-linker=hoisted` in `.npmrc`, because the zip deployment needs a plain `node_modules` folder rather than pnpm's symlinks, plus switching the workflow and `DEPLOYMENT.md` to the pnpm commands.
 
 ## Deployment
 
