@@ -88,7 +88,8 @@ The package swaps with the slot. After a swap, staging holds what used to be in 
 ### Slot settings
 
 `host.json` takes the Durable Functions task hub name from the `DurableTaskHubName` app setting. Each
-slot has its own value, marked as a **deployment slot setting**, so it stays with the slot on a swap
+slot has its own value (`TaskHub` in production, `TaskHubStaging` in staging), marked as a
+**deployment slot setting**, so it stays with the slot on a swap
 and staging and production never share orchestrations. Keep it that way when adding or copying
 settings. This change does not touch it.
 

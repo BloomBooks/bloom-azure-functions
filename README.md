@@ -51,7 +51,7 @@ These environment variables need to be set for the **books**, **opds**, and **fs
 - _ParseAppIdDev_ - the APP_ID from the bloom-parse-server-develop configuration in Azure
 - _ParseAppIdUnitTest_ - the APP_ID from the bloom-parse-server-unittest configuration in Azure
 
-_DurableTaskHubName_ sets the Durable Functions task hub (see `host.json`). It is a deployment slot setting, with a different value in each slot, so staging and production don't share orchestrations. See [DEPLOYMENT.md](DEPLOYMENT.md#slot-settings).
+_DurableTaskHubName_ sets the Durable Functions task hub (see `host.json`). It is a deployment slot setting, `TaskHub` in production and `TaskHubStaging` in staging, so staging and production don't share orchestrations. See [DEPLOYMENT.md](DEPLOYMENT.md#slot-settings).
 
 Some functions may also require function-specific environment variables. See the function-specific READMEs and sections below.
 
