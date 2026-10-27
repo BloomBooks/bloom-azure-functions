@@ -3,7 +3,8 @@
 #
 # - Pull requests to master: build and test only.
 # - Push to master: build, then deploy to the staging slot (replaces the staging slot's
-#   Deployment Center GitHub connection, which followed master).
+#   Deployment Center GitHub connection, which followed master). A push that changes only
+#   Markdown files or the license doesn't run the workflow at all.
 #   Production gets the code by swapping staging into production in the portal (or with az).
 # - Run manually on master (Actions > Build and deploy > Run workflow): deploy this build to
 #   the staging slot or, if the "production" environment approves it, straight to production.
@@ -14,6 +15,9 @@ name: Build and deploy
 on:
   push:
     branches: [master]
+    paths-ignore:
+      - "**.md"
+      - LICENSE
   pull_request:
     branches: [master]
   workflow_dispatch:

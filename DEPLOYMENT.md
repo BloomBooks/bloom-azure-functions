@@ -19,7 +19,8 @@ The app is a Windows Function App on the Consumption plan, running Node 22, with
    `function.json`, `dist`, and production `node_modules`. The zip (about 21 MB) is kept as a workflow
    artifact for 90 days.
 3. On a push to `master`, deploys the zip to the **staging** slot with `Azure/functions-action`.
-   Production gets it by a slot swap.
+   Production gets it by a slot swap. A push that changes only Markdown files or the license doesn't
+   run the workflow, so it doesn't deploy.
 4. Run by hand on `master` (**Actions → Build and deploy → Run workflow**) it can deploy to staging
    or, after approval in the `production` environment, straight to production. It never deploys
    another branch.
@@ -51,6 +52,8 @@ App settings that matter for deployment:
   orchestrations. `host.json` reads it.
 - Never make `WEBSITE_CONTENTSHARE` or `WEBSITE_CONTENTAZUREFILECONNECTIONSTRING` slot settings, and
   don't set `SCM_DO_BUILD_DURING_DEPLOYMENT`.
+- `dailyTimer` is retired: a scheduled job in the database now refreshes the materialized views. It
+  is disabled in production too, by a sticky `AzureWebJobs.dailyTimer.Disabled` setting.
 - The timer functions (dailyTimer, bookCleanup, contentfulToCrowdin) are disabled in the staging slot
   by `AzureWebJobs.<name>.Disabled` = `1` settings, each a **deployment slot setting**, so they stay
   with staging through a swap. The staging slot's **Functions** list shows them as Disabled. If you

@@ -99,11 +99,30 @@ has a **Deployment slot setting** checkbox. The CLI equivalents are given where 
 5. At a quiet time, with no orchestrations running, swap. Watch production: `/v1/social`, a
    `/v1/books` request, and a Durable orchestration end to end (an upload, checking `/v1/status`).
    This is the first time production runs code built by CI rather than by Kudu.
-6. In the staging slot's **Settings → Environment variables**, set `WEBSITE_RUN_FROM_PACKAGE` = `1` and
-   `WEBSITE_NODE_DEFAULT_VERSION` = `~22` again.
-   The swap moved both settings to production, and staging is now the old production site, with
-   neither. Nothing else sets `WEBSITE_RUN_FROM_PACKAGE`. Without it, the next deploy to staging is
-   unpacked into `wwwroot` as plain files, and the swap after that puts them into production.
+
+   Staging now holds the old production site, which is what makes rolling back a simple swap (see
+   "Rolling back the cut-over"). Keep it that way until production has proven itself, at least until
+   the timers have run there the next day:
+   - Don't re-set the staging settings in step 6 yet.
+   - Don't merge code changes to `master`: each one deploys to staging and overwrites the old site.
+     Docs-only merges are fine; they don't run the workflow.
+6. Once production is confirmed, in the staging slot's **Settings → Environment variables**, set
+   `WEBSITE_RUN_FROM_PACKAGE` = `1` and `WEBSITE_NODE_DEFAULT_VERSION` = `~22` again. The swap moved
+   both settings to production, and staging is now the old production site, with neither. Nothing
+   else sets `WEBSITE_RUN_FROM_PACKAGE`. Without it, the next deploy to staging is unpacked into
+   `wwwroot` as plain files, and the swap after that puts them into production. Then merges to
+   `master` can resume.
+
+## Rolling back the cut-over
+
+- **Before step 6:** swap again (**Deployment slots → Swap**, `staging` into `production`).
+  Production gets the old Kudu-built site back with its old settings.
+- **After step 6:** first, in the staging slot, delete `WEBSITE_RUN_FROM_PACKAGE` and set
+  `WEBSITE_NODE_DEFAULT_VERSION` back to `~20`, then swap. Otherwise those settings travel with the old
+  site into production, and with `WEBSITE_RUN_FROM_PACKAGE` set and no package, production has no
+  code.
+- **If a code merge has already replaced the old site in staging,** swapping back no longer restores
+  it. Use "Backing out" below.
 
 ## After
 

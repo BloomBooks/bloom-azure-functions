@@ -186,9 +186,7 @@ The server (or your machine if you are testing locally) must have the password f
 
 ## dailyTimer Function
 
-The **dailyTimer** function is a timer function set to run once per day. See schedule below.
-
-Currently, it is used to refresh the materialized views in the postgresql analytics database.
+The **dailyTimer** function refreshed the materialized views in the postgresql analytics database once a day. It is now disabled in production: a scheduled job in the database does that instead.
 
 ## contentfulToCrowdin Function
 
@@ -200,7 +198,7 @@ See [./contentfulToCrowdin/README.md](./contentfulToCrowdin/README.md).
 
 ### Daily jobs
 
-10:40 - dailyTimer runs
+10:40 - dailyTimer (disabled; replaced by a scheduled job in the database)
 
 12:40 - bookCleanup runs
 
