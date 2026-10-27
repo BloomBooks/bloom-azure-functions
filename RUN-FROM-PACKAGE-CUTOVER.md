@@ -35,6 +35,10 @@ cold start (`host.json` allows any 4.x), Durable Functions acquiring leases at h
 
 ## Before: get a baseline
 
+Mark both settings below as **deployment slot settings** on production, or the cut-over swap
+replaces them with staging's values (none) and the "after" numbers aren't comparable. Adding app
+settings restarts the app, so do it at a quiet time.
+
 1. Turn off request sampling so the numbers are complete, without a deploy: add the app setting
    `AzureFunctionsJobHost__logging__applicationInsights__samplingSettings__excludedTypes` = `Request`
    on production.
