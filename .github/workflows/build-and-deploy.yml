@@ -27,10 +27,12 @@ on:
 permissions:
   contents: read
 
-# One run per branch at a time, so two quick pushes to master deploy in order (a newer queued
-# run replaces an older queued one). Superseded pull request runs are cancelled.
+# One run per branch and target at a time, so two quick pushes to master deploy to staging in
+# order (a newer queued run replaces an older queued one). Production dispatches get their own
+# group, so one waiting for approval doesn't hold up staging. Superseded pull request runs are
+# cancelled.
 concurrency:
-  group: build-and-deploy-${{ github.ref }}
+  group: build-and-deploy-${{ github.ref }}-${{ inputs.target || 'staging' }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
@@ -81,6 +83,8 @@ jobs:
           name: ${{ env.PACKAGE_NAME }}
           path: ${{ env.PACKAGE_NAME }}.zip
           retention-days: 90
+          # Lets "Re-run all jobs" replace the artifact from the earlier attempt.
+          overwrite: true
           # Already a zip.
           compression-level: 0
 
@@ -88,8 +92,7 @@ jobs:
     needs: build
     if: >-
       github.ref == 'refs/heads/master' &&
-      (github.event_name == 'push' ||
-       (github.event_name == 'workflow_dispatch' && inputs.target == 'staging'))
+      (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.target == 'staging'))
     runs-on: ubuntu-latest
     environment: staging
     permissions:

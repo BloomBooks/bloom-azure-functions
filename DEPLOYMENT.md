@@ -83,8 +83,16 @@ If OIDC is not possible, a publish profile works instead: download it for each s
 2. Disconnect the staging Deployment Center and merge this change. The push runs the workflow.
 3. Check staging (see "Verifying a deploy"). **Don't swap until this passes.** Until then, staging
    still holds the last Kudu build.
-4. Swap. Production now runs from the package too.
-5. Once it has been stable for a while, delete the old Kudu-built files in `d:\home\site\wwwroot`
+4. Swap, at a quiet time, with someone watching production: try `/v1/social`, a `/v1/books`
+   request, and a Durable orchestration end to end (an upload, checking `/v1/status`). This is the
+   first time production runs code built by CI rather than by Kudu. Production now runs from the
+   package.
+5. Right after that swap, set `WEBSITE_RUN_FROM_PACKAGE=1` on the staging slot again. The swap moved
+   the setting to production with the package, and staging is now the old production site, without
+   it. Skip this and the next deploy to staging is extracted into `wwwroot` as plain files, and the
+   swap after that quietly puts a non-package build into production. From then on both slots have
+   the setting and it swaps freely.
+6. Once it has been stable for a while, delete the old Kudu-built files in `d:\home\site\wwwroot`
    on both slots (Kudu console). They are hidden under the package, but would reappear if
    `WEBSITE_RUN_FROM_PACKAGE` were ever removed.
 
@@ -148,8 +156,9 @@ App" command here; it would upload dev dependencies. Don't build the zip with Po
   longRunningActionOrchestrator, longRunningActions, opds, social, stats, status, subscriptions).
 - A request that needs no database works, e.g.
   `https://<slot-host>/v1/social?link=https://bloomlibrary.org&title=test` returns HTML.
-- In Kudu (**Advanced Tools → Debug console**), `d:\home\data\SitePackages\packagename.txt` names the
-  new zip.
+- In Kudu (**Advanced Tools → Debug console**) for the slot you deployed to or swapped into,
+  `d:\home\data\SitePackages\packagename.txt` names the new zip, and the slot's app settings include
+  `WEBSITE_RUN_FROM_PACKAGE=1`.
 
 ### Measuring cold start (before and after)
 
